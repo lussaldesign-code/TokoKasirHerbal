@@ -1,44 +1,12 @@
 /* UI fixes: product delete + mobile transaction action */
 (function(){
-  const originalRenderProducts=window.renderProducts;
-  function addDeleteButtons(){
-    if(window.profile?.role!=='admin') return;
-    document.querySelectorAll('#products .product').forEach(card=>{
-      if(card.querySelector('.delete-product')) return;
-      const edit=card.querySelector('.edit');
-      if(!edit) return;
-      const id=edit.getAttribute('onclick')?.match(/openProduct\\('([^']+)'\\)/)?.[1];
-      if(!id) return;
-      const b=document.createElement('button');
-      b.className='delete-product'; b.type='button'; b.title='Hapus produk'; b.textContent='🗑️';
-      b.onclick=(e)=>{e.stopPropagation();window.deleteProduct(id)};
-      card.appendChild(b);
-    });
-  }
-  if(typeof originalRenderProducts==='function'){
-    window.renderProducts=function(){originalRenderProducts();addDeleteButtons();};
-  }
-  window.deleteProduct=async function(id){
-    if(window.profile?.role!=='admin') return toast('Hanya admin yang dapat menghapus produk.');
-    const p=(window.products||[]).find(x=>x.id===id);
-    if(!p) return toast('Produk tidak ditemukan.');
-    if(!confirm('Hapus produk "'+p.nama+'"? Produk akan dihapus dari daftar penjualan.')) return;
-    try{
-      const {error}=await window.sb.from('products').update({aktif:false}).eq('id',id);
-      if(error) throw error;
-      window.cart=(window.cart||[]).filter(x=>x.id!==id);
-      await window.loadAll();
-      toast('Produk berhasil dihapus.');
-    }catch(e){console.error(e);toast('Gagal menghapus produk: '+(e.message||'periksa RLS Supabase'));}
-  };
-  function ensureMobileButton(){
-    if(document.getElementById('mobileCheckoutBtn')) return;
-    const b=document.createElement('button');
-    b.id='mobileCheckoutBtn'; b.className='btn primary'; b.textContent='🛒 Proses Transaksi';
-    b.type='button'; b.onclick=()=>window.checkout();
-    document.body.appendChild(b);
-  }
-  ensureMobileButton();
-  const observer=new MutationObserver(()=>addDeleteButtons());
-  observer.observe(document.getElementById('products')||document.body,{childList:true,subtree:true});
+  const style=document.createElement('style');
+  style.textContent='.delete-product{position:absolute;right:40px;top:5px;border:0;background:#fff;border-radius:50%;width:29px;height:29px;cursor:pointer;z-index:3}.delete-product:hover{background:#fee2e2}@media(max-width:800px){#mobileCheckoutBtn{display:block;position:fixed;left:10px;right:10px;bottom:68px;width:calc(100% - 20px);z-index:50;box-shadow:0 4px 14px #0003}.cartpanel .footer{position:sticky;bottom:0;z-index:4}.cartpanel{overflow:visible}}@media(min-width:801px){#mobileCheckoutBtn{display:none}}';
+  document.head.appendChild(style);
+  function getClient(){if(!window.APP_CONFIG?.url||!window.APP_CONFIG?.key)throw Error('Konfigurasi Supabase belum tersedia.');return window.supabase.createClient(window.APP_CONFIG.url,window.APP_CONFIG.key)}
+  function addDeleteButtons(){document.querySelectorAll('#products .product').forEach(card=>{if(card.querySelector('.delete-product'))return;const edit=card.querySelector('.edit');if(!edit||edit.classList.contains('hidden'))return;const id=edit.getAttribute('onclick')?.match(/openProduct\\('([^']+)'\\)/)?.[1];if(!id)return;const b=document.createElement('button');b.className='delete-product';b.type='button';b.title='Hapus produk';b.textContent='🗑️';b.onclick=e=>{e.stopPropagation();window.deleteProduct(id)};card.appendChild(b)})}
+  window.deleteProduct=async function(id){try{const client=getClient();const {data:{user},error:authError}=await client.auth.getUser();if(authError||!user)throw Error('Sesi login tidak ditemukan.');const {data:profile,error:profileError}=await client.from('users').select('role').eq('auth_user_id',user.id).maybeSingle();if(profileError)throw profileError;if(profile?.role!=='admin')return toast('Hanya admin yang dapat menghapus produk.');const edit=[...document.querySelectorAll('#products .edit')].find(x=>x.getAttribute('onclick')?.includes("openProduct('"+id+"')"));const name=edit?.closest('.product')?.querySelector('.info b')?.textContent||'produk ini';if(!confirm('Hapus produk "'+name+'"? Produk akan dihapus dari daftar penjualan.'))return;const {error}=await client.from('products').update({aktif:false}).eq('id',id);if(error)throw error;toast('Produk berhasil dihapus.');setTimeout(()=>location.reload(),400)}catch(e){console.error(e);toast('Gagal menghapus produk: '+(e.message||'periksa RLS Supabase'))}};
+  function ensureMobileButton(){if(document.getElementById('mobileCheckoutBtn'))return;const b=document.createElement('button');b.id='mobileCheckoutBtn';b.className='btn primary';b.textContent='🛒 Proses Transaksi';b.type='button';b.onclick=()=>window.checkout();document.body.appendChild(b)}
+  function init(){ensureMobileButton();addDeleteButtons();const productsEl=document.getElementById('products');if(productsEl)new MutationObserver(()=>addDeleteButtons()).observe(productsEl,{childList:true,subtree:true})}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
