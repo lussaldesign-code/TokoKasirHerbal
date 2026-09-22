@@ -1,9 +1,57 @@
 -- TokoKasirHerbal / Supabase schema
--- Jalankan SEKALI di Supabase SQL Editor.
--- Schema ini mengikuti database POS yang sudah kita siapkan.
+-- Safe schema + authorization baseline.
+-- Jalankan di Supabase SQL Editor. Bagian CREATE/ALTER memakai IF NOT EXISTS
+-- agar aman dipakai pada database yang sudah berisi data.
 
 create extension if not exists pgcrypto;
 
+-- ================================================================
+-- USER PROFILE / AUTH LINK
+-- ================================================================
+create table if not exists public.users (
+  id uuid primary key default gen_random_uuid(),
+  auth_user_id uuid unique not null,
+  nama text not null default 'Pengguna',
+  username text unique,
+  role text not null default 'karyawan' check (role in ('admin','karyawan')),
+  aktif boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.users add column if not exists auth_user_id uuid;
+alter table public.users add column if not exists nama text;
+alter table public.users add column if not exists username text;
+alter table public.users add column if not exists role text;
+alter table public.users add column if not exists aktif boolean;
+alter table public.users add column if not exists created_at timestamptz;
+alter table public.users add column if not exists updated_at timestamptz;
+
+update public.users set nama='Pengguna' where nama is null;
+update public.users set role='karyawan' where role is null or role not in ('admin','karyawan');
+update public.users set aktif=true where aktif is null;
+update public.users set created_at=now() where created_at is null;
+update public.users set updated_at=now() where updated_at is null;
+
+alter table public.users alter column nama set default 'Pengguna';
+alter table public.users alter column nama set not null;
+alter table public.users alter column role set default 'karyawan';
+alter table public.users alter column role set not null;
+alter table public.users alter column aktif set default true;
+alter table public.users alter column aktif set not null;
+alter table public.users alter column created_at set default now();
+alter table public.users alter column created_at set not null;
+alter table public.users alter column updated_at set default now();
+alter table public.users alter column updated_at set not null;
+
+create unique index if not exists users_auth_user_id_uidx on public.users(auth_user_id);
+create unique index if not exists users_username_uidx on public.users(username) where username is not null;
+create index if not exists users_auth_user_id_idx on public.users(auth_user_id);
+create index if not exists users_role_aktif_idx on public.users(role,aktif);
+
+-- ================================================================
+-- BUSINESS TABLES
+-- ================================================================
 create table if not exists public.products (
   id uuid primary key default gen_random_uuid(),
   nama text not null,
@@ -90,6 +138,10 @@ create table if not exists public.stock_movements (
   created_at timestamptz not null default now()
 );
 
+-- ================================================================
+-- RLS + PRIVILEGES
+-- ================================================================
+alter table public.users enable row level security;
 alter table public.products enable row level security;
 alter table public.agents enable row level security;
 alter table public.sales enable row level security;
@@ -98,15 +150,48 @@ alter table public.receivables enable row level security;
 alter table public.receivable_payments enable row level security;
 alter table public.stock_movements enable row level security;
 
--- Fungsi aman untuk mengetahui profile user yang sedang login.
+revoke all on table public.users, public.products, public.agents, public.sales,
+  public.sale_items, public.receivables, public.receivable_payments,
+  public.stock_movements from anon;
+
+revoke all on table public.users, public.products, public.agents, public.sales,
+  public.sale_items, public.receivables, public.receivable_payments,
+  public.stock_movements from authenticated;
+
+grant select on table public.users to authenticated;
+grant select,insert,update,delete on table public.products, public.agents to authenticated;
+grant select on table public.sales, public.sale_items, public.receivables,
+  public.receivable_payments, public.stock_movements to authenticated;
+
+-- ================================================================
+-- ROLE HELPERS
+-- ================================================================
 create or replace function public.my_user_id()
-returns uuid language sql stable security definer set search_path = public as $$
-  select id from public.users where auth_user_id = auth.uid() and aktif = true limit 1;
+returns uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select u.id
+  from public.users u
+  where u.auth_user_id = (select auth.uid())
+    and u.aktif = true
+  limit 1;
 $$;
 
 create or replace function public.my_role()
-returns text language sql stable security definer set search_path = public as $$
-  select role from public.users where auth_user_id = auth.uid() and aktif = true limit 1;
+returns text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select u.role
+  from public.users u
+  where u.auth_user_id = (select auth.uid())
+    and u.aktif = true
+  limit 1;
 $$;
 
 revoke all on function public.my_user_id() from public, anon;
@@ -114,46 +199,116 @@ revoke all on function public.my_role() from public, anon;
 grant execute on function public.my_user_id() to authenticated;
 grant execute on function public.my_role() to authenticated;
 
--- Policies baca data untuk user yang sudah login.
-drop policy if exists products_read on public.products;
-create policy products_read on public.products for select to authenticated
-using (public.my_user_id() is not null);
+-- ================================================================
+-- CLEAN OLD POLICIES
+-- ================================================================
+drop policy if exists users_read on public.users;
+drop policy if exists users_admin_update on public.users;
+drop policy if exists users_admin_insert on public.users;
+drop policy if exists users_admin_delete on public.users;
 
+drop policy if exists products_read on public.products;
 drop policy if exists products_admin_write on public.products;
-create policy products_admin_write on public.products for all to authenticated
-using (public.my_role() = 'admin')
-with check (public.my_role() = 'admin');
+drop policy if exists products_admin_insert on public.products;
+drop policy if exists products_admin_update on public.products;
+drop policy if exists products_admin_delete on public.products;
 
 drop policy if exists agents_read on public.agents;
-create policy agents_read on public.agents for select to authenticated
-using (public.my_user_id() is not null);
-
 drop policy if exists agents_admin_write on public.agents;
-create policy agents_admin_write on public.agents for all to authenticated
-using (public.my_role() = 'admin')
-with check (public.my_role() = 'admin');
+drop policy if exists agents_admin_insert on public.agents;
+drop policy if exists agents_admin_update on public.agents;
+drop policy if exists agents_admin_delete on public.agents;
 
 drop policy if exists sales_read on public.sales;
-create policy sales_read on public.sales for select to authenticated
-using (public.my_user_id() is not null);
-
 drop policy if exists sale_items_read on public.sale_items;
-create policy sale_items_read on public.sale_items for select to authenticated
-using (public.my_user_id() is not null);
-
 drop policy if exists receivables_read on public.receivables;
-create policy receivables_read on public.receivables for select to authenticated
-using (public.my_user_id() is not null);
-
 drop policy if exists receivable_payments_read on public.receivable_payments;
-create policy receivable_payments_read on public.receivable_payments for select to authenticated
-using (public.my_user_id() is not null);
-
 drop policy if exists stock_movements_read on public.stock_movements;
-create policy stock_movements_read on public.stock_movements for select to authenticated
-using (public.my_user_id() is not null);
 
--- Checkout atomik: cek stok, simpan transaksi, kurangi stok dan buat piutang dalam satu transaksi DB.
+-- ================================================================
+-- USERS POLICIES
+-- A signed-in user may read profiles so the existing app can load its
+-- profile. Only admin may modify roles/active state.
+-- ================================================================
+create policy users_read on public.users
+  for select to authenticated
+  using ((select public.my_user_id()) is not null);
+
+create policy users_admin_update on public.users
+  for update to authenticated
+  using ((select public.my_role()) = 'admin')
+  with check ((select public.my_role()) = 'admin');
+
+-- No browser INSERT/DELETE on users. User profiles should be provisioned
+-- by a trusted backend/admin SQL process and linked to auth.users.
+
+-- ================================================================
+-- PRODUCTS
+-- ================================================================
+create policy products_read on public.products
+  for select to authenticated
+  using ((select public.my_user_id()) is not null);
+
+create policy products_admin_insert on public.products
+  for insert to authenticated
+  with check ((select public.my_role()) = 'admin');
+
+create policy products_admin_update on public.products
+  for update to authenticated
+  using ((select public.my_role()) = 'admin')
+  with check ((select public.my_role()) = 'admin');
+
+create policy products_admin_delete on public.products
+  for delete to authenticated
+  using ((select public.my_role()) = 'admin');
+
+-- ================================================================
+-- AGENTS
+-- ================================================================
+create policy agents_read on public.agents
+  for select to authenticated
+  using ((select public.my_user_id()) is not null);
+
+create policy agents_admin_insert on public.agents
+  for insert to authenticated
+  with check ((select public.my_role()) = 'admin');
+
+create policy agents_admin_update on public.agents
+  for update to authenticated
+  using ((select public.my_role()) = 'admin')
+  with check ((select public.my_role()) = 'admin');
+
+create policy agents_admin_delete on public.agents
+  for delete to authenticated
+  using ((select public.my_role()) = 'admin');
+
+-- ================================================================
+-- READ-ONLY REPORTING TABLES
+-- Writes are performed by SECURITY DEFINER checkout/payment functions.
+-- ================================================================
+create policy sales_read on public.sales
+  for select to authenticated
+  using ((select public.my_user_id()) is not null);
+
+create policy sale_items_read on public.sale_items
+  for select to authenticated
+  using ((select public.my_user_id()) is not null);
+
+create policy receivables_read on public.receivables
+  for select to authenticated
+  using ((select public.my_user_id()) is not null);
+
+create policy receivable_payments_read on public.receivable_payments
+  for select to authenticated
+  using ((select public.my_user_id()) is not null);
+
+create policy stock_movements_read on public.stock_movements
+  for select to authenticated
+  using ((select public.my_user_id()) is not null);
+
+-- ================================================================
+-- CHECKOUT ATOMIC FUNCTION
+-- ================================================================
 create or replace function public.create_sale(
   p_kasir_id uuid,
   p_agent_id uuid,
@@ -164,7 +319,7 @@ create or replace function public.create_sale(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 declare
   v_user public.users%rowtype;
@@ -181,7 +336,7 @@ declare
   v_sisa numeric := 0;
 begin
   select * into v_user from public.users
-  where auth_user_id = auth.uid() and aktif = true limit 1;
+  where auth_user_id = (select auth.uid()) and aktif = true limit 1;
 
   if v_user.id is null or v_user.id <> p_kasir_id then
     raise exception 'Kasir tidak valid';
@@ -241,6 +396,9 @@ begin
     v_change := p_dibayar - v_total;
   else
     if p_agent_id is null then raise exception 'Pilih agen untuk piutang'; end if;
+    if not exists (select 1 from public.agents where id=p_agent_id and aktif=true) then
+      raise exception 'Agen tidak ditemukan atau nonaktif';
+    end if;
     v_sisa := greatest(v_total-greatest(coalesce(p_dibayar,0),0),0);
     insert into public.receivables(sale_id,agent_id,total,dibayar,sisa,status,jatuh_tempo)
     values(v_sale,p_agent_id,v_total,greatest(coalesce(p_dibayar,0),0),v_sisa,case when v_sisa=0 then 'lunas' else 'belum_lunas' end,current_date+30);
@@ -255,20 +413,27 @@ $$;
 revoke all on function public.create_sale(uuid,uuid,text,numeric,jsonb) from public,anon;
 grant execute on function public.create_sale(uuid,uuid,text,numeric,jsonb) to authenticated;
 
+-- ================================================================
+-- RECEIVABLE PAYMENT
+-- ================================================================
 create or replace function public.pay_receivable(
   p_receivable_id uuid,
   p_kasir_id uuid,
   p_jumlah numeric,
   p_keterangan text default null
 )
-returns jsonb language plpgsql security definer set search_path = public as $$
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
 declare
   v_user public.users%rowtype;
   v_rec public.receivables%rowtype;
   v_bayar numeric;
   v_sisa numeric;
 begin
-  select * into v_user from public.users where auth_user_id=auth.uid() and aktif=true limit 1;
+  select * into v_user from public.users where auth_user_id=(select auth.uid()) and aktif=true limit 1;
   if v_user.id is null or v_user.id<>p_kasir_id then raise exception 'Kasir tidak valid'; end if;
 
   select * into v_rec from public.receivables where id=p_receivable_id for update;
@@ -295,59 +460,35 @@ revoke all on function public.pay_receivable(uuid,uuid,numeric,text) from public
 grant execute on function public.pay_receivable(uuid,uuid,numeric,text) to authenticated;
 
 -- ================================================================
--- PERBAIKAN RLS / GRANTS
+-- TRIGGER FOR UPDATED_AT
 -- ================================================================
--- RLS dan policy tidak otomatis memberikan privilege SQL. Supabase
--- memerlukan GRANT + policy. Ini memastikan client browser yang login
--- benar-benar boleh membaca/insert/update/delete tabel yang dipakai POS.
+create or replace function public.set_updated_at()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  new.updated_at=now();
+  return new;
+end;
+$$;
 
-revoke all on table public.products, public.agents from anon;
-grant select, insert, update, delete on table public.products, public.agents to authenticated;
+revoke all on function public.set_updated_at() from public,anon,authenticated;
 
-grant select on table public.sales, public.sale_items, public.receivables,
-  public.receivable_payments, public.stock_movements to authenticated;
+drop trigger if exists users_set_updated_at on public.users;
+create trigger users_set_updated_at before update on public.users
+for each row execute function public.set_updated_at();
 
--- Policy khusus admin ditulis terpisah agar operasi INSERT/UPDATE/DELETE
--- dapat diuji dan tidak bergantung pada policy ALL lama.
-drop policy if exists products_admin_write on public.products;
-drop policy if exists products_admin_insert on public.products;
-drop policy if exists products_admin_update on public.products;
-drop policy if exists products_admin_delete on public.products;
+drop trigger if exists products_set_updated_at on public.products;
+create trigger products_set_updated_at before update on public.products
+for each row execute function public.set_updated_at();
 
-create policy products_admin_insert on public.products
-  for insert to authenticated
-  with check ((select public.my_role()) = 'admin');
+drop trigger if exists receivables_set_updated_at on public.receivables;
+create trigger receivables_set_updated_at before update on public.receivables
+for each row execute function public.set_updated_at();
 
-create policy products_admin_update on public.products
-  for update to authenticated
-  using ((select public.my_role()) = 'admin')
-  with check ((select public.my_role()) = 'admin');
-
-create policy products_admin_delete on public.products
-  for delete to authenticated
-  using ((select public.my_role()) = 'admin');
-
-drop policy if exists agents_admin_write on public.agents;
-drop policy if exists agents_admin_insert on public.agents;
-drop policy if exists agents_admin_update on public.agents;
-drop policy if exists agents_admin_delete on public.agents;
-
-create policy agents_admin_insert on public.agents
-  for insert to authenticated
-  with check ((select public.my_role()) = 'admin');
-
-create policy agents_admin_update on public.agents
-  for update to authenticated
-  using ((select public.my_role()) = 'admin')
-  with check ((select public.my_role()) = 'admin');
-
-create policy agents_admin_delete on public.agents
-  for delete to authenticated
-  using ((select public.my_role()) = 'admin');
-
--- Index untuk pemeriksaan role yang dipanggil RLS.
-create index if not exists users_auth_user_id_idx
-  on public.users(auth_user_id);
-
--- Catatan: tabel public.users diasumsikan sudah dibuat oleh setup Auth/POS
--- sebelumnya karena dipakai oleh aplikasi dan foreign key di atas.
+-- IMPORTANT:
+-- A public.users profile must exist for every Auth account that logs in.
+-- Create/link the first admin profile from the Supabase SQL Editor, e.g.:
+-- insert into public.users(auth_user_id,nama,username,role,aktif)
+-- values ('AUTH-USER-UUID','Nama Admin','admin','admin',true);
