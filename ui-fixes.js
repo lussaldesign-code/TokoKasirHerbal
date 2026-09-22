@@ -5,9 +5,12 @@
   document.head.appendChild(css);
 
   function getAppClient(){
-    try{
-      if(typeof sb!=='undefined' && sb) return sb;
-    }catch(e){}
+    try{ if(typeof sb!=='undefined' && sb) return sb; }catch(e){}
+    return null;
+  }
+
+  function getAppProfile(){
+    try{ if(typeof profile!=='undefined' && profile) return profile; }catch(e){}
     return null;
   }
 
@@ -18,12 +21,18 @@
     if(error) throw error;
     if(!data?.session?.user) throw Error('Sesi login tidak ditemukan. Silakan login kembali.');
 
-    const user=data.session.user;
-    const {data:prof,error:pe}=await api.from('users').select('id,auth_user_id,role,aktif').eq('auth_user_id',user.id).maybeSingle();
+    /* Gunakan profile aplikasi yang sudah dipakai setelah login terlebih dahulu.
+       Ini mencegah pengecekan role yang berbeda dari profile aktif aplikasi. */
+    const appProfile=getAppProfile();
+    if(appProfile && String(appProfile.auth_user_id||'')===String(data.session.user.id) && String(appProfile.role||'').trim().toLowerCase()==='admin' && appProfile.aktif!==false){
+      return {api,user:data.session.user,prof:appProfile};
+    }
+
+    const {data:prof,error:pe}=await api.from('users').select('id,auth_user_id,role,aktif').eq('auth_user_id',data.session.user.id).maybeSingle();
     if(pe) throw pe;
-    if(!prof || !prof.aktif) throw Error('Profil pengguna tidak aktif.');
-    if(prof.role!=='admin') throw Error('Hanya admin yang dapat menghapus produk.');
-    return {api,user,prof};
+    if(!prof || !prof.aktif) throw Error('Profil pengguna tidak aktif atau belum terhubung dengan akun login.');
+    if(String(prof.role||'').trim().toLowerCase()!=='admin') throw Error('Akun login ini belum memiliki role Admin di public.users.');
+    return {api,user:data.session.user,prof};
   }
 
   function setupEditDelete(){
@@ -46,17 +55,11 @@
     const nama=document.getElementById('pNama')?.value?.trim()||'produk ini';
     if(!id)return toast('Produk baru belum dapat dihapus.');
     if(!confirm('Yakin ingin menghapus produk "'+nama+'"?\n\nProduk akan disembunyikan dari kasir, sedangkan riwayat transaksi tetap aman.'))return;
-
     try{
       const {api}=await ensureAdminSession();
-      const {data,error}=await api.from('products')
-        .update({aktif:false,updated_at:new Date().toISOString()})
-        .eq('id',id)
-        .select('id')
-        .maybeSingle();
+      const {data,error}=await api.from('products').update({aktif:false,updated_at:new Date().toISOString()}).eq('id',id).select('id').maybeSingle();
       if(error)throw error;
       if(!data)throw Error('Produk tidak ditemukan atau tidak memiliki izin untuk dihapus.');
-
       closeModal('productModal');
       if(typeof selectedProductImage!=='undefined')selectedProductImage='';
       toast('Produk berhasil dihapus.');
