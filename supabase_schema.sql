@@ -109,36 +109,49 @@ returns text language sql stable security definer set search_path = public as $$
   select role from public.users where auth_user_id = auth.uid() and aktif = true limit 1;
 $$;
 
+revoke all on function public.my_user_id() from public, anon;
+revoke all on function public.my_role() from public, anon;
 grant execute on function public.my_user_id() to authenticated;
 grant execute on function public.my_role() to authenticated;
 
 -- Policies baca data untuk user yang sudah login.
 drop policy if exists products_read on public.products;
-create policy products_read on public.products for select to authenticated using (public.my_user_id() is not null);
+create policy products_read on public.products for select to authenticated
+using (public.my_user_id() is not null);
 
 drop policy if exists products_admin_write on public.products;
-create policy products_admin_write on public.products for all to authenticated using (public.my_role() = 'admin') with check (public.my_role() = 'admin');
+create policy products_admin_write on public.products for all to authenticated
+using (public.my_role() = 'admin')
+with check (public.my_role() = 'admin');
 
 drop policy if exists agents_read on public.agents;
-create policy agents_read on public.agents for select to authenticated using (public.my_user_id() is not null);
+create policy agents_read on public.agents for select to authenticated
+using (public.my_user_id() is not null);
 
 drop policy if exists agents_admin_write on public.agents;
-create policy agents_admin_write on public.agents for all to authenticated using (public.my_role() = 'admin') with check (public.my_role() = 'admin');
+create policy agents_admin_write on public.agents for all to authenticated
+using (public.my_role() = 'admin')
+with check (public.my_role() = 'admin');
 
 drop policy if exists sales_read on public.sales;
-create policy sales_read on public.sales for select to authenticated using (public.my_user_id() is not null);
+create policy sales_read on public.sales for select to authenticated
+using (public.my_user_id() is not null);
 
 drop policy if exists sale_items_read on public.sale_items;
-create policy sale_items_read on public.sale_items for select to authenticated using (public.my_user_id() is not null);
+create policy sale_items_read on public.sale_items for select to authenticated
+using (public.my_user_id() is not null);
 
 drop policy if exists receivables_read on public.receivables;
-create policy receivables_read on public.receivables for select to authenticated using (public.my_user_id() is not null);
+create policy receivables_read on public.receivables for select to authenticated
+using (public.my_user_id() is not null);
 
 drop policy if exists receivable_payments_read on public.receivable_payments;
-create policy receivable_payments_read on public.receivable_payments for select to authenticated using (public.my_user_id() is not null);
+create policy receivable_payments_read on public.receivable_payments for select to authenticated
+using (public.my_user_id() is not null);
 
 drop policy if exists stock_movements_read on public.stock_movements;
-create policy stock_movements_read on public.stock_movements for select to authenticated using (public.my_user_id() is not null);
+create policy stock_movements_read on public.stock_movements for select to authenticated
+using (public.my_user_id() is not null);
 
 -- Checkout atomik: cek stok, simpan transaksi, kurangi stok dan buat piutang dalam satu transaksi DB.
 create or replace function public.create_sale(
@@ -280,3 +293,61 @@ $$;
 
 revoke all on function public.pay_receivable(uuid,uuid,numeric,text) from public,anon;
 grant execute on function public.pay_receivable(uuid,uuid,numeric,text) to authenticated;
+
+-- ================================================================
+-- PERBAIKAN RLS / GRANTS
+-- ================================================================
+-- RLS dan policy tidak otomatis memberikan privilege SQL. Supabase
+-- memerlukan GRANT + policy. Ini memastikan client browser yang login
+-- benar-benar boleh membaca/insert/update/delete tabel yang dipakai POS.
+
+revoke all on table public.products, public.agents from anon;
+grant select, insert, update, delete on table public.products, public.agents to authenticated;
+
+grant select on table public.sales, public.sale_items, public.receivables,
+  public.receivable_payments, public.stock_movements to authenticated;
+
+-- Policy khusus admin ditulis terpisah agar operasi INSERT/UPDATE/DELETE
+-- dapat diuji dan tidak bergantung pada policy ALL lama.
+drop policy if exists products_admin_write on public.products;
+drop policy if exists products_admin_insert on public.products;
+drop policy if exists products_admin_update on public.products;
+drop policy if exists products_admin_delete on public.products;
+
+create policy products_admin_insert on public.products
+  for insert to authenticated
+  with check ((select public.my_role()) = 'admin');
+
+create policy products_admin_update on public.products
+  for update to authenticated
+  using ((select public.my_role()) = 'admin')
+  with check ((select public.my_role()) = 'admin');
+
+create policy products_admin_delete on public.products
+  for delete to authenticated
+  using ((select public.my_role()) = 'admin');
+
+drop policy if exists agents_admin_write on public.agents;
+drop policy if exists agents_admin_insert on public.agents;
+drop policy if exists agents_admin_update on public.agents;
+drop policy if exists agents_admin_delete on public.agents;
+
+create policy agents_admin_insert on public.agents
+  for insert to authenticated
+  with check ((select public.my_role()) = 'admin');
+
+create policy agents_admin_update on public.agents
+  for update to authenticated
+  using ((select public.my_role()) = 'admin')
+  with check ((select public.my_role()) = 'admin');
+
+create policy agents_admin_delete on public.agents
+  for delete to authenticated
+  using ((select public.my_role()) = 'admin');
+
+-- Index untuk pemeriksaan role yang dipanggil RLS.
+create index if not exists users_auth_user_id_idx
+  on public.users(auth_user_id);
+
+-- Catatan: tabel public.users diasumsikan sudah dibuat oleh setup Auth/POS
+-- sebelumnya karena dipakai oleh aplikasi dan foreign key di atas.
