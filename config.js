@@ -6,4 +6,4 @@ window.APP_CONFIG = {
 };
 
 // Username-only kiosk login. Loaded before app.js so it can replace the old email/password flow.
-document.write('<script src="kiosk.js"><\\/script>');
+document.write('<script src="kiosk.js"><\/script>');
