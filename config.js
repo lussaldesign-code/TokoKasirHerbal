@@ -7,3 +7,10 @@ window.APP_CONFIG = {
 
 // Username-only kiosk login. Loaded before app.js so it can replace the old email/password flow.
 document.write('<script src="kiosk.js"><\/script>');
+
+// Load UI fixes after app.js has initialized its global functions.
+setTimeout(function(){
+  var s=document.createElement('script');
+  s.src='ui-fixes.js?v=20260923';
+  document.body.appendChild(s);
+},0);
