@@ -6,11 +6,11 @@ window.APP_CONFIG = {
 };
 
 // Username-only kiosk login. Loaded before app.js so it can replace the old email/password flow.
-document.write('<script src="kiosk.js"><\/script>');
+document.write('<script src="kiosk.js"><\\/script>');
 
-// Load UI fixes after app.js has initialized its global functions.
-setTimeout(function(){
+// Load UI fixes only after the page body and app.js are ready.
+window.addEventListener('load', function(){
   var s=document.createElement('script');
-  s.src='ui-fixes.js?v=20260923';
+  s.src='ui-fixes.js?v=20260923b';
   document.body.appendChild(s);
-},0);
+});
