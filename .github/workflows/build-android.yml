@@ -65,9 +65,12 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps --no-audit --no-fund
 
-      - name: Verify Capacitor
+      - name: Verify TypeScript and Capacitor
         shell: bash
-        run: npx cap --version
+        run: |
+          npx tsc --version
+          npx cap --version
+          npm ls typescript @capacitor/cli @capacitor/core @capacitor/android --depth=0
 
       - name: Add Android platform
         run: npx cap add android
