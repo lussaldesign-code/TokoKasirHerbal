@@ -1,3 +1,6 @@
+const APP_VERSION='1.0.1';
+const UPDATE_RELEASE_URL='https://github.com/lussaldesign-code/TokoKasirHerbal/releases/tag/latest';
+const UPDATE_API_URL='https://api.github.com/repos/lussaldesign-code/TokoKasirHerbal/releases/tags/latest';
 const CONFIG=window.APP_CONFIG||{url:'',key:''};
 let sb=null,currentUser=null,profile=null,products=[],agents=[],receivables=[],sales=[],users=[],purchases=[],cart=[],purchaseCart=[],priceProduct=null,selectedProductImage='';
 const $=id=>document.getElementById(id),rp=n=>'Rp '+Number(n||0).toLocaleString('id-ID');
@@ -12,7 +15,7 @@ async function restoreLogin(){showLogin()}
 async function logout(){try{localStorage.removeItem('tokokasirherbal-username');if(sb)await sb.auth.signOut()}finally{location.reload()}}
 async function loadProfile(){if(!currentUser?.id)throw Error('Sesi login tidak valid.');const {data,error}=await sb.from('users').select('*').eq('auth_user_id',currentUser.id).maybeSingle();if(error)throw error;if(!data)throw Error('Profile pengguna belum dibuat di public.users.');profile=data}
 function showLogin(){$('app')?.classList.add('hidden');$('login')?.classList.remove('hidden')}
-function showApp(){$('login')?.classList.add('hidden');$('app')?.classList.remove('hidden');if($('activeUser'))$('activeUser').textContent=(profile?.role==='admin'?'Admin':'Kasir')+' Aktif: '+(profile?.nama||profile?.username||'-');updateAccountView();const admin=String(profile?.role||'').toLowerCase()==='admin';if($('navLaporan'))$('navLaporan').style.display=admin?'block':'none';if($('navAkun'))$('navAkun').style.display=admin?'block':'none';if($('navPembelian'))$('navPembelian').style.display=admin?'block':'none';if($('addProductBtn'))$('addProductBtn').style.display=admin?'block':'none';if($('addAgentBtn'))$('addAgentBtn').style.display=admin?'block':'none'}
+function showApp(){$('login')?.classList.add('hidden');$('app')?.classList.remove('hidden');if($('activeUser'))$('activeUser').textContent=(profile?.role==='admin'?'Admin':'Kasir')+' Aktif: '+(profile?.nama||profile?.username||'-');updateAccountView(); showAppVersion();const admin=String(profile?.role||'').toLowerCase()==='admin';if($('navLaporan'))$('navLaporan').style.display=admin?'block':'none';if($('navAkun'))$('navAkun').style.display=admin?'block':'none';if($('navPembelian'))$('navPembelian').style.display=admin?'block':'none';if($('addProductBtn'))$('addProductBtn').style.display=admin?'block':'none';if($('addAgentBtn'))$('addAgentBtn').style.display=admin?'block':'none'}
 function tab(name,el){document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));$('tab-'+name).classList.add('active');document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));el?.classList.add('active')}
 async function loadAll(){const base=[sb.from('products').select('*').eq('aktif',true).order('nama'),sb.from('agents').select('*').eq('aktif',true).order('nama'),sb.from('receivables').select('*, agents(nama), sales(nomor_transaksi,created_at)').order('created_at',{ascending:false})];if(profile?.role==='admin'){base.push(sb.from('sales').select('*').order('created_at',{ascending:false}).limit(500),sb.from('purchases').select('*').order('created_at',{ascending:false}).limit(500),sb.from('users').select('id,username,nama,role,aktif,created_at,updated_at,auth_user_id').order('nama'));}const results=await Promise.all(base);for(const x of results)if(x.error)throw x.error;const [p,a,r,s,pu,u]=results;products=p.data||[];agents=a.data||[];receivables=r.data||[];sales=profile?.role==='admin'?(s?.data||[]):[];purchases=profile?.role==='admin'?(pu?.data||[]):[];users=profile?.role==='admin'?(u?.data||[]):[];renderAll()}
 function renderAll(){renderProducts();renderAgents();renderReceivables();renderReports();renderPurchases();renderUsers();fillAgentSelect();fillPurchaseProducts();renderCart();renderPurchaseCart()}
@@ -39,6 +42,24 @@ function renderReports(){
  $('sales').innerHTML=ds.map(s=>`<tr><td>${new Date(s.created_at).toLocaleString('id-ID')}</td><td>${esc(s.nomor_transaksi)}</td><td>${rp(s.total)}</td><td>${esc(s.metode_pembayaran)}</td></tr>`).join('')||'<tr><td colspan="4" class="note">Belum ada penjualan hari ini.</td></tr>';
  if($('monthlySales')) $('monthlySales').innerHTML=ms.map(s=>`<tr><td>${new Date(s.created_at).toLocaleDateString('id-ID')}</td><td>${esc(s.nomor_transaksi)}</td><td>${rp(s.total)}</td><td>${esc(s.metode_pembayaran)}</td></tr>`).join('')||'<tr><td colspan="4" class="note">Belum ada penjualan bulan ini.</td></tr>';
 }
+async function checkForUpdate(){
+  const btn=$('checkUpdateBtn');
+  if(btn){btn.disabled=true;btn.textContent='⏳ Mengecek...'}
+  try{
+    const res=await fetch(UPDATE_API_URL,{headers:{Accept:'application/vnd.github+json'},cache:'no-store'});
+    if(!res.ok)throw Error('Server update tidak dapat dihubungi.');
+    const rel=await res.json();
+    const tag=String(rel.tag_name||'').replace(/^v/i,'');
+    if(tag&&tag!==APP_VERSION){
+      const ok=confirm('Update tersedia: v'+tag+'\\n\\nVersi aplikasi saat ini: v'+APP_VERSION+'\\n\\nBuka halaman update untuk mengunduh APK terbaru?');
+      if(ok)window.open(UPDATE_RELEASE_URL,'_blank');
+      return;
+    }
+    toast('Aplikasi sudah versi terbaru (v'+APP_VERSION+').');
+  }catch(e){console.error('checkForUpdate',e);toast('Gagal mengecek update: '+(e.message||'periksa koneksi internet.'))}
+  finally{if(btn){btn.disabled=false;btn.textContent='🔄 Cek Update'}}
+}
+function showAppVersion(){const el=$('appVersion');if(el)el.textContent='Versi '+APP_VERSION}
 function updateAccountView(){const w=$('accountWelcome'),em=$('accountEmail'),ei=$('accountEmailInput');if(w)w.textContent=(profile?.nama||'Akun')+' (@'+(profile?.username||'-')+')';if(em)em.textContent='Login: '+(profile?.username||'-');if(ei)ei.value='Username: '+(profile?.username||'-')}
 function openAccount(){if(!profile)return;if(!$('accountModal'))return toast('Panel akun belum tersedia.');$('accountNama').value=profile.nama||'';$('accountUsername').value=profile.username||'';$('accountEmailInput').value='Username: '+(profile.username||'');openModal('accountModal')}
 async function setUserPassword(id){if(profile?.role!=='admin')return toast('Hanya admin yang dapat mengubah password.');const u=users.find(x=>x.id===id);if(!u||u.role!=='admin')return toast('Password hanya diperlukan untuk akun admin.');const p=prompt('Password baru untuk '+u.username);if(p===null)return;if(p.length<4)return toast('Password minimal 4 karakter.');const {error}=await sb.rpc('admin_set_password',{p_user_id:id,p_password:p});if(error)toast(error.message);else toast('Password admin berhasil diubah.')}
