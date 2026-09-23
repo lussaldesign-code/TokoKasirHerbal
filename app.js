@@ -1,4 +1,4 @@
-const APP_VERSION='1.0.3';
+const APP_VERSION='1.0.4';
 const UPDATE_MANIFEST_URL='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/update.json';
 const WINDOWS_UPDATE_MANIFEST_URL='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/windows-update.json';
 const IS_ELECTRON=!!(navigator.userAgent&&/Electron/i.test(navigator.userAgent));
@@ -43,6 +43,8 @@ function renderReports(){
  $('sales').innerHTML=ds.map(s=>`<tr><td>${new Date(s.created_at).toLocaleString('id-ID')}</td><td>${esc(s.nomor_transaksi)}</td><td>${rp(s.total)}</td><td>${esc(s.metode_pembayaran)}</td></tr>`).join('')||'<tr><td colspan="4" class="note">Belum ada penjualan hari ini.</td></tr>';
  if($('monthlySales')) $('monthlySales').innerHTML=ms.map(s=>`<tr><td>${new Date(s.created_at).toLocaleDateString('id-ID')}</td><td>${esc(s.nomor_transaksi)}</td><td>${rp(s.total)}</td><td>${esc(s.metode_pembayaran)}</td></tr>`).join('')||'<tr><td colspan="4" class="note">Belum ada penjualan bulan ini.</td></tr>';
 }
+async function versionParts(v){return String(v||'0').replace(/^v/i,'').split('.').map(x=>parseInt(x,10)||0)}
+function isNewerVersion(latest,current){const a=versionParts(latest),b=versionParts(current);for(let i=0;i<3;i++){if((a[i]||0)>(b[i]||0))return true;if((a[i]||0)<(b[i]||0))return false}return false}
 async function checkForUpdate(){
   const btn=$('checkUpdateBtn');
   if(btn){btn.disabled=true;btn.textContent='⏳ Mengecek...'}
@@ -53,12 +55,12 @@ async function checkForUpdate(){
     const info=await res.json();
     const latest=String(info.version||'').trim();
     const url=String(IS_ELECTRON?(info.installer||''):(info.apk||''));
-    if(latest&&latest!==APP_VERSION){
+    if(!latest)throw Error('Versi update tidak valid.');
+    if(isNewerVersion(latest,APP_VERSION)){
       if(!url)throw Error('File update belum tersedia.');
-      const tipe=IS_ELECTRON?'Windows installer (.exe)':'APK Android';
+      const tipe=IS_ELECTRON?'installer Windows (.exe)':'APK Android';
       const ok=confirm('Update tersedia: v'+latest+'\\n\\nVersi aplikasi saat ini: v'+APP_VERSION+'\\n\\nUnduh '+tipe+' terbaru sekarang?');
-      if(ok)window.open(url,'_blank');
-      return;
+      if(ok){window.open(url,'_blank');toast(IS_ELECTRON?'Installer Windows dibuka. Jalankan installer setelah selesai diunduh.':'APK terbaru dibuka. Setelah selesai diunduh, buka file APK untuk memasang update.')}return;
     }
     toast('Aplikasi sudah versi terbaru (v'+APP_VERSION+').');
   }catch(e){console.error('checkForUpdate',e);toast('Gagal mengecek update: '+(e.message||'periksa koneksi internet.'))}
