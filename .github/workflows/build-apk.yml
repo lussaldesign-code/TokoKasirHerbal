@@ -14,7 +14,7 @@ on:
       - '.github/workflows/build-apk.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   apk:
@@ -60,8 +60,8 @@ jobs:
           mkdir -p mobile/www
           cp index-supabase.html mobile/www/index.html
           cp app.js config.js manifest.webmanifest icon-192.svg icon-512.svg sw.js mobile/www/
-          sed -i 's#config.js#config.js?v=20260923#g' mobile/www/index.html
-          sed -i 's#app.js#app.js?v=20260923#g' mobile/www/index.html
+          sed -i 's#config.js#config.js?v=20260927#g' mobile/www/index.html
+          sed -i 's#app.js#app.js?v=20260927#g' mobile/www/index.html
           test -s mobile/www/index.html
           test -s mobile/www/app.js
           test -s mobile/www/config.js
