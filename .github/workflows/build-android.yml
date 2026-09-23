@@ -1,0 +1,72 @@
+name: Build TokoKasirHerbal Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'index-supabase.html'
+      - 'app.js'
+      - 'config.js'
+      - 'manifest.webmanifest'
+      - 'icon-*.svg'
+      - 'package.json'
+      - 'capacitor.config.ts'
+      - '.github/workflows/build-android.yml'
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Prepare web app
+        shell: bash
+        run: |
+          rm -rf mobile
+          mkdir -p mobile/www
+          cp index-supabase.html mobile/www/index.html
+          cp app.js config.js manifest.webmanifest icon-192.svg icon-512.svg sw.js mobile/www/
+          sed -i 's#config.js#config.js?v=20260923#g' mobile/www/index.html
+          sed -i 's#app.js#app.js?v=20260923#g' mobile/www/index.html
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Add Android platform
+        run: npx cap add android
+
+      - name: Sync Android project
+        run: npx cap sync android
+
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Verify APK
+        shell: bash
+        run: |
+          APK="$(find android/app/build/outputs/apk/debug -name '*.apk' -type f | head -n 1)"
+          test -n "$APK"
+          echo "APK: $APK"
+          ls -lh "$APK"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: TokoKasirHerbal-Android-APK
+          path: android/app/build/outputs/apk/debug/*.apk
+          retention-days: 90
