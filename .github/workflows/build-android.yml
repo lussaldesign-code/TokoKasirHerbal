@@ -144,4 +144,46 @@ jobs:
         with:
           name: TokoKasirHerbal-Android-APK
           path: android/app/build/outputs/apk/debug/*.apk
+          retention-days: 90      - name: Verify Capacitor configuration
+        shell: bash
+        run: |
+          test -f capacitor.config.js
+          test ! -e capacitor.config.ts
+          node -e "console.log('Capacitor CLI:', require('@capacitor/cli/package.json').version)"
+          node -e "console.log('Config JS exists:', require('fs').existsSync('capacitor.config.js'))"
+
+      - name: Add Android platform
+        shell: bash
+        run: |
+          rm -rf android
+          ./node_modules/.bin/cap --version
+          ./node_modules/.bin/cap add android
+
+      - name: Sync Android project
+        run: npx cap sync android
+
+      - name: Prepare Gradle
+        working-directory: android
+        shell: bash
+        run: |
+          chmod +x gradlew
+          ./gradlew --version
+
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon --no-parallel --stacktrace --warning-mode all -Dorg.gradle.jvmargs="-Xmx4g"
+
+      - name: Verify APK
+        shell: bash
+        run: |
+          APK="$(find android/app/build/outputs/apk/debug -name '*.apk' -type f | head -n 1)"
+          test -n "$APK"
+          echo "APK: $APK"
+          ls -lh "$APK"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: TokoKasirHerbal-Android-APK
+          path: android/app/build/outputs/apk/debug/*.apk
           retention-days: 90
