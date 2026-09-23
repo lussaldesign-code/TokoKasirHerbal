@@ -82,4 +82,5 @@ jobs:
             exit 0
           }
           git commit -m "chore: publish Windows installer v$version"
+          git pull --rebase origin main
           git push origin HEAD:main
