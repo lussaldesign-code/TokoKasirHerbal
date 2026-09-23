@@ -1,6 +1,6 @@
 const APP_VERSION='1.0.1';
-const UPDATE_RELEASE_URL='https://github.com/lussaldesign-code/TokoKasirHerbal/releases/tag/latest';
-const UPDATE_API_URL='https://api.github.com/repos/lussaldesign-code/TokoKasirHerbal/releases/tags/latest';
+const UPDATE_RELEASE_URL='https://github.com/lussaldesign-code/TokoKasirHerbal/releases/latest';
+const UPDATE_API_URL='https://api.github.com/repos/lussaldesign-code/TokoKasirHerbal/releases/latest';
 const CONFIG=window.APP_CONFIG||{url:'',key:''};
 let sb=null,currentUser=null,profile=null,products=[],agents=[],receivables=[],sales=[],users=[],purchases=[],cart=[],purchaseCart=[],priceProduct=null,selectedProductImage='';
 const $=id=>document.getElementById(id),rp=n=>'Rp '+Number(n||0).toLocaleString('id-ID');
