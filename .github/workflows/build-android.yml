@@ -77,16 +77,36 @@ jobs:
           npx cap --version
           npm ls @capacitor/cli @capacitor/core @capacitor/android --depth=0
 
-      - name: Verify Capacitor config
+      - name: Force Capacitor JSON configuration
         shell: bash
         run: |
+          echo "Workspace: $(pwd)"
+          find . -type f \( -name 'capacitor.config.ts' -o -name 'capacitor.config.js' -o -name 'capacitor.config.json' \) -print
+          find . -type f -name 'capacitor.config.ts' -delete
+          find . -type f -name 'capacitor.config.js' -delete
+          cat > capacitor.config.json <<'EOF'
+          {
+            "appId": "com.herbalinovasi.tokokasir",
+            "appName": "TokoKasirHerbal",
+            "webDir": "mobile/www",
+            "bundledWebRuntime": false,
+            "android": {
+              "allowMixedContent": false
+            }
+          }
+          EOF
+          echo "Capacitor config files after cleanup:"
+          find . -type f \( -name 'capacitor.config.ts' -o -name 'capacitor.config.js' -o -name 'capacitor.config.json' \) -print
           test ! -e capacitor.config.ts
+          test ! -e capacitor.config.js
           test -f capacitor.config.json
-          node -e "console.log('Config:', require('./capacitor.config.json'))"
-          find . -maxdepth 2 -name 'capacitor.config.ts' -print
+          node -e "console.log(require('./capacitor.config.json'))"
 
       - name: Add Android platform
-        run: npx cap add android
+        shell: bash
+        run: |
+          rm -rf android
+          npx cap add android
 
       - name: Sync Android project
         run: npx cap sync android
