@@ -13,9 +13,15 @@ on:
       - app.js
       - config.js
       - .github/workflows/build-windows.yml
+      - '!TokoKasirHerbal-latest.exe'
+      - '!windows-update.json'
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: tokokasirherbal-windows-build
+  cancel-in-progress: true
 
 jobs:
   build-windows:
@@ -52,3 +58,28 @@ jobs:
           name: TokoKasirHerbal-Windows-Installer
           path: dist/*Setup-*.exe
           if-no-files-found: error
+
+      - name: Publish Windows updater files
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem -Path dist -Filter '*Setup-*.exe' | Select-Object -First 1
+          $version = node -p "require('./package.json').version"
+          Copy-Item $installer.FullName "TokoKasirHerbal-latest.exe" -Force
+          $hash = (Get-FileHash "TokoKasirHerbal-latest.exe" -Algorithm SHA256).Hash.ToLower()
+          @"
+          {
+            "version": "$version",
+            "installer": "https://raw.githubusercontent.com/$env:GITHUB_REPOSITORY/main/TokoKasirHerbal-latest.exe",
+            "sha256": "$hash"
+          }
+          "@ | Set-Content -Path windows-update.json -Encoding utf8
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add TokoKasirHerbal-latest.exe windows-update.json
+          if (git diff --cached --quiet) {
+            Write-Host "Tidak ada perubahan updater Windows."
+            exit 0
+          }
+          git commit -m "chore: publish Windows installer v$version"
+          git push origin HEAD:main
