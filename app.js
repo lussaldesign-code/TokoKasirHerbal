@@ -1,4 +1,4 @@
-const APP_VERSION='1.0.1';
+const APP_VERSION='1.0.2';
 const UPDATE_RELEASE_URL='https://github.com/lussaldesign-code/TokoKasirHerbal/releases/latest';
 const UPDATE_API_URL='https://api.github.com/repos/lussaldesign-code/TokoKasirHerbal/releases/latest';
 const CONFIG=window.APP_CONFIG||{url:'',key:''};
@@ -50,9 +50,11 @@ async function checkForUpdate(){
     if(!res.ok)throw Error('Server update tidak dapat dihubungi.');
     const rel=await res.json();
     const tag=String(rel.tag_name||'').replace(/^v/i,'');
+    const apk=Array.isArray(rel.assets)?rel.assets.find(x=>/\.apk$/i.test(String(x.name||''))):null;
     if(tag&&tag!==APP_VERSION){
-      const ok=confirm('Update tersedia: v'+tag+'\\n\\nVersi aplikasi saat ini: v'+APP_VERSION+'\\n\\nBuka halaman update untuk mengunduh APK terbaru?');
-      if(ok)window.open(UPDATE_RELEASE_URL,'_blank');
+      const url=apk?.browser_download_url||rel.html_url||UPDATE_RELEASE_URL;
+      const ok=confirm('Update tersedia: v'+tag+'\\n\\nVersi aplikasi saat ini: v'+APP_VERSION+'\\n\\nUnduh APK terbaru sekarang?');
+      if(ok)window.open(url,'_blank');
       return;
     }
     toast('Aplikasi sudah versi terbaru (v'+APP_VERSION+').');
