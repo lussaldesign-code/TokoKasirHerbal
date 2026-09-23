@@ -15,7 +15,7 @@
   "devDependencies": {
     "electron": "^38.2.1",
     "electron-builder": "^26.0.12",
-    "@capacitor/cli": "^8.5.2"
+    "@capacitor/cli": "8.5.2"
   },
   "build": {
     "appId": "com.herbalinovasi.tokokasir",
@@ -51,8 +51,8 @@
     }
   },
   "dependencies": {
-    "@capacitor/core": "^8.5.2",
-    "@capacitor/android": "^8.5.2"
+    "@capacitor/core": "8.5.2",
+    "@capacitor/android": "8.5.2"
   },
   "engines": {
     "node": ">=22"
