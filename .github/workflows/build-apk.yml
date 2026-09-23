@@ -12,31 +12,46 @@ on:
       - 'capacitor.config.js'
       - '.github/workflows/build-apk.yml'
 
+permissions:
+  contents: read
+
 jobs:
   apk:
-    runs-on: ubuntu-latest
+    name: Build Android APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
-      - name: Node 22
-        uses: actions/setup-node@v4
+      - name: Setup Node 24
+        uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: '24'
+          package-manager-cache: false
 
-      - name: Java 21
-        uses: actions/setup-java@v4
+      - name: Setup Java 21
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
 
-      - name: Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
 
-      - name: Install Android SDK
+      - name: Verify build environment
         run: |
-          yes | sdkmanager --licenses >/dev/null 2>&1 || true
-          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+          node --version
+          npm --version
+          java -version
+          sdkmanager --version
+          test -f package.json
+          test -f capacitor.config.js
+          test ! -e capacitor.config.ts
+          test ! -e capacitor.config.json
 
       - name: Prepare web files
         run: |
@@ -46,16 +61,20 @@ jobs:
           cp app.js config.js manifest.webmanifest icon-192.svg icon-512.svg sw.js mobile/www/
           sed -i 's#config.js#config.js?v=20260923#g' mobile/www/index.html
           sed -i 's#app.js#app.js?v=20260923#g' mobile/www/index.html
+          test -s mobile/www/index.html
+          test -s mobile/www/app.js
+          test -s mobile/www/config.js
 
       - name: Install npm packages
         run: npm install --legacy-peer-deps --no-audit --no-fund
 
-      - name: Verify Capacitor
+      - name: Verify Capacitor packages
         run: |
-          test -f capacitor.config.js
-          test ! -e capacitor.config.ts
+          test -x ./node_modules/.bin/cap
           ./node_modules/.bin/cap --version
-          node -e "console.log(require('@capacitor/android/package.json').version)"
+          node -e "console.log('core', require('@capacitor/core/package.json').version)"
+          node -e "console.log('android', require('@capacitor/android/package.json').version)"
+          node -e "console.log('cli', require('@capacitor/cli/package.json').version)"
 
       - name: Generate Android project
         run: |
@@ -65,11 +84,18 @@ jobs:
       - name: Sync Android
         run: ./node_modules/.bin/cap sync android
 
-      - name: Build APK
-        working-directory: android
+      - name: Verify Android project
         run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --no-parallel --stacktrace -Dorg.gradle.jvmargs="-Xmx4g"
+          test -x android/gradlew
+          test -f android/settings.gradle
+          test -f android/app/build.gradle
+          chmod +x android/gradlew
+          cd android
+          ./gradlew --version
+
+      - name: Build Debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon --no-parallel --stacktrace -Dorg.gradle.jvmargs="-Xmx4g"
 
       - name: Check APK
         run: |
@@ -77,10 +103,12 @@ jobs:
           test -n "$APK"
           echo "APK=$APK"
           ls -lh "$APK"
+          sha256sum "$APK"
 
       - name: Upload APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: TokoKasirHerbal-Android-APK
           path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
           retention-days: 90
