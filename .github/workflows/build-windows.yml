@@ -33,7 +33,18 @@ jobs:
         run: npm install
 
       - name: Build Windows installer
-        run: npm run dist
+        run: npm run dist -- --publish never
+
+      - name: Verify installer
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem -Path dist -Filter '*Setup-*.exe' | Select-Object -First 1
+          if (-not $installer) {
+            Write-Error 'Installer EXE tidak ditemukan di folder dist.'
+            exit 1
+          }
+          Write-Host "Installer ditemukan: $($installer.FullName)"
+          Write-Host "Ukuran: $([math]::Round($installer.Length / 1MB, 2)) MB"
 
       - name: Upload installer
         uses: actions/upload-artifact@v4
