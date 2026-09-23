@@ -6,4 +6,5 @@ window.APP_CONFIG = {
 };
 
 
-window.addEventListener('load', function(){var s=document.createElement('script');s.src='ui-fixes.js?v=20260923d';document.body.appendChild(s);});
+document.write('<script src="kiosk.js?v=20260923e"><\\/script>');
+window.addEventListener('load', function(){var s=document.createElement('script');s.src='ui-fixes.js?v=20260923e';document.body.appendChild(s);});
