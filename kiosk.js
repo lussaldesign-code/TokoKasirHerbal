@@ -69,5 +69,5 @@
   async function kioskLogout(){localStorage.removeItem(KKEY);if(window.sb?.auth)await window.sb.auth.signOut();location.reload()}
   async function kioskLoadProfile(){const u=localStorage.getItem(KKEY);if(!u)throw Error('Akun belum dipilih.');const {data,error}=await sb.rpc('kiosk_profile',{p_username:u});if(error)throw error;if(!data?.length)throw Error('Profile akun belum tersedia.');profile=data[0]}
   window.kioskLogin=kioskLogin;window.kioskLogout=kioskLogout;window.login=kioskLogin;window.logout=kioskLogout;
-  window.addEventListener('load',()=>setTimeout(()=>{if(!window.APP_CONFIG?.url||!window.APP_CONFIG?.key||!window.supabase?.createClient)return;setLoginUI();kioskRestore()},100));
+  window.addEventListener('load',()=>{if(!window.APP_CONFIG?.url||!window.APP_CONFIG?.key||!window.supabase?.createClient)return;setLoginUI();kioskRestore()});
 })();
