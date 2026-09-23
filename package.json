@@ -52,8 +52,7 @@
   },
   "dependencies": {
     "@capacitor/core": "8.5.2",
-    "@capacitor/android": "8.5.2",
-    "typescript": "5.9.2"
+    "@capacitor/android": "8.5.2"
   },
   "engines": {
     "node": ">=22"
