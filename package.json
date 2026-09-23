@@ -15,7 +15,8 @@
   "devDependencies": {
     "electron": "^38.2.1",
     "electron-builder": "^26.0.12",
-    "@capacitor/cli": "8.5.2"
+    "@capacitor/cli": "8.5.2",
+    "typescript": "5.9.2"
   },
   "build": {
     "appId": "com.herbalinovasi.tokokasir",
