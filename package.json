@@ -1,0 +1,50 @@
+{
+  "name": "tokokasirherbal",
+  "version": "1.0.0",
+  "description": "Herbalinovasi POS - aplikasi kasir desktop Windows",
+  "main": "electron/main.cjs",
+  "author": "Lussal Design",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "^38.2.1",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.herbalinovasi.tokokasir",
+    "productName": "TokoKasirHerbal",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "index.html",
+      "index-supabase.html",
+      "app.js",
+      "config.js"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "TokoKasirHerbal-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "TokoKasirHerbal"
+    }
+  }
+}
