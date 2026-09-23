@@ -1,5 +1,7 @@
 const APP_VERSION='1.0.3';
 const UPDATE_MANIFEST_URL='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/update.json';
+const WINDOWS_UPDATE_MANIFEST_URL='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/windows-update.json';
+const IS_ELECTRON=!!(navigator.userAgent&&/Electron/i.test(navigator.userAgent));
 const CONFIG=window.APP_CONFIG||{url:'',key:''};
 let sb=null,currentUser=null,profile=null,products=[],agents=[],receivables=[],sales=[],users=[],purchases=[],cart=[],purchaseCart=[],priceProduct=null,selectedProductImage='';
 const $=id=>document.getElementById(id),rp=n=>'Rp '+Number(n||0).toLocaleString('id-ID');
@@ -45,14 +47,16 @@ async function checkForUpdate(){
   const btn=$('checkUpdateBtn');
   if(btn){btn.disabled=true;btn.textContent='⏳ Mengecek...'}
   try{
-    const res=await fetch(UPDATE_MANIFEST_URL+'?t='+Date.now(),{cache:'no-store'});
+    const manifestUrl=IS_ELECTRON?WINDOWS_UPDATE_MANIFEST_URL:UPDATE_MANIFEST_URL;
+    const res=await fetch(manifestUrl+'?t='+Date.now(),{cache:'no-store'});
     if(!res.ok)throw Error('Server update tidak dapat dihubungi.');
     const info=await res.json();
     const latest=String(info.version||'').trim();
+    const url=String(IS_ELECTRON?(info.installer||''):(info.apk||''));
     if(latest&&latest!==APP_VERSION){
-      const url=String(info.apk||'');
-      if(!url)throw Error('File APK update belum tersedia.');
-      const ok=confirm('Update tersedia: v'+latest+'\\n\\nVersi aplikasi saat ini: v'+APP_VERSION+'\\n\\nUnduh APK terbaru sekarang?');
+      if(!url)throw Error('File update belum tersedia.');
+      const tipe=IS_ELECTRON?'Windows installer (.exe)':'APK Android';
+      const ok=confirm('Update tersedia: v'+latest+'\\n\\nVersi aplikasi saat ini: v'+APP_VERSION+'\\n\\nUnduh '+tipe+' terbaru sekarang?');
       if(ok)window.open(url,'_blank');
       return;
     }
