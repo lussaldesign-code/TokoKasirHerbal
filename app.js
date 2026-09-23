@@ -5,6 +5,33 @@ const IS_ELECTRON=!!(navigator.userAgent&&/Electron/i.test(navigator.userAgent))
 const CONFIG=window.APP_CONFIG||{url:'',key:''};
 let sb=null,currentUser=null,profile=null,products=[],agents=[],receivables=[],sales=[],users=[],purchases=[],cart=[],purchaseCart=[],priceProduct=null,selectedProductImage='';
 const $=id=>document.getElementById(id),rp=n=>'Rp '+Number(n||0).toLocaleString('id-ID');
+let soundEnabled=localStorage.getItem('tokokasirherbal-sound')!=='off';
+let audioCtx=null;
+function ensureAudio(){try{if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();return audioCtx}catch(e){return null}}
+function playUiSound(type='click'){
+  if(!soundEnabled)return;
+  const ctx=ensureAudio();if(!ctx)return;
+  const now=ctx.currentTime;
+  const cfg=type==='success'?{f:720,d:.09,v:.045}:type==='error'?{f:180,d:.13,v:.05}:{f:420,d:.045,v:.028};
+  try{
+    const osc=ctx.createOscillator(),gain=ctx.createGain();
+    osc.type='sine';osc.frequency.setValueAtTime(cfg.f,now);
+    if(type==='success')osc.frequency.exponentialRampToValueAtTime(980,now+cfg.d);
+    if(type==='error')osc.frequency.exponentialRampToValueAtTime(120,now+cfg.d);
+    gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(cfg.v,now+.008);gain.gain.exponentialRampToValueAtTime(.0001,now+cfg.d);
+    osc.connect(gain);gain.connect(ctx.destination);osc.start(now);osc.stop(now+cfg.d+.02);
+  }catch(e){}
+}
+function toggleUiSound(){
+  soundEnabled=!soundEnabled;
+  localStorage.setItem('tokokasirherbal-sound',soundEnabled?'on':'off');
+  toast(soundEnabled?'🔊 Suara klik aktif':'🔇 Suara klik dimatikan');
+  if(soundEnabled)playUiSound('success');
+}
+document.addEventListener('pointerdown',e=>{
+  const target=e.target.closest('button,.nav,.btn,select,[role="button"]');
+  if(target&&!target.disabled)playUiSound('click');
+},{passive:true});
 function toast(m){$('toast').textContent=m;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),3000)}
 function requireConfig(){if(!CONFIG.url||!CONFIG.key){toast('Isi config.js dengan Supabase URL dan publishable/anon key.');throw Error('Supabase config belum diisi')}}
 async function ensureSession(){requireConfig();if(!sb)sb=supabase.createClient(CONFIG.url,CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'tokokasirherbal-auth'}});let s=await sb.auth.getSession();if(s.error)throw s.error;const existing=s.data?.session;if(existing?.user?.is_anonymous===true)return existing;if(existing){await sb.auth.signOut({scope:'local'});}let r=await sb.auth.signInAnonymously();if(r.error)throw Error('Login otomatis Supabase gagal: '+r.error.message);if(!r.data?.session)throw Error('Supabase tidak mengembalikan sesi.');return r.data.session}
