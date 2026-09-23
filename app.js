@@ -59,3 +59,33 @@ function addPurchaseItem(){const id=$('purchaseProduct').value,qty=Number($('pur
 function renderPurchaseCart(){$('purchaseCart').innerHTML=purchaseCart.map((x,i)=>`<div class="cartitem"><div><b>${esc(x.nama)}</b><div class="note">${x.qty} × ${rp(x.harga_beli)}</div><strong class="price">${rp(x.qty*x.harga_beli)}</strong></div><button class="btn danger" onclick="purchaseCart.splice(${i},1);renderPurchaseCart()">×</button></div>`).join('')||'<div class="note">Belum ada barang.</div>';const t=purchaseCart.reduce((a,x)=>a+x.qty*x.harga_beli,0);if($('purchaseTotal'))$('purchaseTotal').textContent=rp(t)}
 async function savePurchase(){try{if(profile?.role!=='admin')return toast('Hanya admin yang dapat mencatat pembelian.');if(!purchaseCart.length)return toast('Tambahkan barang pembelian.');const {data,error}=await sb.rpc('create_purchase',{p_supplier:$('purchaseSupplier').value.trim(),p_tanggal:$('purchaseDate').value||new Date().toISOString().slice(0,10),p_catatan:$('purchaseNote').value.trim(),p_items:purchaseCart.map(x=>({product_id:x.product_id,qty:x.qty,harga_beli:x.harga_beli}))});if(error)throw error;toast('Pembelian '+data.nomor_pembelian+' berhasil dan stok bertambah.');purchaseCart=[];$('purchaseSupplier').value='';$('purchaseNote').value='';closeModal('purchaseModal');await loadAll()}catch(e){console.error(e);toast('Gagal menyimpan pembelian: '+(e.message||'periksa database'))}}
 function renderPurchases(){$('purchases').innerHTML=purchases.map(p=>`<tr><td>${esc(p.nomor_pembelian)}</td><td>${esc(p.tanggal)}</td><td>${esc(p.supplier||'-')}</td><td>${rp(p.total)}</td></tr>`).join('')||'<tr><td colspan="4" class="note">Belum ada pembelian.</td></tr>'}
+
+
+let deferredInstallPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();
+  deferredInstallPrompt=e;
+  const b=$('installBtn');
+  if(b)b.classList.remove('hidden');
+});
+window.addEventListener('appinstalled',()=>{
+  deferredInstallPrompt=null;
+  const b=$('installBtn');
+  if(b)b.classList.add('hidden');
+  toast('TokoKasirHerbal berhasil dipasang di HP.');
+});
+async function installApp(){
+  if(!deferredInstallPrompt){
+    toast('Jika tombol instal belum muncul, buka menu browser lalu pilih Tambahkan ke layar utama.');
+    return;
+  }
+  deferredInstallPrompt.prompt();
+  const choice=await deferredInstallPrompt.userChoice;
+  if(choice?.outcome==='accepted')toast('Aplikasi sedang dipasang...');
+  deferredInstallPrompt=null;
+  const b=$('installBtn');
+  if(b)b.classList.add('hidden');
+}
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(e=>console.warn('PWA service worker',e)));
+}
