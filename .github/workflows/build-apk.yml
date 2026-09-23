@@ -11,7 +11,13 @@ on:
       - 'config.js'
       - 'package.json'
       - 'capacitor.config.js'
+      - 'sw.js'
+      - 'manifest.webmanifest'
+      - 'icon-192.svg'
+      - 'icon-512.svg'
       - '.github/workflows/build-apk.yml'
+      - '!TokoKasirHerbal-latest.apk'
+      - '!update.json'
 
 permissions:
   contents: write
@@ -115,22 +121,28 @@ jobs:
           retention-days: 90
 
 
-      - name: Publish APK to GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
+
+      - name: Publish APK for in-app updates
         run: |
           set -e
-          echo "Memeriksa autentikasi GitHub Actions..."
-          gh api user >/dev/null
-          echo "Token GitHub Actions valid."
-          APK="$(find android/app/build/outputs/apk/debug -type f -name '*.apk' | head -n 1)"
           VERSION="$(node -p "require('./package.json').version")"
-          TAG="v$VERSION"
-          cp "$APK" "TokoKasirHerbal-$VERSION.apk"
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$TAG" "TokoKasirHerbal-$VERSION.apk" --clobber --repo "$GITHUB_REPOSITORY"
-          else
-            gh release create "$TAG" "TokoKasirHerbal-$VERSION.apk"               --title "TokoKasirHerbal v$VERSION"               --notes "APK Android terbaru TokoKasirHerbal."               --latest               --target "HEAD^" \
-              --repo "$GITHUB_REPOSITORY"
+          APK="$(find android/app/build/outputs/apk/debug -type f -name '*.apk' | head -n 1)"
+          cp "$APK" "TokoKasirHerbal-latest.apk"
+          SHA256="$(sha256sum "TokoKasirHerbal-latest.apk" | awk '{print $1}')"
+          cat > update.json <<EOF
+          {
+            "version": "$VERSION",
+            "apk": "https://raw.githubusercontent.com/$GITHUB_REPOSITORY/main/TokoKasirHerbal-latest.apk",
+            "sha256": "$SHA256",
+            "published_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add TokoKasirHerbal-latest.apk update.json
+          if git diff --cached --quiet; then
+            echo "Tidak ada perubahan file update."
+            exit 0
           fi
-          echo "Release: https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
+          git commit -m "chore: publish Android APK v$VERSION"
+          git push origin HEAD:main
