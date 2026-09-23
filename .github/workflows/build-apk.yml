@@ -1,4 +1,5 @@
 name: Build TokoKasirHerbal APK
+# APK build pipeline: Node 24, no npm cache/lockfile requirement
 
 on:
   workflow_dispatch:
