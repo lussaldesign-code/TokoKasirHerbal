@@ -117,9 +117,13 @@ jobs:
 
       - name: Publish APK to GitHub Release
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN || github.token }}
         run: |
           set -e
+          if [ -z "$GH_TOKEN" ]; then
+            echo "GH_RELEASE_TOKEN belum disetel."
+            exit 1
+          fi
           APK="$(find android/app/build/outputs/apk/debug -type f -name '*.apk' | head -n 1)"
           VERSION="$(node -p "require('./package.json').version")"
           TAG="v$VERSION"
@@ -127,6 +131,7 @@ jobs:
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$TAG" "TokoKasirHerbal-$VERSION.apk" --clobber --repo "$GITHUB_REPOSITORY"
           else
-            gh release create "$TAG" "TokoKasirHerbal-$VERSION.apk"               --title "TokoKasirHerbal v$VERSION"               --notes "APK Android terbaru TokoKasirHerbal."               --latest               --target "HEAD^"               --repo "$GITHUB_REPOSITORY"
+            gh release create "$TAG" "TokoKasirHerbal-$VERSION.apk"               --title "TokoKasirHerbal v$VERSION"               --notes "APK Android terbaru TokoKasirHerbal."               --latest               --target "$GITHUB_SHA" \
+              --repo "$GITHUB_REPOSITORY"
           fi
           echo "Release: https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
