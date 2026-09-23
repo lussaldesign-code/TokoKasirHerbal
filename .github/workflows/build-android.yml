@@ -63,13 +63,27 @@ jobs:
           sdkmanager --list_installed | grep -E 'platform-tools|platforms;android-36|build-tools;36.0.0' || true
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps --no-audit --no-fund
+        shell: bash
+        run: |
+          npm config set production false
+          npm install --include=dev --legacy-peer-deps --no-audit --no-fund
+          npm install --no-save --include=dev typescript@5.9.2
+          node -e "console.log('TypeScript:', require('typescript/package.json').version)"
+          node -e "console.log('Capacitor CLI:', require('@capacitor/cli/package.json').version)"
 
       - name: Verify Capacitor
         shell: bash
         run: |
           npx cap --version
           npm ls @capacitor/cli @capacitor/core @capacitor/android --depth=0
+
+      - name: Verify Capacitor config
+        shell: bash
+        run: |
+          test ! -e capacitor.config.ts
+          test -f capacitor.config.json
+          node -e "console.log('Config:', require('./capacitor.config.json'))"
+          find . -maxdepth 2 -name 'capacitor.config.ts' -print
 
       - name: Add Android platform
         run: npx cap add android
