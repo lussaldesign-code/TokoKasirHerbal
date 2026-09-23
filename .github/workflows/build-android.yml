@@ -12,7 +12,7 @@ on:
       - 'manifest.webmanifest'
       - 'icon-*.svg'
       - 'package.json'
-      - 'capacitor.config.ts'
+      - 'capacitor.config.json'
       - '.github/workflows/build-android.yml'
 
 jobs:
@@ -65,12 +65,11 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps --no-audit --no-fund
 
-      - name: Verify TypeScript and Capacitor
+      - name: Verify Capacitor
         shell: bash
         run: |
-          npx tsc --version
           npx cap --version
-          npm ls typescript @capacitor/cli @capacitor/core @capacitor/android --depth=0
+          npm ls @capacitor/cli @capacitor/core @capacitor/android --depth=0
 
       - name: Add Android platform
         run: npx cap add android
