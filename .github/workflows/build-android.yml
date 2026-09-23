@@ -66,7 +66,12 @@ jobs:
         shell: bash
         run: |
           npm config set production false
+          npm config set omit ''
           npm install --include=dev --legacy-peer-deps --no-audit --no-fund
+          test -f node_modules/typescript/package.json
+          test -f node_modules/@capacitor/cli/package.json
+          node -e "console.log('TS:', require('typescript/package.json').version)"
+          node -e "console.log('CLI:', require('@capacitor/cli/package.json').version)"
           node -e "console.log('TypeScript:', require('typescript/package.json').version)"
           node -e "console.log('Capacitor CLI:', require('@capacitor/cli/package.json').version)"
 
@@ -105,7 +110,12 @@ jobs:
         shell: bash
         run: |
           rm -rf android
-          npx --no-install cap add android
+          echo "Node modules check:"
+          ls -la node_modules/typescript node_modules/@capacitor/cli | head -30
+          node -e "console.log('TS resolve:', require.resolve('typescript'))"
+          node -e "console.log('CLI resolve:', require.resolve('@capacitor/cli/package.json'))"
+          ./node_modules/.bin/cap --version
+          ./node_modules/.bin/cap add android
 
       - name: Sync Android project
         run: npx cap sync android
