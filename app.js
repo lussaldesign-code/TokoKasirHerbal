@@ -1,6 +1,5 @@
-const APP_VERSION='1.0.2';
-const UPDATE_RELEASE_URL='https://github.com/lussaldesign-code/TokoKasirHerbal/releases/latest';
-const UPDATE_API_URL='https://api.github.com/repos/lussaldesign-code/TokoKasirHerbal/releases/latest';
+const APP_VERSION='1.0.3';
+const UPDATE_MANIFEST_URL='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/update.json';
 const CONFIG=window.APP_CONFIG||{url:'',key:''};
 let sb=null,currentUser=null,profile=null,products=[],agents=[],receivables=[],sales=[],users=[],purchases=[],cart=[],purchaseCart=[],priceProduct=null,selectedProductImage='';
 const $=id=>document.getElementById(id),rp=n=>'Rp '+Number(n||0).toLocaleString('id-ID');
@@ -46,14 +45,14 @@ async function checkForUpdate(){
   const btn=$('checkUpdateBtn');
   if(btn){btn.disabled=true;btn.textContent='⏳ Mengecek...'}
   try{
-    const res=await fetch(UPDATE_API_URL,{headers:{Accept:'application/vnd.github+json'},cache:'no-store'});
+    const res=await fetch(UPDATE_MANIFEST_URL+'?t='+Date.now(),{cache:'no-store'});
     if(!res.ok)throw Error('Server update tidak dapat dihubungi.');
-    const rel=await res.json();
-    const tag=String(rel.tag_name||'').replace(/^v/i,'');
-    const apk=Array.isArray(rel.assets)?rel.assets.find(x=>/\.apk$/i.test(String(x.name||''))):null;
-    if(tag&&tag!==APP_VERSION){
-      const url=apk?.browser_download_url||rel.html_url||UPDATE_RELEASE_URL;
-      const ok=confirm('Update tersedia: v'+tag+'\\n\\nVersi aplikasi saat ini: v'+APP_VERSION+'\\n\\nUnduh APK terbaru sekarang?');
+    const info=await res.json();
+    const latest=String(info.version||'').trim();
+    if(latest&&latest!==APP_VERSION){
+      const url=String(info.apk||'');
+      if(!url)throw Error('File APK update belum tersedia.');
+      const ok=confirm('Update tersedia: v'+latest+'\\n\\nVersi aplikasi saat ini: v'+APP_VERSION+'\\n\\nUnduh APK terbaru sekarang?');
       if(ok)window.open(url,'_blank');
       return;
     }
