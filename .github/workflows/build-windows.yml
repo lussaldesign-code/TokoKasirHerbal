@@ -98,6 +98,15 @@ jobs:
         run: |
           $installer = Get-ChildItem -Path dist -Filter '*Setup-*.exe' | Select-Object -First 1
           $version = node -p "require('./package.json').version"
+
+          # Sync the branch BEFORE generating compatibility files.
+          # The previous order generated windows-update.json and then reset --hard,
+          # which silently discarded the generated manifest.
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git reset --hard origin/main
+
           Copy-Item $installer.FullName "TokoKasirHerbal-latest.exe" -Force
           $hash = (Get-FileHash "TokoKasirHerbal-latest.exe" -Algorithm SHA256).Hash.ToLower()
           @"
@@ -108,12 +117,6 @@ jobs:
           }
           "@ | Set-Content -Path windows-update.json -Encoding utf8
 
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Sync with the newest main before committing generated files.
-          # This avoids rebase conflicts when another workflow has pushed meanwhile.
-          git fetch origin main
-          git reset --hard origin/main
           git add TokoKasirHerbal-latest.exe windows-update.json
           if (git diff --cached --quiet) {
             Write-Host "Tidak ada perubahan compatibility manifest."
