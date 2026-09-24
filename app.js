@@ -1,4 +1,4 @@
-const APP_VERSION='1.0.18';
+const APP_VERSION='1.0.19';
 const UPDATE_MANIFEST_URL=new URL('update.json',location.href).href;
 const WINDOWS_UPDATE_MANIFEST_URL=new URL('windows-update.json',location.href).href;
 const UPDATE_MANIFEST_FALLBACK='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/update.json';
@@ -311,7 +311,7 @@ async function checkForUpdate(){
       info=await fetchUpdateManifest(primary,fallback);
     }catch(manifestError){
       console.warn('[updater] manifest fetch failed, trying GitHub Releases API',manifestError);
-      const api='https://api.github.com/repos/lussaldesign-code/TokoKasirLussal/releases/latest?t='+Date.now();
+      const api='https://api.github.com/repos/lussaldesign-code/TokoKasirHerbal/releases/latest?t='+Date.now();
       const rr=await fetch(api,{cache:'no-store',headers:{Accept:'application/vnd.github+json'}});
       if(!rr.ok)throw Error('Server update tidak dapat dihubungi (HTTP '+rr.status+').');
       const rel=await rr.json();
