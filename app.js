@@ -48,6 +48,17 @@ async function logout(){try{localStorage.removeItem('tokokasirlussal-username');
 async function loadProfile(){if(!currentUser?.id)throw Error('Sesi login tidak valid.');const {data,error}=await sb.from('users').select('*').eq('auth_user_id',currentUser.id).maybeSingle();if(error)throw error;if(!data)throw Error('Profile pengguna belum dibuat di public.users.');profile=data}
 function showLogin(){$('app')?.classList.add('hidden');$('login')?.classList.remove('hidden')}
 function showApp(){$('login')?.classList.add('hidden');$('app')?.classList.remove('hidden');if($('activeUser'))$('activeUser').textContent=(profile?.role==='admin'?'Admin':'Kasir')+' Aktif: '+(profile?.nama||profile?.username||'-');updateAccountView(); showAppVersion();const admin=String(profile?.role||'').toLowerCase()==='admin';if($('navLaporan'))$('navLaporan').style.display=admin?'block':'none';if($('navAkun'))$('navAkun').style.display=admin?'block':'none';if($('navPembelian'))$('navPembelian').style.display=admin?'block':'none';if($('addProductBtn'))$('addProductBtn').style.display=admin?'block':'none';if($('addAgentBtn'))$('addAgentBtn').style.display=admin?'block':'none'}
+/* TOKOKASIRLUSSAL_MOBILE_SWIPE_V2 */
+const _originalTab=tab;
+tab=function(name,el){
+ const ok=_originalTab(name,el);
+ if(ok && window.innerWidth<=800){
+   const target=$('tab-'+name);
+   if(target){target.scrollTop=0; target.scrollLeft=0;}
+   document.querySelector('.main')?.scrollTo({top:0,left:0,behavior:'instant'});
+ }
+ return ok;
+};
 /* TOKOKASIRLUSSAL_MOBILE_SWIPE_V1 */
 const MOBILE_TAB_ORDER=['dashboard','kasir','agen','piutang','pembelian','laporan','akun'];
 let mobileSwipeStartX=0,mobileSwipeStartY=0,mobileSwipeTracking=false;
