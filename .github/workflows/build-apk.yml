@@ -1,4 +1,4 @@
-name: Build TokoKasirHerbal APK
+name: Build TokoKasirLussal APK
 # APK build pipeline with versioned Android builds and in-app update manifest
 
 on:
@@ -16,11 +16,11 @@ on:
       - 'icon-192.svg'
       - 'icon-512.svg'
       - '.github/workflows/build-apk.yml'
-      - '!TokoKasirHerbal-latest.apk'
+      - '!TokoKasirLussal-latest.apk'
       - '!update.json'
 
 concurrency:
-  group: tokokasirherbal-android-build
+  group: tokokasirlussal-android-build
   cancel-in-progress: true
 
 permissions:
@@ -63,7 +63,7 @@ jobs:
           cp app.js config.js manifest.webmanifest icon-192.svg icon-512.svg sw.js mobile/www/
           sed -i "s#config.js#config.js?v=$VERSION#g" mobile/www/index.html
           sed -i "s#app.js#app.js?v=$VERSION#g" mobile/www/index.html
-          sed -i "s#tokokasirherbal-v[0-9.]*#tokokasirherbal-v$VERSION#g" mobile/www/sw.js
+          sed -i "s#tokokasirlussal-v[0-9.]*#tokokasirlussal-v$VERSION#g" mobile/www/sw.js
           test -s mobile/www/index.html
           test -s mobile/www/app.js
           test -s mobile/www/config.js
@@ -113,7 +113,7 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v7
         with:
-          name: TokoKasirHerbal-Android-APK
+          name: TokoKasirLussal-Android-APK
           path: android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 90
@@ -130,18 +130,18 @@ jobs:
           git fetch origin main
           git reset --hard origin/main
 
-          cp "$APK" "TokoKasirHerbal-latest.apk"
-          SHA256="$(sha256sum "TokoKasirHerbal-latest.apk" | awk '{print $1}')"
+          cp "$APK" "TokoKasirLussal-latest.apk"
+          SHA256="$(sha256sum "TokoKasirLussal-latest.apk" | awk '{print $1}')"
           cat > update.json <<EOF
           {
             "version": "$VERSION",
-            "apk": "https://raw.githubusercontent.com/$GITHUB_REPOSITORY/main/TokoKasirHerbal-latest.apk",
+            "apk": "https://raw.githubusercontent.com/$GITHUB_REPOSITORY/main/TokoKasirLussal-latest.apk",
             "sha256": "$SHA256"
           }
           EOF
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add TokoKasirHerbal-latest.apk update.json
+          git add TokoKasirLussal-latest.apk update.json
           if git diff --cached --quiet; then
             echo "Tidak ada perubahan file update."
             exit 0
