@@ -48,11 +48,50 @@ async function loadProfile(){if(!currentUser?.id)throw Error('Sesi login tidak v
 function showLogin(){$('app')?.classList.add('hidden');$('login')?.classList.remove('hidden')}
 function showApp(){$('login')?.classList.add('hidden');$('app')?.classList.remove('hidden');if($('activeUser'))$('activeUser').textContent=(profile?.role==='admin'?'Admin':'Kasir')+' Aktif: '+(profile?.nama||profile?.username||'-');updateAccountView(); showAppVersion();const admin=String(profile?.role||'').toLowerCase()==='admin';if($('navLaporan'))$('navLaporan').style.display=admin?'block':'none';if($('navAkun'))$('navAkun').style.display=admin?'block':'none';if($('navPembelian'))$('navPembelian').style.display=admin?'block':'none';if($('addProductBtn'))$('addProductBtn').style.display=admin?'block':'none';if($('addAgentBtn'))$('addAgentBtn').style.display=admin?'block':'none'}
 function tab(name,el){document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));$('tab-'+name).classList.add('active');document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));el?.classList.add('active');if(name==='akun')refreshReceiptPrinters()}
-async function loadAll(){const required=[sb.from('products').select('*').eq('aktif',true).order('nama'),sb.from('agents').select('*').eq('aktif',true).order('nama'),sb.from('receivables').select('*, agents(nama), sales(nomor_transaksi,created_at)').order('created_at',{ascending:false})];const results=await Promise.all(required);for(const x of results)if(x.error)throw x.error;const [p,a,r]=results;products=p.data||[];agents=a.data||[];receivables=r.data||[];sales=[];saleItems=[];receivablePayments=[];purchases=[];purchaseItems=[];saleReturns=[];saleReturnItems=[];purchaseReturns=[];purchaseReturnItems=[];users=[];if(profile?.role==='admin'){const optional=[['sales',sb.from('sales').select('*').order('created_at',{ascending:false}).limit(1000)],['sale_items',sb.from('sale_items').select('*').order('created_at',{ascending:false}).limit(5000)],['receivable_payments',sb.from('receivable_payments').select('*').order('created_at',{ascending:false}).limit(5000)],['purchases',sb.from('purchases').select('*').order('created_at',{ascending:false}).limit(500)],['purchase_items',sb.from('purchase_items').select('*').order('created_at',{ascending:false}).limit(5000)],['sale_returns',sb.from('sale_returns').select('*').order('created_at',{ascending:false}).limit(500)],['sale_return_items',sb.from('sale_return_items').select('*').order('created_at',{ascending:false}).limit(5000)],['purchase_returns',sb.from('purchase_returns').select('*').order('created_at',{ascending:false}).limit(500)],['purchase_return_items',sb.from('purchase_return_items').select('*').order('created_at',{ascending:false}).limit(5000)],['users',sb.from('users').select('id,username,nama,role,aktif,created_at,updated_at,auth_user_id').order('nama')]];const optionalResults=await Promise.all(optional.map(async([name,q])=>{try{const x=await q;if(x.error){console.warn('loadAll '+name,x.error);return {data:[]}}return x}catch(e){console.warn('loadAll '+name,e);return {data:[]}}}));sales=optionalResults[0].data||[];saleItems=optionalResults[1].data||[];receivablePayments=optionalResults[2].data||[];purchases=optionalResults[3].data||[];purchaseItems=optionalResults[4].data||[];saleReturns=optionalResults[5].data||[];saleReturnItems=optionalResults[6].data||[];purchaseReturns=optionalResults[7].data||[];purchaseReturnItems=optionalResults[8].data||[];users=optionalResults[9].data||[]}renderAll()}
+async function loadAll(){
+ const required=[
+  sb.from('products').select('*').eq('aktif',true).order('nama'),
+  sb.from('agents').select('*').eq('aktif',true).order('nama'),
+  sb.from('receivables').select('*, agents(nama), sales(nomor_transaksi,created_at)').order('created_at',{ascending:false})
+ ];
+ const results=await Promise.all(required);
+ for(const x of results)if(x.error)throw x.error;
+ const [p,a,r]=results;
+ products=p.data||[];agents=a.data||[];receivables=r.data||[];
+ sales=[];saleItems=[];receivablePayments=[];purchases=[];purchaseItems=[];
+ saleReturns=[];saleReturnItems=[];purchaseReturns=[];purchaseReturnItems=[];users=[];
+
+ const common=[
+  ['sales',profile?.role==='admin'
+    ?sb.from('sales').select('*').order('created_at',{ascending:false}).limit(1000)
+    :sb.from('sales').select('*').eq('kasir_id',profile.id).order('created_at',{ascending:false}).limit(500)],
+  ['sale_items',sb.from('sale_items').select('*').order('created_at',{ascending:false}).limit(5000)],
+  ['sale_returns',sb.from('sale_returns').select('*').order('created_at',{ascending:false}).limit(500)],
+  ['sale_return_items',sb.from('sale_return_items').select('*').order('created_at',{ascending:false}).limit(5000)]
+ ];
+ const adminOnly=profile?.role==='admin'?[
+  ['receivable_payments',sb.from('receivable_payments').select('*').order('created_at',{ascending:false}).limit(5000)],
+  ['purchases',sb.from('purchases').select('*').order('created_at',{ascending:false}).limit(500)],
+  ['purchase_items',sb.from('purchase_items').select('*').order('created_at',{ascending:false}).limit(5000)],
+  ['purchase_returns',sb.from('purchase_returns').select('*').order('created_at',{ascending:false}).limit(500)],
+  ['purchase_return_items',sb.from('purchase_return_items').select('*').order('created_at',{ascending:false}).limit(5000)],
+  ['users',sb.from('users').select('id,username,nama,role,aktif,created_at,updated_at,auth_user_id').order('nama')]
+ ]:[];
+ const optional=[...common,...adminOnly];
+ const optionalResults=await Promise.all(optional.map(async([name,q])=>{
+  try{const x=await q;if(x.error){console.warn('loadAll '+name,x.error);return {data:[]}}return x}
+  catch(e){console.warn('loadAll '+name,e);return {data:[]}}
+ }));
+ const get=n=>optionalResults[optional.findIndex(x=>x[0]===n)]?.data||[];
+ sales=get('sales');saleItems=get('sale_items');saleReturns=get('sale_returns');saleReturnItems=get('sale_return_items');
+ receivablePayments=get('receivable_payments');purchases=get('purchases');purchaseItems=get('purchase_items');
+ purchaseReturns=get('purchase_returns');purchaseReturnItems=get('purchase_return_items');users=get('users');
+ renderAll();
+}
 function getProductCategories(){return [...new Set(products.map(p=>String(p.kategori||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'id'))}
 function categoryLabel(c){const map={Agarillus:'Produk Agarillus',Herbal:'Produk Herbal Biasa'};return map[c]||('Produk '+c)}
 function syncCategoryControls(selected=''){const cats=getProductCategories();const filter=$('category');if(filter){const current=selected||filter.value;filter.innerHTML='<option value="Semua">Semua Rak</option>'+cats.map(c=>'<option value="'+escAttr(c)+'">'+esc(categoryLabel(c))+'</option>').join('');filter.value=cats.includes(current)?current:'Semua'}const rak=$('pKategori');if(rak){const current=selected||rak.value;rak.innerHTML=cats.map(c=>'<option value="'+escAttr(c)+'">'+esc(categoryLabel(c))+'</option>').join('');if(current&&cats.includes(current))rak.value=current;else if(cats.length)rak.value=cats[0]}}
-function renderAll(){syncCategoryControls();renderProducts();renderAgents();renderReceivables();renderReports();renderPurchases();renderUsers();fillAgentSelect();fillPurchaseProducts();renderCart();renderPurchaseCart()}
+function renderAll(){syncCategoryControls();renderProducts();renderAgents();renderReceivables();renderReports();renderPurchases();renderReturns();renderUsers();fillAgentSelect();fillPurchaseProducts();renderCart();renderPurchaseCart()}
 function renderProducts(){const q=($('search')?.value||'').toLowerCase(),cat=$('category')?.value||'Semua';const list=products.filter(p=>String(p.nama||'').toLowerCase().includes(q)&&(cat==='Semua'||p.kategori===cat));const cats=[...new Set(list.map(p=>String(p.kategori||'').trim()).filter(Boolean))];const rakNames={Agarillus:'Rak Agarillus',Herbal:'Rak Herbal'};$('products').innerHTML=cats.map(c=>`<div class="rak"><h3>📦 ${esc(rakNames[c]||c)}</h3><div class="grid">${list.filter(p=>p.kategori===c).map(p=>`<div class="product" onclick="choosePrice('${p.id}')"><button class="edit ${profile?.role==='admin'?'':'hidden'}" onclick="event.stopPropagation();openProduct('${p.id}')">✏️</button><img src="${escAttr(p.gambar||'')}" onerror="this.src='https://placehold.co/300x180?text=Herbal'"><div class="info"><b>${esc(p.nama)}</b><div class="price">${rp(p.harga_ecer)}</div><div class="stock">Sisa Stok: ${p.stok}</div></div></div>`).join('')}</div></div>`).join('')||'<div class="note">Produk belum tersedia.</div>'}
 function choosePrice(id){priceProduct=products.find(p=>p.id===id);if(!priceProduct||priceProduct.stok<=0)return toast('Stok habis.');$('priceName').textContent=priceProduct.nama;$('priceButtons').innerHTML=[['ecer','Harga Ecer',priceProduct.harga_ecer],['reseller','Harga Reseller',priceProduct.harga_reseller],['agen','Harga Agen',priceProduct.harga_agen],['grosir','Harga Grosir',priceProduct.harga_grosir]].map(x=>`<button class="btn pricepick" onclick="addCart('${x[0]}')"><small>${x[1]}</small><br><b class="price">${rp(x[2])}</b></button>`).join('');openModal('priceModal')}
 function addCart(type){const p=priceProduct;if(!p)return;const key=p.id+'-'+type,existing=cart.find(x=>x.key===key),same=cart.filter(x=>x.id===p.id).reduce((a,x)=>a+x.qty,0);if(same>=p.stok)return toast('Stok maksimum tercapai.');if(existing)existing.qty++;else cart.push({key,id:p.id,nama:p.nama,qty:1,type,harga:Number(p['harga_'+type])||0});closeModal('priceModal');renderCart()}
@@ -294,12 +333,86 @@ function fillPurchaseProducts(){$('purchaseProduct').innerHTML='<option value=""
 function addPurchaseItem(){const id=$('purchaseProduct').value,qty=Number($('purchaseQty').value||0),harga=Number($('purchasePrice').value||0);if(!id||qty<=0||harga<0)return toast('Pilih produk dan isi qty/harga beli.');const p=products.find(x=>x.id===id),ex=purchaseCart.find(x=>x.product_id===id);if(ex){ex.qty+=qty;ex.harga_beli=harga}else purchaseCart.push({product_id:id,nama:p.nama,qty,harga_beli:harga});$('purchaseQty').value='1';$('purchasePrice').value='0';renderPurchaseCart()}
 function renderPurchaseCart(){$('purchaseCart').innerHTML=purchaseCart.map((x,i)=>`<div class="cartitem"><div><b>${esc(x.nama)}</b><div class="note">${x.qty} × ${rp(x.harga_beli)}</div><strong class="price">${rp(x.qty*x.harga_beli)}</strong></div><button class="btn danger" onclick="purchaseCart.splice(${i},1);renderPurchaseCart()">×</button></div>`).join('')||'<div class="note">Belum ada barang.</div>';const t=purchaseCart.reduce((a,x)=>a+x.qty*x.harga_beli,0);if($('purchaseTotal'))$('purchaseTotal').textContent=rp(t)}
 async function savePurchase(){try{if(profile?.role!=='admin')return toast('Hanya admin yang dapat mencatat pembelian.');if(!purchaseCart.length)return toast('Tambahkan barang pembelian.');const {data,error}=await sb.rpc('create_purchase',{p_supplier:$('purchaseSupplier').value.trim(),p_tanggal:$('purchaseDate').value||new Date().toISOString().slice(0,10),p_catatan:$('purchaseNote').value.trim(),p_items:purchaseCart.map(x=>({product_id:x.product_id,qty:x.qty,harga_beli:x.harga_beli}))});if(error)throw error;toast('Pembelian '+data.nomor_pembelian+' berhasil dan stok bertambah.');purchaseCart=[];$('purchaseSupplier').value='';$('purchaseNote').value='';closeModal('purchaseModal');await loadAll()}catch(e){console.error(e);toast('Gagal menyimpan pembelian: '+(e.message||'periksa database'))}}
-function renderPurchases(){$('purchases').innerHTML=purchases.map(p=>`<tr><td>${esc(p.nomor_pembelian)}</td><td>${esc(p.tanggal)}</td><td>${esc(p.supplier||'-')}</td><td>${rp(p.total)}</td><td><button class="btn danger" onclick="openPurchaseReturn('${p.id}')">↩ Retur</button></td></tr>`).join('')||'<tr><td colspan="5" class="note">Belum ada pembelian.</td></tr>'}
+function renderPurchases(){$('purchases').innerHTML=purchases.map(p=>{const returned=purchaseReturns.filter(r=>r.purchase_id===p.id).reduce((a,r)=>a+Number(r.total||0),0);const net=Math.max(0,Number(p.total||0)-returned);return `<tr><td>${esc(p.nomor_pembelian)}</td><td>${esc(p.tanggal)}</td><td>${esc(p.supplier||'-')}</td><td>${rp(net)}${returned?`<div class="note">Retur ${rp(returned)}</div>`:''}</td><td><button class="btn danger" onclick="openPurchaseReturn('${p.id}')">↩ Retur</button></td></tr>`}).join('')||'<tr><td colspan="5" class="note">Belum ada pembelian.</td></tr>'}
 function ensureReturnModal(){if($('returnModal'))return;document.body.insertAdjacentHTML('beforeend',`<div id="returnModal" class="modal"><div class="modalbox"><h3 id="returnTitle">Retur Barang</h3><div id="returnItems"></div><div class="field"><label>Alasan Retur</label><input id="returnReason" placeholder="Contoh: rusak / salah barang / barang dikembalikan"></div><div class="actions"><button class="btn secondary" onclick="closeModal('returnModal')">Batal</button><button class="btn primary" onclick="submitReturn()">Simpan Retur</button></div></div></div>`)}
 let returnMode='',returnRefId='';
-function openSaleReturn(id){ensureReturnModal();returnMode='sale';returnRefId=id;const items=saleItems.filter(x=>x.sale_id===id);$('returnTitle').textContent='Retur Barang Terjual';$('returnItems').innerHTML=items.map(x=>{const returned=saleReturnItems.filter(r=>r.sale_item_id===x.id).reduce((a,r)=>a+Number(r.qty||0),0);const remaining=Math.max(0,Number(x.qty||0)-returned);return '<div class="field" style="border:1px solid #e5ece7;padding:10px;border-radius:10px"><label>'+esc(x.nama_produk)+' — '+rp(x.harga)+'</label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="note">Terjual '+x.qty+' • Sudah retur '+returned+' • Sisa '+remaining+'</span><input id="retSale_'+x.id+'" type="number" min="0" max="'+remaining+'" value="0" '+(remaining<=0?'disabled':'')+' style="max-width:120px"></div></div>'}).join('');$('returnReason').value='';openModal('returnModal')}
-function openPurchaseReturn(id){ensureReturnModal();returnMode='purchase';returnRefId=id;const items=purchaseItems.filter(x=>x.purchase_id===id);$('returnTitle').textContent='Retur Barang Dibeli';$('returnItems').innerHTML=items.map(x=>{const returned=purchaseReturnItems.filter(r=>r.purchase_item_id===x.id).reduce((a,r)=>a+Number(r.qty||0),0);const remaining=Math.max(0,Number(x.qty||0)-returned);return '<div class="field" style="border:1px solid #e5ece7;padding:10px;border-radius:10px"><label>Produk '+esc(products.find(p=>p.id===x.product_id)?.nama||x.product_id)+' — '+rp(x.harga_beli)+'</label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="note">Dibeli '+x.qty+' • Sudah retur '+returned+' • Sisa '+remaining+'</span><input id="retPur_'+x.id+'" type="number" min="0" max="'+remaining+'" value="0" '+(remaining<=0?'disabled':'')+' style="max-width:120px"></div></div>'}).join('');$('returnReason').value='';openModal('returnModal')}
-async function submitReturn(){try{const inputs=[...document.querySelectorAll(returnMode==='sale'?'[id^="retSale_"]':'[id^="retPur_"]')];const items=inputs.map(i=>({id:i.id.replace(/^ret(?:Sale|Pur)_/,''),qty:Number(i.value||0)})).filter(x=>x.qty>0);if(!items.length)return toast('Masukkan qty retur.');const alasan=$('returnReason').value.trim();const rpc=returnMode==='sale'?'create_sale_return':'create_purchase_return';const payload=returnMode==='sale'?{p_kasir_id:profile.id,p_sale_id:returnRefId,p_items:items.map(x=>({sale_item_id:x.id,qty:x.qty})),p_alasan:alasan}:{p_kasir_id:profile.id,p_purchase_id:returnRefId,p_items:items.map(x=>({purchase_item_id:x.id,qty:x.qty})),p_alasan:alasan};const {data,error}=await sb.rpc(rpc,payload);if(error)throw error;closeModal('returnModal');await loadAll();toast('Retur berhasil. Stok telah diperbarui.');}catch(e){console.error(e);toast('Retur gagal: '+(e.message||'periksa database'))}}
+function renderReturns(){
+ const salesEl=$('returnSalesList');
+ if(salesEl){
+  salesEl.innerHTML=sales.map(s=>{
+   const returned=saleReturns.filter(r=>r.sale_id===s.id).reduce((a,r)=>a+Number(r.total||0),0);
+   const net=Math.max(0,Number(s.total||0)-returned);
+   const remaining=saleItems.filter(i=>i.sale_id===s.id).reduce((sum,i)=>sum+Math.max(0,Number(i.qty||0)-saleReturnItems.filter(r=>r.sale_item_id===i.id).reduce((a,r)=>a+Number(r.qty||0),0)),0);
+   return '<tr><td>'+esc(s.nomor_transaksi)+'</td><td>'+new Date(s.created_at).toLocaleString('id-ID')+'</td><td>'+rp(net)+'</td><td>'+returned?'<span class="note">Retur '+rp(returned)+'</span>':'-';
+  }).join('');
+ }
+ if(salesEl){
+  salesEl.innerHTML=sales.map(s=>{
+   const returned=saleReturns.filter(r=>r.sale_id===s.id).reduce((a,r)=>a+Number(r.total||0),0);
+   const net=Math.max(0,Number(s.total||0)-returned);
+   const remaining=saleItems.filter(i=>i.sale_id===s.id).reduce((sum,i)=>sum+Math.max(0,Number(i.qty||0)-saleReturnItems.filter(r=>r.sale_item_id===i.id).reduce((a,r)=>a+Number(r.qty||0),0)),0);
+   return '<tr><td><b>'+esc(s.nomor_transaksi)+'</b></td><td>'+new Date(s.created_at).toLocaleString('id-ID')+'</td><td>'+rp(net)+'</td><td>'+(returned?'<span class="note">Retur '+rp(returned)+'</span>':'-')+'</td><td>'+remaining+' Pcs</td><td><button class="btn danger" '+(remaining<=0?'disabled':'')+' onclick="openSaleReturn(\''+s.id+'\')">↩ Retur</button></td></tr>';
+  }).join('')||'<tr><td colspan="6" class="note">Belum ada transaksi yang dapat diretur.</td></tr>';
+ }
+ const prEl=$('returnPurchaseList');
+ if(prEl){
+  prEl.innerHTML=profile?.role==='admin'
+   ?purchases.map(p=>'<tr><td><b>'+esc(p.nomor_pembelian)+'</b></td><td>'+esc(p.tanggal)+'</td><td>'+esc(p.supplier||'-')+'</td><td><button class="btn danger" onclick="openPurchaseReturn(\''+p.id+'\')">↩ Retur</button></td></tr>').join('')||'<tr><td colspan="4" class="note">Belum ada pembelian yang dapat diretur.</td></tr>'
+   :'<tr><td colspan="4" class="note">Retur pembelian hanya tersedia untuk admin.</td></tr>';
+ }
+}
+async function openSaleReturn(id){
+ ensureReturnModal();returnMode='sale';returnRefId=id;
+ let items=saleItems.filter(x=>x.sale_id===id);
+ if(!items.length){
+  const q=await sb.from('sale_items').select('*').eq('sale_id',id).order('created_at');
+  if(q.error)throw q.error;
+  items=q.data||[];saleItems=[...saleItems,...items];
+ }
+ $('returnTitle').textContent='Retur Barang Terjual';
+ $('returnItems').innerHTML=items.map(x=>{
+  const returned=saleReturnItems.filter(r=>r.sale_item_id===x.id).reduce((a,r)=>a+Number(r.qty||0),0);
+  const remaining=Math.max(0,Number(x.qty||0)-returned);
+  return '<div class="field" style="border:1px solid #e5ece7;padding:10px;border-radius:10px"><label>'+esc(x.nama_produk)+' — '+rp(x.harga)+'</label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="note">Terjual '+x.qty+' • Sudah retur '+returned+' • Sisa '+remaining+'</span><input id="retSale_'+x.id+'" type="number" min="0" max="'+remaining+'" step="1" value="0" '+(remaining<=0?'disabled':'')+' style="max-width:120px"></div></div>';
+ }).join('')||'<div class="note">Detail barang transaksi tidak ditemukan.</div>';
+ $('returnReason').value='';openModal('returnModal');
+}
+async function openPurchaseReturn(id){
+ ensureReturnModal();returnMode='purchase';returnRefId=id;
+ let items=purchaseItems.filter(x=>x.purchase_id===id);
+ if(!items.length){
+  const q=await sb.from('purchase_items').select('*').eq('purchase_id',id).order('created_at');
+  if(q.error)throw q.error;
+  items=q.data||[];purchaseItems=[...purchaseItems,...items];
+ }
+ $('returnTitle').textContent='Retur Barang Dibeli';
+ $('returnItems').innerHTML=items.map(x=>{
+  const returned=purchaseReturnItems.filter(r=>r.purchase_item_id===x.id).reduce((a,r)=>a+Number(r.qty||0),0);
+  const remaining=Math.max(0,Number(x.qty||0)-returned);
+  return '<div class="field" style="border:1px solid #e5ece7;padding:10px;border-radius:10px"><label>Produk '+esc(products.find(p=>p.id===x.product_id)?.nama||x.product_id)+' — '+rp(x.harga_beli)+'</label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="note">Dibeli '+x.qty+' • Sudah retur '+returned+' • Sisa '+remaining+'</span><input id="retPur_'+x.id+'" type="number" min="0" max="'+remaining+'" step="1" value="0" '+(remaining<=0?'disabled':'')+' style="max-width:120px"></div></div>';
+ }).join('')||'<div class="note">Detail pembelian tidak ditemukan.</div>';
+ $('returnReason').value='';openModal('returnModal');
+}
+async function submitReturn(){
+ try{
+  if(!returnMode||!returnRefId)return toast('Pilih transaksi yang akan diretur.');
+  const selector=returnMode==='sale'?'[id^="retSale_"]':'[id^="retPur_"]';
+  const inputs=[...document.querySelectorAll(selector)];
+  const items=inputs.map(i=>({id:i.id.replace(/^ret(?:Sale|Pur)_/,''),qty:Number(i.value||0)})).filter(x=>Number.isInteger(x.qty)&&x.qty>0);
+  if(!items.length)return toast('Masukkan qty retur minimal 1.');
+  const alasan=$('returnReason').value.trim();
+  const rpc=returnMode==='sale'?'create_sale_return':'create_purchase_return';
+  const payload=returnMode==='sale'
+   ?{p_kasir_id:profile.id,p_sale_id:returnRefId,p_items:items.map(x=>({sale_item_id:x.id,qty:x.qty})),p_alasan:alasan}
+   :{p_kasir_id:profile.id,p_purchase_id:returnRefId,p_items:items.map(x=>({purchase_item_id:x.id,qty:x.qty})),p_alasan:alasan};
+  const {data,error}=await sb.rpc(rpc,payload);
+  if(error)throw error;
+  closeModal('returnModal');
+  await loadAll();
+  const total=Number(data?.total||0);
+  toast('Retur berhasil disimpan'+(total?' — '+rp(total):'')+'. Stok, laporan, dan histori sudah disinkronkan.');
+ }catch(e){console.error('submitReturn',e);toast('Retur gagal: '+(e?.message||'Periksa transaksi, qty, stok, atau hak akses.'))}
+}
 
 
 
