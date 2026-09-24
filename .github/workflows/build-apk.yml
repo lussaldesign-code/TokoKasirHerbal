@@ -81,6 +81,7 @@ jobs:
         run: |
           VERSION="$(node -p "require('./package.json').version")"
           VERSION_CODE="$(node -e "const v=require('./package.json').version.split('.').map(Number); console.log(v[0]*10000+v[1]*100+v[2])")"
+          export VERSION VERSION_CODE
           python3 - <<'PY'
           import os,re
           p='android/app/build.gradle'
@@ -91,6 +92,8 @@ jobs:
           s=re.sub(r'versionName\s+["\'][^"\']+["\']', f'versionName "{version}"', s)
           open(p,'w').write(s)
           PY
+          echo "Android version: $VERSION"
+          echo "Android versionCode: $VERSION_CODE"
 
       - name: Sync Android
         run: ./node_modules/.bin/cap sync android
