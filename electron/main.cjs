@@ -8,7 +8,7 @@ function setupAutoUpdater() {
   if (!app.isPackaged || process.platform !== 'win32') return;
 
   autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = true;
+  // Instalasi update hanya dilakukan melalui alur yang kita kontrol agar tidak terjadi dua proses installer bersamaan.\n  autoUpdater.autoInstallOnAppQuit = false;
   autoUpdater.allowDowngrade = false;
 
   autoUpdater.on('checking-for-update', () => console.log('[updater] checking for update'));
@@ -28,7 +28,7 @@ function setupAutoUpdater() {
       detail: 'Aplikasi akan ditutup dan dibuka kembali untuk menyelesaikan update.',
       buttons: ['Update Sekarang', 'Nanti']
     });
-    if (result.response === 0) autoUpdater.quitAndInstall(false, true);
+    if (result.response === 0) {\n      // Jalankan installer setelah proses Electron benar-benar ditutup.\n      autoUpdater.quitAndInstall(true, true);\n    }
   });
 
   autoUpdater.on('error', error => console.error('[updater] error:', error));
