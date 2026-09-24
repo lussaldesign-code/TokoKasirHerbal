@@ -1,0 +1,57 @@
+name: Deploy TokoKasirHerbal Web Shell
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'TokoKasirHerbal-latest.apk'
+      - 'TokoKasirHerbal-latest.exe'
+      - 'update.json'
+      - 'windows-update.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare web shell
+        run: |
+          set -e
+          rm -rf _site
+          mkdir -p _site
+          cp index.html app.js config.js manifest.webmanifest icon-192.svg icon-512.svg sw.js _site/
+          cat > _site/web-version.json <<EOF
+          {
+            "version": "$(node -p "require('./package.json').version")",
+            "commit": "${GITHUB_SHA}",
+            "updatedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+          touch _site/.nojekyll
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
