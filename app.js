@@ -1,7 +1,8 @@
-const APP_VERSION='1.0.8';
+const APP_VERSION='1.0.9';
 const UPDATE_MANIFEST_URL='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/update.json';
 const WINDOWS_UPDATE_MANIFEST_URL='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/windows-update.json';
 const IS_ELECTRON=!!(navigator.userAgent&&/Electron/i.test(navigator.userAgent));
+const WEB_VERSION_URL=new URL('web-version.json',location.href).href;
 const CONFIG=window.APP_CONFIG||{url:'',key:''};
 let sb=null,currentUser=null,profile=null,products=[],agents=[],receivables=[],sales=[],users=[],purchases=[],cart=[],purchaseCart=[],priceProduct=null,selectedProductImage='';
 const $=id=>document.getElementById(id),rp=n=>'Rp '+Number(n||0).toLocaleString('id-ID');
@@ -135,6 +136,25 @@ async function checkForUpdate(){
     if(btn){btn.disabled=false;btn.textContent='🔄 Cek Update'}
   }
 }
+async function checkRemoteWebUpdate(){
+  try{
+    const res=await fetch(WEB_VERSION_URL+'?t='+Date.now(),{cache:'no-store',headers:{'Cache-Control':'no-cache','Pragma':'no-cache'}});
+    if(!res.ok)return;
+    const info=await res.json();
+    const remote=String(info?.commit||info?.version||'').trim();
+    if(!remote)return;
+    const key='tokokasirherbal-web-build';
+    const local=localStorage.getItem(key);
+    if(!local){localStorage.setItem(key,remote);return;}
+    if(local===remote)return;
+    localStorage.setItem(key,remote);
+    if('serviceWorker' in navigator){
+      try{const reg=await navigator.serviceWorker.getRegistration();if(reg)await reg.update();}catch(e){console.warn('service worker update',e)}
+    }
+    toast('🔄 Versi web terbaru tersedia. Aplikasi diperbarui otomatis...');
+    setTimeout(()=>location.reload(),900);
+  }catch(e){console.warn('remote web update check',e)}
+}
 function showAppVersion(){const el=$('appVersion');if(el)el.textContent='Versi '+APP_VERSION}
 function updateAccountView(){const w=$('accountWelcome'),em=$('accountEmail'),ei=$('accountEmailInput');if(w)w.textContent=(profile?.nama||'Akun')+' (@'+(profile?.username||'-')+')';if(em)em.textContent='Login: '+(profile?.username||'-');if(ei)ei.value='Username: '+(profile?.username||'-')}
 function openAccount(){if(!profile)return;if(!$('accountModal'))return toast('Panel akun belum tersedia.');$('accountNama').value=profile.nama||'';$('accountUsername').value=profile.username||'';$('accountEmailInput').value='Username: '+(profile.username||'');openModal('accountModal')}
@@ -157,7 +177,7 @@ document.addEventListener('click',e=>{const m=e.target.closest('.modal');if(m&&e
 document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;const m=document.querySelector('.modal.show');if(m)closeModal(m.id)});
 function printReport(){window.print()}
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}function escAttr(s){return esc(s).replace(/javascript:/gi,'')}
-window.addEventListener('load',async()=>{try{requireConfig();setLoginMode('kasir');showLogin()}catch(e){console.error('init',e);showLogin();toast(e.message||'Aplikasi gagal dimuat')}})
+window.addEventListener('load',async()=>{try{requireConfig();setLoginMode('kasir');showLogin();checkRemoteWebUpdate();setInterval(checkRemoteWebUpdate,60000)}catch(e){console.error('init',e);showLogin();toast(e.message||'Aplikasi gagal dimuat')}})
 function openPurchase(){if(profile?.role!=='admin')return toast('Hanya admin yang dapat mencatat pembelian.');$('purchaseDate').value=new Date().toISOString().slice(0,10);fillPurchaseProducts();renderPurchaseCart();openModal('purchaseModal')}
 function fillPurchaseProducts(){$('purchaseProduct').innerHTML='<option value="">Pilih produk</option>'+products.map(p=>`<option value="${p.id}">${esc(p.nama)} — stok ${p.stok}</option>`).join('')}
 function addPurchaseItem(){const id=$('purchaseProduct').value,qty=Number($('purchaseQty').value||0),harga=Number($('purchasePrice').value||0);if(!id||qty<=0||harga<0)return toast('Pilih produk dan isi qty/harga beli.');const p=products.find(x=>x.id===id),ex=purchaseCart.find(x=>x.product_id===id);if(ex){ex.qty+=qty;ex.harga_beli=harga}else purchaseCart.push({product_id:id,nama:p.nama,qty,harga_beli:harga});$('purchaseQty').value='1';$('purchasePrice').value='0';renderPurchaseCart()}
