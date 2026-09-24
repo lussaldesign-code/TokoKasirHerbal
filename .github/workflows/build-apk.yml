@@ -123,6 +123,13 @@ jobs:
           set -e
           VERSION="$(node -p "require('./package.json').version")"
           APK="$(find android/app/build/outputs/apk/debug -type f -name '*.apk' | head -n 1)"
+
+          # Sync the branch BEFORE generating the files that must be published.
+          # The previous order generated update.json first and then reset --hard,
+          # which silently discarded the new manifest and made the updater stay old.
+          git fetch origin main
+          git reset --hard origin/main
+
           cp "$APK" "TokoKasirHerbal-latest.apk"
           SHA256="$(sha256sum "TokoKasirHerbal-latest.apk" | awk '{print $1}')"
           cat > update.json <<EOF
@@ -134,10 +141,6 @@ jobs:
           EOF
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Sync with the newest main before committing generated files.
-          # This avoids rebase conflicts when another workflow has pushed meanwhile.
-          git fetch origin main
-          git reset --hard origin/main
           git add TokoKasirHerbal-latest.apk update.json
           if git diff --cached --quiet; then
             echo "Tidak ada perubahan file update."
