@@ -4,3 +4,18 @@ window.APP_CONFIG={
   url:'https://geoedddgvzvqsykuekdw.supabase.co',
   key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdlb2VkZGRndnp2cXN5a3Vla2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwODM3MjAsImV4cCI6MjEwNTY1OTcyMH0.DKaoJbKparsGc9_WEQ_jefQVJl5raNgPGckbw9UVoNI'
 };
+
+document.addEventListener('DOMContentLoaded',()=>{
+  const side=document.querySelector('.side'),main=document.querySelector('.main');
+  const purchaseNav=[...document.querySelectorAll('.nav')].find(x=>x.textContent.includes('Pembelian'));
+  if(!side||!main||document.getElementById('navRetur'))return;
+  const nav=document.createElement('button');
+  nav.id='navRetur';nav.className='nav';nav.type='button';nav.innerHTML='<span>↩️</span>Retur';nav.onclick=()=>openReturnsTab(nav);
+  if(purchaseNav)purchaseNav.insertAdjacentElement('afterend',nav);else side.appendChild(nav);
+  const sec=document.createElement('section');sec.id='tab-retur';sec.className='tab card';
+  sec.innerHTML='<div class="head"><div><h2>Retur Barang</h2><div class="note">Kembalikan barang yang terjual atau barang yang dibeli.</div></div></div><div class="dash" style="grid-template-columns:repeat(2,1fr)"><div class="metric card"><span>Retur Penjualan</span><b id="returnSaleCount">0</b><small class="note">Pilih transaksi penjualan untuk mengembalikan barang ke stok.</small></div><div class="metric card"><span>Retur Pembelian</span><b id="returnPurchaseCount">0</b><small class="note">Pilih pembelian untuk mengembalikan barang ke supplier.</small></div></div><div class="head"><h2>Retur Penjualan</h2></div><div class="tablebox"><table><thead><tr><th>Tanggal</th><th>Nomor</th><th>Total</th><th>Dibayar</th><th>Aksi</th></tr></thead><tbody id="returnSalesList"></tbody></table></div><div class="head"><h2>Retur Pembelian</h2></div><div class="tablebox"><table><thead><tr><th>Tanggal</th><th>Nomor</th><th>Supplier</th><th>Total</th><th>Aksi</th></tr></thead><tbody id="returnPurchasesList"></tbody></table></div>';
+  main.appendChild(sec);
+});
+function openReturnsTab(el){document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));const t=document.getElementById('tab-retur');if(t)t.classList.add('active');document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));el?.classList.add('active');renderReturnsMenu()}
+function renderReturnsMenu(){const saleList=document.getElementById('returnSalesList'),purchaseList=document.getElementById('returnPurchasesList');if(!saleList||!purchaseList)return;const ss=Array.isArray(sales)?sales:[],ps=Array.isArray(purchases)?purchases:[];document.getElementById('returnSaleCount').textContent=ss.length;document.getElementById('returnPurchaseCount').textContent=ps.length;saleList.innerHTML=ss.map(s=>'<tr><td>'+new Date(s.created_at).toLocaleDateString('id-ID')+'</td><td><b>'+esc(s.nomor_transaksi)+'</b></td><td>'+rp(s.total)+'</td><td>'+rp(s.dibayar)+'</td><td><button class="btn danger" type="button" onclick="openSaleReturn(\''+s.id+'\')">↩ Retur Penjualan</button></td></tr>').join('')||'<tr><td colspan="5" class="note">Belum ada transaksi penjualan.</td></tr>';purchaseList.innerHTML=ps.map(p=>'<tr><td>'+esc(p.tanggal||new Date(p.created_at).toLocaleDateString('id-ID'))+'</td><td><b>'+esc(p.nomor_pembelian)+'</b></td><td>'+esc(p.supplier||'-')+'</td><td>'+rp(p.total)+'</td><td><button class="btn danger" type="button" onclick="openPurchaseReturn(\''+p.id+'\')">↩ Retur Pembelian</button></td></tr>').join('')||'<tr><td colspan="5" class="note">Belum ada pembelian.</td></tr>'}
+setInterval(()=>{if(document.getElementById('tab-retur')?.classList.contains('active'))renderReturnsMenu()},1500);
