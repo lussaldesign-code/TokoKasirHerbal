@@ -1,4 +1,4 @@
-const APP_VERSION='1.0.9';
+const APP_VERSION='1.0.10';
 const UPDATE_MANIFEST_URL=new URL('update.json',location.href).href;
 const WINDOWS_UPDATE_MANIFEST_URL=new URL('windows-update.json',location.href).href;
 const UPDATE_MANIFEST_FALLBACK='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/update.json';
@@ -191,7 +191,41 @@ function openModal(id){const m=$(id);if(!m)return;m.classList.add('show');docume
 function closeModal(id){const m=$(id);if(!m)return;m.classList.remove('show');if(!document.querySelector('.modal.show'))document.body.classList.remove('modal-open')}
 document.addEventListener('click',e=>{const m=e.target.closest('.modal');if(m&&e.target===m)closeModal(m.id)});
 document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;const m=document.querySelector('.modal.show');if(m)closeModal(m.id)});
-function printReport(){const d=new Date();const date=d.toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});const shop='LAPORAN PENJUALAN HARIAN';const win=window.open('','_blank','width=1000,height=800');if(!win)return toast('Izinkan pop-up untuk mencetak laporan.');const body=$('tab-laporan').innerHTML;win.document.write(`<!doctype html><html><head><title>${shop}</title><style>body{font-family:Arial,sans-serif;color:#17211b;margin:0;padding:28px;font-size:12px}h1{font-size:22px;margin:0 0 4px}h2{font-size:14px;margin:22px 0 8px;border-bottom:2px solid #173b25;padding-bottom:6px}.letter{max-width:950px;margin:auto}.letterhead{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #173b25;padding-bottom:14px}.meta{text-align:right;color:#5d6b63}.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0}.box{border:1px solid #dfe7e1;border-radius:8px;padding:10px}.box b{display:block;font-size:16px;margin-top:4px}table{width:100%;border-collapse:collapse;margin-bottom:12px}th,td{border:1px solid #d9e1dc;padding:7px;text-align:left}th{background:#eef5f0;font-size:10px;text-transform:uppercase}.right{text-align:right}.sign{margin-top:35px;display:flex;justify-content:flex-end}.sign div{width:220px;text-align:center}.muted{color:#68766e}@media print{body{padding:12px}}</style></head><body><div class="letter"><div class="letterhead"><div><h1>${shop}</h1><div class="muted">TokoKasirHerbal • Dokumen laporan resmi</div></div><div class="meta">Tanggal laporan<br><b>${date}</b></div></div>${body}<div class="sign"><div><p>Mengetahui,</p><br><br><b>Admin / Penanggung Jawab</b></div></div></div><script>window.onload=()=>{window.print();setTimeout(()=>window.close(),700)}</script></body></html>`);win.document.close()}
+function buildPrintReportHtml(){
+  const d=new Date();
+  const date=d.toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+  const shop='LAPORAN PENJUALAN HARIAN';
+  const body=$('tab-laporan')?.innerHTML||'<p>Data laporan tidak tersedia.</p>';
+  return '<!doctype html><html><head><meta charset="utf-8"><title>'+shop+'</title><style>'+
+    'body{font-family:Arial,sans-serif;color:#17211b;margin:0;padding:28px;font-size:12px}'+
+    'h1{font-size:22px;margin:0 0 4px}h2{font-size:14px;margin:22px 0 8px;border-bottom:2px solid #173b25;padding-bottom:6px}'+
+    '.letter{max-width:950px;margin:auto}.letterhead{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #173b25;padding-bottom:14px}'+
+    '.meta{text-align:right;color:#5d6b63}.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0}'+
+    '.box{border:1px solid #dfe7e1;border-radius:8px;padding:10px}.box b{display:block;font-size:16px;margin-top:4px}'+
+    'table{width:100%;border-collapse:collapse;margin-bottom:12px}th,td{border:1px solid #d9e1dc;padding:7px;text-align:left}'+
+    'th{background:#eef5f0;font-size:10px;text-transform:uppercase}.right{text-align:right}.sign{margin-top:35px;display:flex;justify-content:flex-end}.sign div{width:220px;text-align:center}.muted{color:#68766e}'+
+    '@media print{body{padding:12px}.no-print{display:none!important}}'+
+    '</style></head><body><div class="letter"><div class="letterhead"><div><h1>'+shop+'</h1><div class="muted">TokoKasirHerbal • Dokumen laporan resmi</div></div><div class="meta">Tanggal laporan<br><b>'+date+'</b></div></div>'+
+    body+'<div class="sign"><div><p>Mengetahui,</p><br><br><b>Admin / Penanggung Jawab</b></div></div></div></body></html>';
+}
+async function printReport(){
+  try{
+    const html=buildPrintReportHtml();
+    if(window.electronPrinter?.available){
+      await window.electronPrinter.printReport(html);
+      return;
+    }
+    const win=window.open('','_blank','width=1000,height=800');
+    if(!win)return toast('Izinkan pop-up untuk mencetak laporan.');
+    win.document.open();
+    win.document.write(html.replace('</body>','<script>window.onload=()=>setTimeout(()=>window.print(),150)<\\/script></body>'));
+    win.document.close();
+  }catch(e){
+    console.error('printReport',e);
+    toast('Gagal membuka cetak: '+(e?.message||'periksa printer'));
+  }
+}
+
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}function escAttr(s){return esc(s).replace(/javascript:/gi,'')}
 window.addEventListener('load',async()=>{try{requireConfig();setLoginMode('kasir');showLogin();checkRemoteWebUpdate();setInterval(checkRemoteWebUpdate,60000)}catch(e){console.error('init',e);showLogin();toast(e.message||'Aplikasi gagal dimuat')}})
 function openPurchase(){if(profile?.role!=='admin')return toast('Hanya admin yang dapat mencatat pembelian.');$('purchaseDate').value=new Date().toISOString().slice(0,10);fillPurchaseProducts();renderPurchaseCart();openModal('purchaseModal')}
