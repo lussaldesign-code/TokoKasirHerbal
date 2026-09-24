@@ -34,7 +34,7 @@ jobs:
           set -e
           rm -rf _site
           mkdir -p _site
-          cp index.html app.js config.js manifest.webmanifest icon-192.svg icon-512.svg sw.js _site/
+          cp index.html app.js config.js manifest.webmanifest icon-192.svg icon-512.svg sw.js update.json windows-update.json _site/
           cat > _site/web-version.json <<EOF
           {
             "version": "$(node -p "require('./package.json').version")",
