@@ -24,7 +24,7 @@ function setupAutoUpdater() {
     }
     const result = await dialog.showMessageBox(mainWindow, {
       type: 'info',
-      title: 'Update TokoKasirHerbal',
+      title: 'Update TokoKasirLussal',
       message: 'Update versi ' + info.version + ' sudah siap dipasang.',
       detail: 'Aplikasi akan ditutup dan dibuka kembali untuk menyelesaikan update.',
       buttons: ['Update Sekarang', 'Nanti']
@@ -119,7 +119,7 @@ function createWindow() {
     height: 900,
     minWidth: 1024,
     minHeight: 700,
-    title: 'TokoKasirHerbal',
+    title: 'TokoKasirLussal',
     backgroundColor: '#f6f8f7',
     autoHideMenuBar: true,
     webPreferences: {
@@ -130,7 +130,7 @@ function createWindow() {
     }
   });
 
-  const REMOTE_APP_URL = 'https://lussaldesign-code.github.io/TokoKasirHerbal/';
+  const REMOTE_APP_URL = 'https://lussaldesign-code.github.io/TokoKasirLussal/';
   mainWindow.loadURL(REMOTE_APP_URL).catch(error => {
     console.error('[web-shell] remote load failed:', error);
     mainWindow.loadFile(path.join(__dirname, '..', 'index.html'));
