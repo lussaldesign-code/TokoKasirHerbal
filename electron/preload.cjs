@@ -7,6 +7,6 @@ contextBridge.exposeInMainWorld('electronUpdater', {
 contextBridge.exposeInMainWorld('electronPrinter', {
   available: true,
   listPrinters: () => ipcRenderer.invoke('list-printers'),
-  printReport: html => ipcRenderer.invoke('print-report', html),
+  printReport: (html, printerName) => ipcRenderer.invoke('print-report', { html, printerName }),
   printReceipt: (html, printerName) => ipcRenderer.invoke('print-receipt', { html, printerName })
 });
