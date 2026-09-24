@@ -14,6 +14,8 @@
     const si=Array.isArray(saleItems)?saleItems:[];
     const sr=Array.isArray(saleReturns)?saleReturns:[];
     const sri=Array.isArray(saleReturnItems)?saleReturnItems:[];
+    const pr=Array.isArray(purchaseReturns)?purchaseReturns:[];
+    const pri=Array.isArray(purchaseReturnItems)?purchaseReturnItems:[];
     const rcp=Array.isArray(receivablePayments)?receivablePayments:[];
     const ags=Array.isArray(agents)?agents:[];
 
@@ -32,6 +34,16 @@
     const returnBulan=saleReturnMonth.reduce((a,r)=>a+Number(r.total||0),0);
     const returnQtyHari=sri.filter(r=>saleReturnToday.some(x=>x.id===r.sale_return_id)).reduce((a,r)=>a+Number(r.qty||0),0);
     const returnQtyBulan=sri.filter(r=>saleReturnMonth.some(x=>x.id===r.sale_return_id)).reduce((a,r)=>a+Number(r.qty||0),0);
+    const purchaseReturnToday=pr.filter(r=>dayOf(r.created_at)===day);
+    const purchaseReturnMonth=pr.filter(r=>monthOf(r.created_at)===month);
+    const purchaseToday=(Array.isArray(purchases)?purchases:[]).filter(p=>dayOf(p.created_at||p.tanggal)===day);
+    const purchaseMonth=(Array.isArray(purchases)?purchases:[]).filter(p=>monthOf(p.created_at||p.tanggal)===month);
+    const purchaseReturnValueToday=purchaseReturnToday.reduce((a,r)=>a+Number(r.total||0),0);
+    const purchaseReturnValueMonth=purchaseReturnMonth.reduce((a,r)=>a+Number(r.total||0),0);
+    const purchaseGrossToday=purchaseToday.reduce((a,p)=>a+Number(p.total||0),0);
+    const purchaseGrossMonth=purchaseMonth.reduce((a,p)=>a+Number(p.total||0),0);
+    const purchaseNetToday=Math.max(0,purchaseGrossToday-purchaseReturnValueToday);
+    const purchaseNetMonth=Math.max(0,purchaseGrossMonth-purchaseReturnValueMonth);
 
     const ds=ss.filter(s=>dayOf(s.created_at)===day);
     const ms=ss.filter(s=>monthOf(s.created_at)===month);
@@ -118,7 +130,8 @@
       const rows=[
         ...ds.map(s=>({tanggal:s.created_at,nomor:s.nomor_transaksi,keterangan:'Pembayaran transaksi '+s.nomor_transaksi,jumlah:Number(s.dibayar||0)})),
         ...rcp.filter(p=>dayOf(p.created_at)===day).map(p=>({tanggal:p.created_at,nomor:'Piutang',keterangan:p.keterangan||'Pembayaran piutang',jumlah:Number(p.jumlah||0)})),
-        ...saleReturnToday.map(r=>({tanggal:r.created_at,nomor:'Retur',keterangan:'Retur penjualan'+(r.alasan?' — '+r.alasan:''),jumlah:-Number(r.total||0)}))
+        ...saleReturnToday.map(r=>({tanggal:r.created_at,nomor:'Retur',keterangan:'Retur penjualan'+(r.alasan?' — '+r.alasan:''),jumlah:-Number(r.total||0)})),
+        ...purchaseReturnToday.map(r=>({tanggal:r.created_at,nomor:'Retur Pembelian',keterangan:'Retur pembelian ke supplier'+(r.alasan?' — '+r.alasan:''),jumlah:0}))
       ].filter(x=>x.jumlah!==0).sort((a,b)=>new Date(b.tanggal)-new Date(a.tanggal));
       $('paymentRows').innerHTML=rows.map(x=>'<tr><td>'+new Date(x.tanggal).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})+'</td><td>'+esc(x.nomor)+'</td><td>'+esc(x.keterangan)+'</td><td>'+money(x.jumlah)+'</td></tr>').join('')||'<tr><td colspan="4" class="note">Belum ada penerimaan hari ini.</td></tr>';
     }
