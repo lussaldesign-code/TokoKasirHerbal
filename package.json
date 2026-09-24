@@ -24,7 +24,7 @@
     "files": ["electron/**/*","index.html","index-supabase.html","app.js","config.js"],
     "asar": true,
     "publish": {"provider": "github","owner": "lussaldesign-code","repo": "TokoKasirHerbal","releaseType": "release"},
-    "win": {"target": [{"target": "nsis","arch": ["x64"]}],"artifactName": "TokoKasirHerbal-Setup-$" + "{version}.$" + "{ext}"},
+    "win": {"target": [{"target": "nsis","arch": ["x64"]}],"artifactName": "TokoKasirHerbal-Setup-${version}.${ext}"},
     "nsis": {"oneClick": false,"allowToChangeInstallationDirectory": true,"createDesktopShortcut": true,"createStartMenuShortcut": true,"shortcutName": "TokoKasirHerbal"}
   },
   "dependencies": {"@capacitor/core": "8.5.2","@capacitor/android": "8.5.2","electron-updater": "^6.6.2"},
