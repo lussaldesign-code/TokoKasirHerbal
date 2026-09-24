@@ -1,4 +1,4 @@
-const APP_VERSION='1.0.17';
+const APP_VERSION='1.0.18';
 const UPDATE_MANIFEST_URL=new URL('update.json',location.href).href;
 const WINDOWS_UPDATE_MANIFEST_URL=new URL('windows-update.json',location.href).href;
 const UPDATE_MANIFEST_FALLBACK='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirLussal/main/update.json';
@@ -48,6 +48,57 @@ async function logout(){try{localStorage.removeItem('tokokasirlussal-username');
 async function loadProfile(){if(!currentUser?.id)throw Error('Sesi login tidak valid.');const {data,error}=await sb.from('users').select('*').eq('auth_user_id',currentUser.id).maybeSingle();if(error)throw error;if(!data)throw Error('Profile pengguna belum dibuat di public.users.');profile=data}
 function showLogin(){$('app')?.classList.add('hidden');$('login')?.classList.remove('hidden')}
 function showApp(){$('login')?.classList.add('hidden');$('app')?.classList.remove('hidden');if($('activeUser'))$('activeUser').textContent=(profile?.role==='admin'?'Admin':'Kasir')+' Aktif: '+(profile?.nama||profile?.username||'-');updateAccountView(); showAppVersion();const admin=String(profile?.role||'').toLowerCase()==='admin';if($('navLaporan'))$('navLaporan').style.display=admin?'block':'none';if($('navAkun'))$('navAkun').style.display=admin?'block':'none';if($('navPembelian'))$('navPembelian').style.display=admin?'block':'none';if($('addProductBtn'))$('addProductBtn').style.display=admin?'block':'none';if($('addAgentBtn'))$('addAgentBtn').style.display=admin?'block':'none'}
+/* TOKOKASIRLUSSAL_MOBILE_SWIPE_V1 */
+const MOBILE_TAB_ORDER=['dashboard','kasir','agen','piutang','pembelian','laporan','akun'];
+let mobileSwipeStartX=0,mobileSwipeStartY=0,mobileSwipeTracking=false;
+function mobileVisibleTabs(){
+  return MOBILE_TAB_ORDER.filter(name=>{
+    const section=$('tab-'+name), nav=[...document.querySelectorAll('.nav')].find(x=>(x.getAttribute('onclick')||'').includes("tab('"+name+"'"));
+    return !!section && !!nav && !section.classList.contains('hidden') && getComputedStyle(nav).display!=='none';
+  });
+}
+function mobileGoBySwipe(direction){
+  if(window.innerWidth>800)return;
+  const current=document.querySelector('.tab.active')?.id?.replace(/^tab-/,'')||'dashboard';
+  const list=mobileVisibleTabs(),idx=list.indexOf(current);
+  if(idx<0)return;
+  const next=list[idx+direction];
+  if(!next)return;
+  const nav=[...document.querySelectorAll('.nav')].find(x=>(x.getAttribute('onclick')||'').includes("tab('"+next+"'"));
+  if(tab(next,nav)){
+    const target=$('tab-'+next);
+    if(target){target.classList.remove('mobile-slide-next','mobile-slide-prev');void target.offsetWidth;target.classList.add(direction>0?'mobile-slide-next':'mobile-slide-prev');setTimeout(()=>target.classList.remove('mobile-slide-next','mobile-slide-prev'),260);}
+    history.replaceState(null,'','#'+next);
+  }
+}
+function setupMobileSwipe(){
+  const main=$('.main')||$('app');
+  if(!main||main.dataset.mobileSwipeReady==='1')return;
+  main.dataset.mobileSwipeReady='1';
+  main.addEventListener('touchstart',e=>{
+    if(window.innerWidth>800)return;
+    const t=e.changedTouches?.[0];if(!t)return;
+    if(e.target.closest('input,select,textarea,button,.modal,.cartbody,.tablebox,.products,.grid')){mobileSwipeTracking=false;return;}
+    mobileSwipeStartX=t.clientX;mobileSwipeStartY=t.clientY;mobileSwipeTracking=true;
+  },{passive:true});
+  main.addEventListener('touchend',e=>{
+    if(!mobileSwipeTracking||window.innerWidth>800)return;
+    mobileSwipeTracking=false;
+    const t=e.changedTouches?.[0];if(!t)return;
+    const dx=t.clientX-mobileSwipeStartX,dy=t.clientY-mobileSwipeStartY;
+    if(Math.abs(dx)<65||Math.abs(dx)<Math.abs(dy)*1.35)return;
+    mobileGoBySwipe(dx<0?1:-1);
+  },{passive:true});
+}
+function setupMobileTabState(){
+  setupMobileSwipe();
+  const hash=location.hash.replace('#','');
+  if(window.innerWidth<=800 && MOBILE_TAB_ORDER.includes(hash)){
+    const nav=[...document.querySelectorAll('.nav')].find(x=>(x.getAttribute('onclick')||'').includes("tab('"+hash+"'"));
+    tab(hash,nav);
+  }
+}
+
 function tab(name,el){const target=$('tab-'+name);if(!target){console.warn('Tab tidak ditemukan:',name);toast('Menu '+name+' belum tersedia.');return false;}document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));target.classList.add('active');document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));el?.classList.add('active');if(name==='akun')refreshReceiptPrinters();return true}
 function goDashboardAction(name){const target=$('tab-'+name);if(!target){toast('Menu belum tersedia: '+name);return;}const nav=[...document.querySelectorAll('.nav')].find(x=>(x.getAttribute('onclick')||'').includes("tab('"+name+"'"));tab(name,nav||null);target.scrollIntoView({behavior:'smooth',block:'start'});}
 async function loadAll(){
@@ -364,7 +415,7 @@ async function printReport(){
 }
 
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}function escAttr(s){return esc(s).replace(/javascript:/gi,'')}
-window.addEventListener('load',async()=>{try{requireConfig();setLoginMode('kasir');showLogin();checkRemoteWebUpdate();setInterval(checkRemoteWebUpdate,60000)}catch(e){console.error('init',e);showLogin();toast(e.message||'Aplikasi gagal dimuat')}})
+window.addEventListener('load',async()=>{try{requireConfig();setupMobileTabState();setLoginMode('kasir');showLogin();checkRemoteWebUpdate();setInterval(checkRemoteWebUpdate,60000)}catch(e){console.error('init',e);showLogin();toast(e.message||'Aplikasi gagal dimuat')}})
 function openPurchase(){if(profile?.role!=='admin')return toast('Hanya admin yang dapat mencatat pembelian.');$('purchaseDate').value=new Date().toISOString().slice(0,10);fillPurchaseProducts();renderPurchaseCart();openModal('purchaseModal')}
 function fillPurchaseProducts(){$('purchaseProduct').innerHTML='<option value="">Pilih produk</option>'+products.map(p=>`<option value="${p.id}">${esc(p.nama)} — stok ${p.stok}</option>`).join('')}
 function addPurchaseItem(){const id=$('purchaseProduct').value,qty=Number($('purchaseQty').value||0),harga=Number($('purchasePrice').value||0);if(!id||qty<=0||harga<0)return toast('Pilih produk dan isi qty/harga beli.');const p=products.find(x=>x.id===id),ex=purchaseCart.find(x=>x.product_id===id);if(ex){ex.qty+=qty;ex.harga_beli=harga}else purchaseCart.push({product_id:id,nama:p.nama,qty,harga_beli:harga});$('purchaseQty').value='1';$('purchasePrice').value='0';renderPurchaseCart()}
