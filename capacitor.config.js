@@ -1,5 +1,5 @@
 module.exports = {
-  appId: 'com.manajemen-toko-kasir.tokokasir',
+  appId: 'com.lussaldesign.tokokasirlussal',
   appName: 'TokoKasirLussal',
   webDir: 'mobile/www',
   bundledWebRuntime: false,
