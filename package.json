@@ -20,7 +20,6 @@
   "build": {
     "appId": "com.manajemen-toko-kasir.tokokasir",
     "productName": "TokoKasirLussal",
-    "icon": "Lussal.png",
     "directories": {
       "output": "dist"
     },
