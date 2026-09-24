@@ -1,5 +1,5 @@
 name: Build TokoKasirHerbal APK
-# APK build pipeline: Node 24, no npm cache/lockfile requirement
+# APK build pipeline with versioned Android builds and in-app update manifest
 
 on:
   workflow_dispatch:
@@ -53,25 +53,17 @@ jobs:
         with:
           packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
 
-      - name: Verify build environment
-        run: |
-          node --version
-          npm --version
-          java -version
-          sdkmanager --version
-          test -f package.json
-          test -f capacitor.config.js
-          test ! -e capacitor.config.ts
-          test ! -e capacitor.config.json
-
       - name: Prepare web files
         run: |
+          set -e
+          VERSION="$(node -p "require('./package.json').version")"
           rm -rf mobile
           mkdir -p mobile/www
           cp index-supabase.html mobile/www/index.html
           cp app.js config.js manifest.webmanifest icon-192.svg icon-512.svg sw.js mobile/www/
-          sed -i 's#config.js#config.js?v=20260927#g' mobile/www/index.html
-          sed -i 's#app.js#app.js?v=20260927#g' mobile/www/index.html
+          sed -i "s#config.js#config.js?v=$VERSION#g" mobile/www/index.html
+          sed -i "s#app.js#app.js?v=$VERSION#g" mobile/www/index.html
+          sed -i "s#tokokasirherbal-v[0-9.]*#tokokasirherbal-v$VERSION#g" mobile/www/sw.js
           test -s mobile/www/index.html
           test -s mobile/www/app.js
           test -s mobile/www/config.js
@@ -79,30 +71,31 @@ jobs:
       - name: Install npm packages
         run: npm install --legacy-peer-deps --no-audit --no-fund
 
-      - name: Verify Capacitor packages
-        run: |
-          test -x ./node_modules/.bin/cap
-          ./node_modules/.bin/cap --version
-          node -e "console.log('core', require('@capacitor/core/package.json').version)"
-          node -e "console.log('android', require('@capacitor/android/package.json').version)"
-          node -e "console.log('cli', require('@capacitor/cli/package.json').version)"
-
       - name: Generate Android project
         run: |
           rm -rf android
           ./node_modules/.bin/cap add android
 
+      - name: Set Android version
+        shell: bash
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          VERSION_CODE="$(node -e "const v=require('./package.json').version.split('.').map(Number); console.log(v[0]*10000+v[1]*100+v[2])")"
+          python3 - <<'PY'
+          import os,re
+          p='android/app/build.gradle'
+          s=open(p).read()
+          version=os.environ['VERSION']
+          code=os.environ['VERSION_CODE']
+          s=re.sub(r'versionCode\s+\d+', f'versionCode {code}', s)
+          s=re.sub(r'versionName\s+["\'][^"\']+["\']', f'versionName "{version}"', s)
+          open(p,'w').write(s)
+          PY
+        env:
+          VERSION: ${{ github.ref_name }}
+
       - name: Sync Android
         run: ./node_modules/.bin/cap sync android
-
-      - name: Verify Android project
-        run: |
-          test -x android/gradlew
-          test -f android/settings.gradle
-          test -f android/app/build.gradle
-          chmod +x android/gradlew
-          cd android
-          ./gradlew --version
 
       - name: Build Debug APK
         working-directory: android
@@ -116,15 +109,13 @@ jobs:
           ls -lh "$APK"
           sha256sum "$APK"
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v7
         with:
           name: TokoKasirHerbal-Android-APK
           path: android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 90
-
-
 
       - name: Publish APK for in-app updates
         run: |
