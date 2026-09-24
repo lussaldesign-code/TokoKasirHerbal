@@ -1,4 +1,4 @@
-const APP_VERSION='1.0.15';
+const APP_VERSION='1.0.16';
 const UPDATE_MANIFEST_URL=new URL('update.json',location.href).href;
 const WINDOWS_UPDATE_MANIFEST_URL=new URL('windows-update.json',location.href).href;
 const UPDATE_MANIFEST_FALLBACK='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/update.json';
@@ -353,36 +353,52 @@ function renderReturns(){
  }
 }
 async function openSaleReturn(id){
- ensureReturnModal();returnMode='sale';returnRefId=id;
- let items=saleItems.filter(x=>x.sale_id===id);
- if(!items.length){
+ try{
+  ensureReturnModal();returnMode='sale';returnRefId=id;
   const q=await sb.from('sale_items').select('*').eq('sale_id',id).order('created_at');
   if(q.error)throw q.error;
-  items=q.data||[];saleItems=[...saleItems,...items];
- }
- $('returnTitle').textContent='Retur Barang Terjual';
- $('returnItems').innerHTML=items.map(x=>{
-  const returned=saleReturnItems.filter(r=>r.sale_item_id===x.id).reduce((a,r)=>a+Number(r.qty||0),0);
-  const remaining=Math.max(0,Number(x.qty||0)-returned);
-  return '<div class="field" style="border:1px solid #e5ece7;padding:10px;border-radius:10px"><label>'+esc(x.nama_produk)+' — '+rp(x.harga)+'</label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="note">Terjual '+x.qty+' • Sudah retur '+returned+' • Sisa '+remaining+'</span><input id="retSale_'+x.id+'" type="number" min="0" max="'+remaining+'" step="1" value="0" '+(remaining<=0?'disabled':'')+' style="max-width:120px"></div></div>';
- }).join('')||'<div class="note">Detail barang transaksi tidak ditemukan.</div>';
- $('returnReason').value='';openModal('returnModal');
+  const items=q.data||[];
+  const ids=items.map(x=>x.id);
+  let returns=[];
+  if(ids.length){
+   const rr=await sb.from('sale_return_items').select('*').in('sale_item_id',ids).order('created_at');
+   if(rr.error)throw rr.error;
+   returns=rr.data||[];
+  }
+  saleItems=[...saleItems.filter(x=>x.sale_id!==id),...items];
+  saleReturnItems=[...saleReturnItems.filter(x=>!ids.includes(x.sale_item_id)),...returns];
+  $('returnTitle').textContent='Retur Barang Terjual';
+  $('returnItems').innerHTML=items.map(x=>{
+   const returned=returns.filter(r=>r.sale_item_id===x.id).reduce((a,r)=>a+Number(r.qty||0),0);
+   const remaining=Math.max(0,Number(x.qty||0)-returned);
+   return '<div class="field" style="border:1px solid #e5ece7;padding:10px;border-radius:10px"><label>'+esc(x.nama_produk)+' — '+rp(x.harga)+'</label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="note">Terjual '+x.qty+' • Sudah retur '+returned+' • Sisa '+remaining+'</span><input id="retSale_'+x.id+'" type="number" min="0" max="'+remaining+'" step="1" value="0" '+(remaining<=0?'disabled':'')+' style="max-width:120px"></div></div>';
+  }).join('')||'<div class="note">Detail barang transaksi tidak ditemukan.</div>';
+  $('returnReason').value='';openModal('returnModal');
+ }catch(e){console.error('openSaleReturn',e);toast('Detail retur gagal dimuat: '+(e?.message||e))}
 }
 async function openPurchaseReturn(id){
- ensureReturnModal();returnMode='purchase';returnRefId=id;
- let items=purchaseItems.filter(x=>x.purchase_id===id);
- if(!items.length){
+ try{
+  ensureReturnModal();returnMode='purchase';returnRefId=id;
   const q=await sb.from('purchase_items').select('*').eq('purchase_id',id).order('created_at');
   if(q.error)throw q.error;
-  items=q.data||[];purchaseItems=[...purchaseItems,...items];
- }
- $('returnTitle').textContent='Retur Barang Dibeli';
- $('returnItems').innerHTML=items.map(x=>{
-  const returned=purchaseReturnItems.filter(r=>r.purchase_item_id===x.id).reduce((a,r)=>a+Number(r.qty||0),0);
-  const remaining=Math.max(0,Number(x.qty||0)-returned);
-  return '<div class="field" style="border:1px solid #e5ece7;padding:10px;border-radius:10px"><label>Produk '+esc(products.find(p=>p.id===x.product_id)?.nama||x.product_id)+' — '+rp(x.harga_beli)+'</label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="note">Dibeli '+x.qty+' • Sudah retur '+returned+' • Sisa '+remaining+'</span><input id="retPur_'+x.id+'" type="number" min="0" max="'+remaining+'" step="1" value="0" '+(remaining<=0?'disabled':'')+' style="max-width:120px"></div></div>';
- }).join('')||'<div class="note">Detail pembelian tidak ditemukan.</div>';
- $('returnReason').value='';openModal('returnModal');
+  const items=q.data||[];
+  const ids=items.map(x=>x.id);
+  let returns=[];
+  if(ids.length){
+   const rr=await sb.from('purchase_return_items').select('*').in('purchase_item_id',ids).order('created_at');
+   if(rr.error)throw rr.error;
+   returns=rr.data||[];
+  }
+  purchaseItems=[...purchaseItems.filter(x=>x.purchase_id!==id),...items];
+  purchaseReturnItems=[...purchaseReturnItems.filter(x=>!ids.includes(x.purchase_item_id)),...returns];
+  $('returnTitle').textContent='Retur Barang Dibeli';
+  $('returnItems').innerHTML=items.map(x=>{
+   const returned=returns.filter(r=>r.purchase_item_id===x.id).reduce((a,r)=>a+Number(r.qty||0),0);
+   const remaining=Math.max(0,Number(x.qty||0)-returned);
+   return '<div class="field" style="border:1px solid #e5ece7;padding:10px;border-radius:10px"><label>Produk '+esc(products.find(p=>p.id===x.product_id)?.nama||x.product_id)+' — '+rp(x.harga_beli)+'</label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="note">Dibeli '+x.qty+' • Sudah retur '+returned+' • Sisa '+remaining+'</span><input id="retPur_'+x.id+'" type="number" min="0" max="'+remaining+'" step="1" value="0" '+(remaining<=0?'disabled':'')+' style="max-width:120px"></div></div>';
+  }).join('')||'<div class="note">Detail pembelian tidak ditemukan.</div>';
+  $('returnReason').value='';openModal('returnModal');
+ }catch(e){console.error('openPurchaseReturn',e);toast('Detail retur gagal dimuat: '+(e?.message||e))}
 }
 async function submitReturn(){
  try{
@@ -391,6 +407,30 @@ async function submitReturn(){
   const inputs=[...document.querySelectorAll(selector)];
   const items=inputs.map(i=>({id:i.id.replace(/^ret(?:Sale|Pur)_/,''),qty:Number(i.value||0)})).filter(x=>Number.isInteger(x.qty)&&x.qty>0);
   if(!items.length)return toast('Masukkan qty retur minimal 1.');
+
+  // Ambil ulang detail retur tepat sebelum submit agar tidak memakai data/cache lama.
+  const itemTable=returnMode==='sale'?'sale_items':'purchase_items';
+  const returnTable=returnMode==='sale'?'sale_return_items':'purchase_return_items';
+  const fk=returnMode==='sale'?'sale_id':'purchase_id';
+  const itemIdField=returnMode==='sale'?'sale_item_id':'purchase_item_id';
+  const freshItems=await sb.from(itemTable).select('*').eq(fk,returnRefId);
+  if(freshItems.error)throw freshItems.error;
+  const freshIds=(freshItems.data||[]).map(x=>x.id);
+  const freshReturns=freshIds.length
+    ? await sb.from(returnTable).select('*').in(itemIdField,freshIds)
+    : {data:[],error:null};
+  if(freshReturns.error)throw freshReturns.error;
+
+  const available=new Map((freshItems.data||[]).map(x=>{
+    const returned=(freshReturns.data||[]).filter(r=>r[itemIdField]===x.id).reduce((a,r)=>a+Number(r.qty||0),0);
+    return [x.id,Math.max(0,Number(x.qty||0)-returned)];
+  }));
+  for(const item of items){
+    const left=available.get(item.id);
+    if(left===undefined)throw Error('Item transaksi tidak ditemukan atau sudah tidak tersedia untuk retur.');
+    if(item.qty>left)throw Error('Qty retur '+item.qty+' melebihi sisa qty '+left+'. Silakan masukkan qty sesuai sisa.');
+  }
+
   const alasan=$('returnReason').value.trim();
   const rpc=returnMode==='sale'?'create_sale_return':'create_purchase_return';
   const payload=returnMode==='sale'
