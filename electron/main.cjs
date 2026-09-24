@@ -81,7 +81,9 @@ ipcMain.handle('print-receipt', async (_event, payload) => {
   }
 });
 
-ipcMain.handle('print-report', async (_event, html) => {
+ipcMain.handle('print-report', async (_event, payload) => {
+  const html = typeof payload === 'string' ? payload : payload?.html;
+  const requestedPrinter = typeof payload === 'object' ? payload?.printerName : '';
   if (typeof html !== 'string' || !html.trim()) throw new Error('Dokumen cetak kosong.');
 
   const printWindow = new BrowserWindow({
@@ -96,7 +98,7 @@ ipcMain.handle('print-report', async (_event, html) => {
     await printWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
     await new Promise(resolve => setTimeout(resolve, 250));
     await new Promise((resolve, reject) => {
-      printWindow.webContents.print({ silent: false, printBackground: true }, (success, reason) => {
+      printWindow.webContents.print({ silent: true, deviceName: requestedPrinter || undefined, printBackground: true, margins: { marginType: 'default' } }, (success, reason) => {
         if (success) resolve();
         else reject(new Error(reason || 'Gagal membuka dialog printer.'));
       });
