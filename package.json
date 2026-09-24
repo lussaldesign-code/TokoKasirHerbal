@@ -1,7 +1,7 @@
 {
-  "name": "tokokasirherbal",
-  "version": "1.0.17",
-  "description": "Herbalinovasi POS - aplikasi kasir Windows, Android, dan PWA",
+  "name": "tokokasirlussal",
+  "version": "1.0.18",
+  "description": "Manajemen Toko Kasir - aplikasi kasir Windows, Android, dan PWA",
   "main": "electron/main.cjs",
   "author": "Lussal Design",
   "license": "MIT",
@@ -18,8 +18,9 @@
     "@capacitor/cli": "8.5.2"
   },
   "build": {
-    "appId": "com.herbalinovasi.tokokasir",
-    "productName": "TokoKasirHerbal",
+    "appId": "com.manajemen-toko-kasir.tokokasir",
+    "productName": "TokoKasirLussal",
+    "icon": "Lussal.png",
     "directories": {
       "output": "dist"
     },
@@ -34,7 +35,7 @@
     "publish": {
       "provider": "github",
       "owner": "lussaldesign-code",
-      "repo": "TokoKasirHerbal",
+      "repo": "TokoKasirLussal",
       "releaseType": "release"
     },
     "win": {
@@ -46,14 +47,14 @@
           ]
         }
       ],
-      "artifactName": "TokoKasirHerbal-Setup-${version}.${ext}"
+      "artifactName": "TokoKasirLussal-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "TokoKasirHerbal",
+      "shortcutName": "TokoKasirLussal",
       "perMachine": false,
       "allowElevation": true,
       "differentialPackage": false
