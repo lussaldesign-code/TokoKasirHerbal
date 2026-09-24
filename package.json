@@ -34,7 +34,7 @@
     "publish": {
       "provider": "github",
       "owner": "lussaldesign-code",
-      "repo": "TokoKasirLussal",
+      "repo": "TokoKasirHerbal",
       "releaseType": "release"
     },
     "win": {
