@@ -1,6 +1,8 @@
 const APP_VERSION='1.0.9';
-const UPDATE_MANIFEST_URL='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/update.json';
-const WINDOWS_UPDATE_MANIFEST_URL='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/windows-update.json';
+const UPDATE_MANIFEST_URL=new URL('update.json',location.href).href;
+const WINDOWS_UPDATE_MANIFEST_URL=new URL('windows-update.json',location.href).href;
+const UPDATE_MANIFEST_FALLBACK='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/update.json';
+const WINDOWS_UPDATE_MANIFEST_FALLBACK='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/windows-update.json';
 const IS_ELECTRON=!!(navigator.userAgent&&/Electron/i.test(navigator.userAgent));
 const WEB_VERSION_URL=new URL('web-version.json',location.href).href;
 const CONFIG=window.APP_CONFIG||{url:'',key:''};
@@ -73,61 +75,53 @@ function renderReports(){
 }
 function versionParts(v){return String(v||'0').replace(/^v/i,'').split('.').map(x=>parseInt(x,10)||0)}
 function isNewerVersion(latest,current){const a=versionParts(latest),b=versionParts(current);for(let i=0;i<3;i++){if((a[i]||0)>(b[i]||0))return true;if((a[i]||0)<(b[i]||0))return false}return false}
+async function fetchUpdateManifest(primaryUrl,fallbackUrl){
+  const urls=[primaryUrl,fallbackUrl].filter(Boolean);
+  let lastError=null;
+  for(const url of urls){
+    try{
+      const res=await fetch(url+'?t='+Date.now(),{cache:'no-store',headers:{'Cache-Control':'no-cache','Pragma':'no-cache'}});
+      if(!res.ok){lastError=Error('HTTP '+res.status);continue;}
+      const data=await res.json();
+      if(data&&data.version)return data;
+      lastError=Error('Manifest update tidak valid.');
+    }catch(e){lastError=e;}
+  }
+  throw lastError||Error('Manifest update tidak dapat diakses.');
+}
 async function checkForUpdate(){
   const btn=$('checkUpdateBtn');
   if(btn){btn.disabled=true;btn.textContent='⏳ Mengecek...'}
   try{
-    const manifestUrl=IS_ELECTRON?WINDOWS_UPDATE_MANIFEST_URL:UPDATE_MANIFEST_URL;
+    const primary=IS_ELECTRON?WINDOWS_UPDATE_MANIFEST_URL:UPDATE_MANIFEST_URL;
+    const fallback=IS_ELECTRON?WINDOWS_UPDATE_MANIFEST_FALLBACK:UPDATE_MANIFEST_FALLBACK;
     let info=null;
-
-    // Primary: static manifest, always bypass cache.
-    const res=await fetch(manifestUrl+'?t='+Date.now(),{
-      cache:'no-store',
-      headers:{'Cache-Control':'no-cache','Pragma':'no-cache'}
-    });
-    if(res.ok) info=await res.json();
-
-    // Fallback: GitHub Releases API. This also protects older builds when
-    // the static manifest is temporarily cached/stale.
-    if(!info || !info.version){
+    try{
+      info=await fetchUpdateManifest(primary,fallback);
+    }catch(manifestError){
+      console.warn('[updater] manifest fetch failed, trying GitHub Releases API',manifestError);
       const api='https://api.github.com/repos/lussaldesign-code/TokoKasirHerbal/releases/latest?t='+Date.now();
       const rr=await fetch(api,{cache:'no-store',headers:{Accept:'application/vnd.github+json'}});
-      if(rr.ok){
-        const rel=await rr.json();
-        const latestRel=String(rel.tag_name||'').replace(/^v/i,'');
-        const asset=Array.isArray(rel.assets)
-          ? rel.assets.find(x=>IS_ELECTRON?/Setup-[0-9].*\\.exe$/i.test(x.name):/\\.apk$/i.test(x.name))
-          : null;
-        info={version:latestRel,installer:asset?.browser_download_url||'',apk:asset?.browser_download_url||''};
-      }
+      if(!rr.ok)throw Error('Server update tidak dapat dihubungi (HTTP '+rr.status+').');
+      const rel=await rr.json();
+      const latestRel=String(rel.tag_name||'').replace(/^v/i,'');
+      const assets=Array.isArray(rel.assets)?rel.assets:[];
+      const asset=assets.find(x=>IS_ELECTRON?/Setup-[0-9].*\.exe$/i.test(x.name):/\.apk$/i.test(x.name));
+      info={version:latestRel,installer:asset?.browser_download_url||'',apk:asset?.browser_download_url||''};
     }
-
     const latest=String(info?.version||'').trim();
     let url=String(IS_ELECTRON?(info?.installer||''):(info?.apk||''));
-
-    if(!latest) throw Error('Versi update tidak valid atau server update belum tersedia.');
-
+    if(!latest)throw Error('Versi update tidak valid atau server update belum tersedia.');
     if(isNewerVersion(latest,APP_VERSION)){
-      if(!url){
-        if(IS_ELECTRON) url='https://github.com/lussaldesign-code/TokoKasirHerbal/releases/latest';
-        else url='https://github.com/lussaldesign-code/TokoKasirHerbal/releases/latest';
-      }
+      if(!url)url='https://github.com/lussaldesign-code/TokoKasirHerbal/releases/latest';
       const tipe=IS_ELECTRON?'installer Windows (.exe)':'APK Android';
-      const ok=confirm('Update tersedia: v'+latest+'\\n\\nVersi aplikasi saat ini: v'+APP_VERSION+'\\n\\nUnduh '+tipe+' terbaru sekarang?');
+      const ok=confirm('Update tersedia: v'+latest+'\n\nVersi aplikasi saat ini: v'+APP_VERSION+'\n\nUnduh '+tipe+' terbaru sekarang?');
       if(ok){
-        if(IS_ELECTRON){
-          window.open(url,'_blank');
-          toast('Membuka installer Windows terbaru. Jika unduhan belum mulai, buka halaman Release GitHub.');
-        }else{
-          // Android WebView: navigate directly to the APK URL so the OS/browser
-          // can handle the APK download instead of relying on window.open().
-          window.location.href=url;
-          toast('Membuka unduhan APK terbaru. Setelah selesai, buka APK untuk memasang update.');
-        }
+        if(IS_ELECTRON){window.open(url,'_blank');toast('Membuka installer Windows terbaru.');}
+        else{window.location.href=url;toast('Membuka unduhan APK terbaru. Setelah selesai, buka APK untuk memasang update.');}
       }
       return;
     }
-
     toast('Aplikasi sudah versi terbaru (v'+APP_VERSION+'). Server mendeteksi v'+latest+'.');
   }catch(e){
     console.error('checkForUpdate',e);
