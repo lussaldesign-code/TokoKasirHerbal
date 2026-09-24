@@ -17,4 +17,31 @@ document.addEventListener('DOMContentLoaded',()=>{
   main.appendChild(sec);
 });
 function openReturnsTab(el){document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));const t=document.getElementById('tab-retur');if(t)t.classList.add('active');document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));el?.classList.add('active');renderReturnsMenu()}
-function renderReturnsMenu(){const saleList=document.getElementById('returnSalesList'),purchaseList=document.getElementById('returnPurchasesList');if(!saleList||!purchaseList)return;const ss=Array.isArray(saleReturns)?saleReturns:[],ps=Array.isArray(purchaseReturns)?purchaseReturns:[];document.getElementById('returnSaleCount').textContent=ss.length;document.getElementById('returnPurchaseCount').textContent=ps.length;saleList.innerHTML=ss.map(r=>{const s=(Array.isArray(sales)?sales:[]).find(x=>x.id===r.sale_id)||{};return '<tr><td>'+new Date(r.created_at).toLocaleDateString('id-ID')+'</td><td><b>'+esc(s.nomor_transaksi||r.sale_id)+'</b></td><td>'+rp(r.total)+'</td><td>'+rp(s.dibayar||0)+'</td><td><button class="btn danger" type="button" onclick="openSaleReturn(&quot;'+escAttr(s.id||r.sale_id)+'&quot;)">↩ Kelola Retur</button></td></tr>'}).join('')||'<tr><td colspan="5" class="note">Belum ada retur penjualan.</td></tr>';purchaseList.innerHTML=ps.map(r=>{const p=(Array.isArray(purchases)?purchases:[]).find(x=>x.id===r.purchase_id)||{};return '<tr><td>'+esc(r.created_at?new Date(r.created_at).toLocaleDateString('id-ID'):'-')+'</td><td><b>'+esc(p.nomor_pembelian||r.purchase_id)+'</b></td><td>'+esc(p.supplier||'-')+'</td><td>'+rp(r.total)+'</td><td><button class="btn danger" type="button" onclick="openPurchaseReturn(&quot;'+escAttr(p.id||r.purchase_id)+'&quot;)">↩ Kelola Retur</button></td></tr>'}).join('')||'<tr><td colspan="5" class="note">Belum ada retur pembelian.</td></tr>'}
+function renderReturnsMenu(){
+ const saleList=document.getElementById('returnSalesList'),purchaseList=document.getElementById('returnPurchasesList');
+ if(!saleList||!purchaseList)return;
+ const ss=Array.isArray(sales)?sales:[];
+ const ps=Array.isArray(purchases)?purchases:[];
+ const sr=Array.isArray(saleReturns)?saleReturns:[];
+ const pr=Array.isArray(purchaseReturns)?purchaseReturns:[];
+ document.getElementById('returnSaleCount').textContent=sr.length;
+ document.getElementById('returnPurchaseCount').textContent=pr.length;
+ saleList.innerHTML=ss.map(s=>{
+   const returned=sr.filter(r=>r.sale_id===s.id).reduce((a,r)=>a+Number(r.total||0),0);
+   const items=(Array.isArray(saleItems)?saleItems:[]).filter(i=>i.sale_id===s.id);
+   const remaining=items.reduce((sum,i)=>{
+     const used=(Array.isArray(saleReturnItems)?saleReturnItems:[]).filter(r=>r.sale_item_id===i.id).reduce((a,r)=>a+Number(r.qty||0),0);
+     return sum+Math.max(0,Number(i.qty||0)-used);
+   },0);
+   return '<tr><td>'+esc(s.created_at?new Date(s.created_at).toLocaleDateString('id-ID'):'-')+'</td><td><b>'+esc(s.nomor_transaksi||s.id)+'</b></td><td>'+rp(Math.max(0,Number(s.total||0)-returned))+'</td><td>'+rp(s.dibayar||0)+'</td><td><button class="btn danger" type="button" '+(remaining<=0?'disabled':'')+' onclick="openSaleReturn(&quot;'+escAttr(s.id)+'&quot;)">'+(remaining>0?'↩ Retur':'✓ Sudah Diretur')+'</button></td></tr>';
+ }).join('')||'<tr><td colspan="5" class="note">Belum ada transaksi penjualan.</td></tr>';
+ purchaseList.innerHTML=ps.map(p=>{
+   const returned=pr.filter(r=>r.purchase_id===p.id).reduce((a,r)=>a+Number(r.total||0),0);
+   const items=(Array.isArray(purchaseItems)?purchaseItems:[]).filter(i=>i.purchase_id===p.id);
+   const remaining=items.reduce((sum,i)=>{
+     const used=(Array.isArray(purchaseReturnItems)?purchaseReturnItems:[]).filter(r=>r.purchase_item_id===i.id).reduce((a,r)=>a+Number(r.qty||0),0);
+     return sum+Math.max(0,Number(i.qty||0)-used);
+   },0);
+   return '<tr><td>'+esc(p.tanggal||'-')+'</td><td><b>'+esc(p.nomor_pembelian||p.id)+'</b></td><td>'+esc(p.supplier||'-')+'</td><td>'+rp(Math.max(0,Number(p.total||0)-returned))+'</td><td><button class="btn danger" type="button" '+(remaining<=0?'disabled':'')+' onclick="openPurchaseReturn(&quot;'+escAttr(p.id)+'&quot;)">'+(remaining>0?'↩ Retur':'✓ Sudah Diretur')+'</button></td></tr>';
+ }).join('')||'<tr><td colspan="5" class="note">Belum ada pembelian.</td></tr>';
+}
