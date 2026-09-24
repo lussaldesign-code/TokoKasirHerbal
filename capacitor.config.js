@@ -4,7 +4,7 @@ module.exports = {
   webDir: 'mobile/www',
   bundledWebRuntime: false,
   server: {
-    url: 'https://lussaldesign-code.github.io/TokoKasirLussal/',
+    url: 'https://lussaldesign-code.github.io/TokoKasirHerbal/',
     cleartext: false,
     allowNavigation: ['lussaldesign-code.github.io']
   },
