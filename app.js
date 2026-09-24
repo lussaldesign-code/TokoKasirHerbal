@@ -343,14 +343,6 @@ function renderReturns(){
    const returned=saleReturns.filter(r=>r.sale_id===s.id).reduce((a,r)=>a+Number(r.total||0),0);
    const net=Math.max(0,Number(s.total||0)-returned);
    const remaining=saleItems.filter(i=>i.sale_id===s.id).reduce((sum,i)=>sum+Math.max(0,Number(i.qty||0)-saleReturnItems.filter(r=>r.sale_item_id===i.id).reduce((a,r)=>a+Number(r.qty||0),0)),0);
-   return '<tr><td>'+esc(s.nomor_transaksi)+'</td><td>'+new Date(s.created_at).toLocaleString('id-ID')+'</td><td>'+rp(net)+'</td><td>'+returned?'<span class="note">Retur '+rp(returned)+'</span>':'-';
-  }).join('');
- }
- if(salesEl){
-  salesEl.innerHTML=sales.map(s=>{
-   const returned=saleReturns.filter(r=>r.sale_id===s.id).reduce((a,r)=>a+Number(r.total||0),0);
-   const net=Math.max(0,Number(s.total||0)-returned);
-   const remaining=saleItems.filter(i=>i.sale_id===s.id).reduce((sum,i)=>sum+Math.max(0,Number(i.qty||0)-saleReturnItems.filter(r=>r.sale_item_id===i.id).reduce((a,r)=>a+Number(r.qty||0),0)),0);
    return '<tr><td><b>'+esc(s.nomor_transaksi)+'</b></td><td>'+new Date(s.created_at).toLocaleString('id-ID')+'</td><td>'+rp(net)+'</td><td>'+(returned?'<span class="note">Retur '+rp(returned)+'</span>':'-')+'</td><td>'+remaining+' Pcs</td><td><button class="btn danger" '+(remaining<=0?'disabled':'')+' onclick="openSaleReturn(\''+s.id+'\')">↩ Retur</button></td></tr>';
   }).join('')||'<tr><td colspan="6" class="note">Belum ada transaksi yang dapat diretur.</td></tr>';
  }
