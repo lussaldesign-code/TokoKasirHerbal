@@ -1,4 +1,4 @@
-const APP_VERSION='1.0.7';
+const APP_VERSION='1.0.8';
 const UPDATE_MANIFEST_URL='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/update.json';
 const WINDOWS_UPDATE_MANIFEST_URL='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/windows-update.json';
 const IS_ELECTRON=!!(navigator.userAgent&&/Electron/i.test(navigator.userAgent));
