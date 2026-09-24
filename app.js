@@ -60,7 +60,48 @@ function changeQty(key,d){const i=cart.find(x=>x.key===key);if(!i)return;const p
 function renderCart(){const total=cart.reduce((a,x)=>a+x.harga*x.qty,0);$('cart').innerHTML=cart.length?cart.map(x=>`<div class="cartitem"><div><b>${esc(x.nama)}</b><div class="note">${x.qty} × ${rp(x.harga)} (${x.type})</div><strong class="price">${rp(x.harga*x.qty)}</strong></div><div class="qty"><button onclick="changeQty('${x.key}',-1)">−</button> ${x.qty} <button onclick="changeQty('${x.key}',1)">+</button></div></div>`).join(''):'<div class="note empty">Keranjang kosong.</div>';$('total').textContent=rp(total);changeAmount()}
 function paymentChanged(){const p=$('payment').value==='piutang';$('cashFields').classList.toggle('hidden',p);$('debtFields').classList.toggle('hidden',!p)}
 function changeAmount(){if($('payment').value!=='tunai')return;const total=cart.reduce((a,x)=>a+x.harga*x.qty,0),cash=Number($('cash').value||0);$('change').textContent=cash?'Kembalian: '+rp(cash-total):'';$('change').style.color=cash<total?'var(--danger)':'var(--p)'}
-async function checkout(){try{if(!cart.length)return toast('Keranjang kosong.');const total=cart.reduce((a,x)=>a+x.harga*x.qty,0),metode=$('payment').value,dibayar=metode==='tunai'?Number($('cash').value||0):Number($('dp').value||0),agent=metode==='piutang'?$('agentForSale').value:null;if(metode==='tunai'&&dibayar<total)return toast('Uang tunai kurang.');if(metode==='piutang'&&!agent)return toast('Pilih agen.');const {data,error}=await sb.rpc('create_sale',{p_kasir_id:profile.id,p_agent_id:agent||null,p_metode:metode,p_dibayar:dibayar,p_items:cart.map(x=>({product_id:x.id,qty:x.qty,tipe_harga:x.type}))});if(error)throw error;toast('Transaksi '+data.nomor_transaksi+' berhasil.');cart=[];$('cash').value='';$('dp').value='';await loadAll()}catch(e){console.error(e);toast(e.message||'Transaksi gagal')}}
+function receiptPrinterName(){return localStorage.getItem('tokokasir_printer_name')||''}
+function saveReceiptPrinter(){const el=$('receiptPrinter');if(!el)return;const v=el.value||'';if(v)localStorage.setItem('tokokasir_printer_name',v);else localStorage.removeItem('tokokasir_printer_name');toast(v?'Printer struk tersimpan.':'Printer struk dihapus.')}
+async function refreshReceiptPrinters(){
+  const el=$('receiptPrinter'); if(!el)return;
+  if(!window.electronPrinter?.available){el.innerHTML='<option value="">Web browser — gunakan dialog cetak</option>';return;}
+  try{
+    const printers=await window.electronPrinter.listPrinters();
+    const saved=receiptPrinterName();
+    const sorted=[...printers].sort((a,b)=>Number(b.isDefault)-Number(a.isDefault)||a.displayName.localeCompare(b.displayName));
+    el.innerHTML='<option value="">Pilih printer Panda / thermal...</option>'+sorted.map(p=>'<option value="'+escAttr(p.name)+'">'+esc(p.displayName)+(p.isDefault?' (Default)':'')+'</option>').join('');
+    if(saved&&sorted.some(p=>p.name===saved))el.value=saved;
+    else if(sorted.length===1)el.value=sorted[0].name;
+  }catch(e){console.error('refreshReceiptPrinters',e);el.innerHTML='<option value="">Printer tidak terdeteksi</option>';}
+}
+async function testReceiptPrinter(){
+  const name=receiptPrinterName()||$('receiptPrinter')?.value;
+  if(!name)return toast('Pilih printer Panda terlebih dahulu.');
+  const html=buildReceiptHtml({nomor:'TEST-PRINTER',items:[{nama:'Tes printer Panda',qty:1,harga:1000,subtotal:1000}],total:1000,dibayar:1000,kembalian:0,metode:'tunai'});
+  try{await window.electronPrinter.printReceipt(html,name);toast('Tes cetak berhasil dikirim ke '+name+'.');}catch(e){console.error(e);toast('Tes printer gagal: '+(e.message||e));}
+}
+function buildReceiptHtml(s){
+  const width='72mm';
+  const items=(s.items||[]).map(x=>'<div class="item"><div>'+esc(x.nama)+'</div><div class="line"><span>'+x.qty+' x '+rp(x.harga)+'</span><b>'+rp(x.subtotal)+'</b></div></div>').join('');
+  const sisa=Math.max(0,Number(s.total||0)-Number(s.dibayar||0));
+  return '<!doctype html><html><head><meta charset="utf-8"><style>@page{size:'+width+' auto;margin:0}body{width:'+width+';margin:0;padding:3mm 2mm;font-family:Arial,sans-serif;font-size:11px;color:#000}.c{text-align:center}.b{font-weight:700}.line{display:flex;justify-content:space-between;gap:6px}.item{margin:5px 0}.sep{border-top:1px dashed #000;margin:7px 0}.big{font-size:14px}.small{font-size:9px}</style></head><body><div class="c b big">HERBALINOVASI</div><div class="c small">TOKOKASIRHERBAL</div><div class="sep"></div><div>No: '+esc(s.nomor)+'</div><div>'+new Date().toLocaleString('id-ID')+'</div><div class="sep"></div>'+items+'<div class="sep"></div><div class="line"><span>TOTAL</span><b>'+rp(s.total)+'</b></div><div class="line"><span>DIBAYAR</span><b>'+rp(s.dibayar)+'</b></div>'+(s.metode==='tunai'?'<div class="line"><span>KEMBALIAN</span><b>'+rp(s.kembalian)+'</b></div>':'<div class="line"><span>SISA PIUTANG</span><b>'+rp(sisa)+'</b></div>')+'<div class="sep"></div><div class="c">Terima kasih</div><div class="c small">Struk resmi TokoKasirHerbal</div></body></html>';
+}
+async function printReceipt(s){
+  try{
+    if(window.electronPrinter?.available){
+      const name=receiptPrinterName()||$('receiptPrinter')?.value||'';
+      if(!name)return toast('Transaksi berhasil. Pilih printer Panda di Pengaturan untuk mencetak struk.');
+      await window.electronPrinter.printReceipt(buildReceiptHtml(s),name);
+      toast('Struk berhasil dikirim ke printer.');
+      return;
+    }
+    const win=window.open('','_blank','width=420,height=700');
+    if(!win)return toast('Transaksi berhasil. Izinkan pop-up untuk mencetak struk.');
+    win.document.write(buildReceiptHtml(s).replace('</body>','<script>window.onload=()=>setTimeout(()=>window.print(),150)<\\/script></body>'));
+    win.document.close();
+  }catch(e){console.error('printReceipt',e);toast('Transaksi berhasil, tetapi cetak gagal: '+(e.message||e));}
+}
+async function checkout(){try{if(!cart.length)return toast('Keranjang kosong.');const cartSnapshot=cart.map(x=>({...x}));const total=cartSnapshot.reduce((a,x)=>a+x.harga*x.qty,0),metode=$('payment').value,dibayar=metode==='tunai'?Number($('cash').value||0):Number($('dp').value||0),agent=metode==='piutang'?$('agentForSale').value:null;if(metode==='tunai'&&dibayar<total)return toast('Uang tunai kurang.');if(metode==='piutang'&&!agent)return toast('Pilih agen.');const {data,error}=await sb.rpc('create_sale',{p_kasir_id:profile.id,p_agent_id:agent||null,p_metode:metode,p_dibayar:dibayar,p_items:cartSnapshot.map(x=>({product_id:x.id,qty:x.qty,tipe_harga:x.type}))});if(error)throw error;toast('Transaksi '+data.nomor_transaksi+' berhasil.');await printReceipt({nomor:data.nomor_transaksi,items:cartSnapshot,total:Number(data.total||total),dibayar,kembalian:Number(data.kembalian||0),metode});cart=[];$('cash').value='';$('dp').value='';await loadAll()}catch(e){console.error(e);toast(e.message||'Transaksi gagal')}}
 function fillAgentSelect(){$('agentForSale').innerHTML='<option value="">Pilih agen</option>'+agents.map(a=>`<option value="${a.id}">${esc(a.nama)}${a.hp?' — '+esc(a.hp):''}</option>`).join('')}
 function renderAgents(){$('agents').innerHTML=agents.map(a=>`<tr><td>${esc(a.nama)}</td><td>${esc(a.hp||'-')}</td><td>${esc(a.alamat||'-')}</td><td>${profile?.role==='admin'?`<button class="btn danger" onclick="deleteAgent('${a.id}')">Hapus</button>`:''}</td></tr>`).join('')}
 async function saveAgent(){try{if(profile?.role!=='admin')return toast('Hanya admin yang dapat menambah agen.');const nama=$('aNama').value.trim(),hp=$('aHp').value.trim(),alamat=$('aAlamat').value.trim();if(!nama)return toast('Nama wajib diisi.');const {data,error}=await sb.from('agents').insert({nama,hp,alamat}).select().single();if(error)throw error;if(!data)throw Error('Agen tidak berhasil disimpan.');closeModal('agentModal');$('aNama').value=$('aHp').value=$('aAlamat').value='';await loadAll();toast('Agen berhasil ditambahkan.')}catch(e){console.error('saveAgent',e);toast('Gagal menyimpan agen: '+(e.message||'periksa RLS Supabase'))}}
