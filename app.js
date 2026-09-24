@@ -346,11 +346,10 @@ function renderReturns(){
    return '<tr><td><b>'+esc(s.nomor_transaksi)+'</b></td><td>'+new Date(s.created_at).toLocaleString('id-ID')+'</td><td>'+rp(net)+'</td><td>'+(returned?'<span class="note">Retur '+rp(returned)+'</span>':'-')+'</td><td>'+remaining+' Pcs</td><td><button class="btn danger" '+(remaining<=0?'disabled':'')+' onclick="openSaleReturn(\''+s.id+'\')">↩ Retur</button></td></tr>';
   }).join('')||'<tr><td colspan="6" class="note">Belum ada transaksi yang dapat diretur.</td></tr>';
  }
- const prEl=$('returnPurchaseList');
- if(prEl){
-  prEl.innerHTML=profile?.role==='admin'
-   ?purchases.map(p=>'<tr><td><b>'+esc(p.nomor_pembelian)+'</b></td><td>'+esc(p.tanggal)+'</td><td>'+esc(p.supplier||'-')+'</td><td><button class="btn danger" onclick="openPurchaseReturn(\''+p.id+'\')">↩ Retur</button></td></tr>').join('')||'<tr><td colspan="4" class="note">Belum ada pembelian yang dapat diretur.</td></tr>'
-   :'<tr><td colspan="4" class="note">Retur pembelian hanya tersedia untuk admin.</td></tr>';
+ const prSection=$('returnPurchaseSection'), prEl=$('returnPurchaseList');
+ if(prSection)prSection.style.display=profile?.role==='admin'?'block':'none';
+ if(prEl&&profile?.role==='admin'){
+  prEl.innerHTML=purchases.map(p=>'<tr><td><b>'+esc(p.nomor_pembelian)+'</b></td><td>'+esc(p.tanggal)+'</td><td>'+esc(p.supplier||'-')+'</td><td><button class="btn danger" onclick="openPurchaseReturn(\''+p.id+'\')">↩ Retur</button></td></tr>').join('')||'<tr><td colspan="4" class="note">Belum ada pembelian yang dapat diretur.</td></tr>';
  }
 }
 async function openSaleReturn(id){
