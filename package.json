@@ -18,7 +18,7 @@
     "@capacitor/cli": "8.5.2"
   },
   "build": {
-    "appId": "com.manajemen-toko-kasir.tokokasir",
+    "appId": "com.lussaldesign.tokokasirlussal",
     "productName": "TokoKasirLussal",
     "directories": {
       "output": "dist"
