@@ -80,6 +80,17 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run dist -- --publish always
 
+      - name: Publish GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $version = node -p "require('./package.json').version"
+          gh release edit "v$version" --draft=false --latest
+          if ($LASTEXITCODE -ne 0) {
+            throw "Gagal menerbitkan GitHub Release v$version."
+          }
+
       - name: Verify installer
         shell: pwsh
         run: |
