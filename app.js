@@ -70,7 +70,7 @@ function renderReports(){
  $('sales').innerHTML=ds.map(s=>`<tr><td>${new Date(s.created_at).toLocaleString('id-ID')}</td><td>${esc(s.nomor_transaksi)}</td><td>${rp(s.total)}</td><td>${esc(s.metode_pembayaran)}</td></tr>`).join('')||'<tr><td colspan="4" class="note">Belum ada penjualan hari ini.</td></tr>';
  if($('monthlySales')) $('monthlySales').innerHTML=ms.map(s=>`<tr><td>${new Date(s.created_at).toLocaleDateString('id-ID')}</td><td>${esc(s.nomor_transaksi)}</td><td>${rp(s.total)}</td><td>${esc(s.metode_pembayaran)}</td></tr>`).join('')||'<tr><td colspan="4" class="note">Belum ada penjualan bulan ini.</td></tr>';
 }
-async function versionParts(v){return String(v||'0').replace(/^v/i,'').split('.').map(x=>parseInt(x,10)||0)}
+function versionParts(v){return String(v||'0').replace(/^v/i,'').split('.').map(x=>parseInt(x,10)||0)}
 function isNewerVersion(latest,current){const a=versionParts(latest),b=versionParts(current);for(let i=0;i<3;i++){if((a[i]||0)>(b[i]||0))return true;if((a[i]||0)<(b[i]||0))return false}return false}
 async function checkForUpdate(){
   const btn=$('checkUpdateBtn');
