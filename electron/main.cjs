@@ -35,6 +35,52 @@ function setupAutoUpdater() {
   setTimeout(() => autoUpdater.checkForUpdates().catch(error => console.error('[updater] check failed:', error)), 5000);
 }
 
+ipcMain.handle('list-printers', async () => {
+  if (!mainWindow || mainWindow.isDestroyed()) return [];
+  const printers = await mainWindow.webContents.getPrintersAsync();
+  return printers.map(p => ({
+    name: p.name,
+    displayName: p.displayName || p.name,
+    description: p.description || '',
+    status: p.status,
+    isDefault: !!p.isDefault
+  }));
+});
+
+ipcMain.handle('print-receipt', async (_event, payload) => {
+  const html = payload?.html;
+  const printerName = payload?.printerName;
+  if (typeof html !== 'string' || !html.trim()) throw new Error('Struk kosong.');
+  if (!printerName) throw new Error('Printer belum dipilih.');
+
+  const printWindow = new BrowserWindow({
+    show: false,
+    width: 420,
+    height: 800,
+    parent: mainWindow || undefined,
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true }
+  });
+
+  try {
+    await printWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+    await new Promise(resolve => setTimeout(resolve, 300));
+    await new Promise((resolve, reject) => {
+      printWindow.webContents.print({
+        silent: true,
+        deviceName: printerName,
+        printBackground: true,
+        margins: { marginType: 'none' }
+      }, (success, reason) => {
+        if (success) resolve();
+        else reject(new Error(reason || 'Printer tidak dapat menerima pekerjaan cetak.'));
+      });
+    });
+    return { ok: true, printerName };
+  } finally {
+    if (!printWindow.isDestroyed()) printWindow.close();
+  }
+});
+
 ipcMain.handle('print-report', async (_event, html) => {
   if (typeof html !== 'string' || !html.trim()) throw new Error('Dokumen cetak kosong.');
 
