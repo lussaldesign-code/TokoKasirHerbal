@@ -1,6 +1,6 @@
 {
   "name": "tokokasirherbal",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "description": "Herbalinovasi POS - aplikasi kasir Windows, Android, dan PWA",
   "main": "electron/main.cjs",
   "author": "Lussal Design",
@@ -55,7 +55,8 @@
       "createStartMenuShortcut": true,
       "shortcutName": "TokoKasirHerbal",
       "perMachine": false,
-      "allowElevation": false
+      "allowElevation": true,
+      "differentialPackage": false
     }
   },
   "dependencies": {
