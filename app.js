@@ -270,9 +270,12 @@ async function printReport(){
   try{
     const html=buildPrintReportHtml();
     if(window.electronPrinter?.available){
-      await window.electronPrinter.printReport(html);
+      const printerName=receiptPrinterName()||$('receiptPrinter')?.value||'';
+      await window.electronPrinter.printReport(html,printerName);
+      toast(printerName?'Laporan dikirim ke printer '+printerName+'.':'Laporan dikirim ke printer default Windows.');
       return;
     }
+    if(IS_ELECTRON)return toast('Fitur cetak native belum tersedia pada versi aplikasi ini. Silakan perbarui TokoKasirHerbal.');
     const win=window.open('','_blank','width=1000,height=800');
     if(!win)return toast('Izinkan pop-up untuk mencetak laporan.');
     win.document.open();
