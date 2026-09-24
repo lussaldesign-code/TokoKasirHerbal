@@ -196,6 +196,16 @@ function renderReports(){
  $('stock').textContent=products.reduce((a,p)=>a+Number(p.stok||0),0)+' Pcs';
  if($('monthIncome'))$('monthIncome').textContent=rp(mincome);
  if($('monthSold'))$('monthSold').textContent=activeMonthSales.length+' transaksi';
+ // Premium dashboard mirror
+ if($('dashIncome'))$('dashIncome').textContent=rp(income);
+ if($('dashSold'))$('dashSold').textContent=activeDaySales.length+' transaksi';
+ if($('dashStock'))$('dashStock').textContent=products.reduce((a,p)=>a+Number(p.stok||0),0)+' Pcs';
+ if($('dashMonthIncome'))$('dashMonthIncome').textContent=rp(mincome);
+ const dp=$('dashboardProducts');
+ if(dp){
+   const latest=[...(products||[])].sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||''))).slice(0,4);
+   dp.innerHTML=latest.map(p=>'<div class="product" onclick="choosePrice(\''+p.id+'\')"><img src="'+escAttr(p.gambar||'')+'" onerror="this.src=\'https://placehold.co/300x180?text=Herbal\'"><div class="info"><b>'+esc(p.nama)+'</b><div class="price">'+rp(p.harga_ecer)+'</div><div class="stock">Sisa Stok: '+p.stok+'</div></div></div>').join('')||'<div class="note">Produk belum tersedia.</div>';
+ }
  if($('debtTotal'))$('debtTotal').textContent=rp(outstanding);
  if($('cashIncome'))$('cashIncome').textContent=rp(daySales.reduce((a,s)=>a+paymentNet(s),0));
  if($('debtPaymentIncome'))$('debtPaymentIncome').textContent=rp(rcp.filter(p=>localDay(p.created_at)===day).reduce((a,p)=>a+Number(p.jumlah||0),0));
