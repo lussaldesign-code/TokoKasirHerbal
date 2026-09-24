@@ -136,4 +136,13 @@
       $('paymentRows').innerHTML=rows.map(x=>'<tr><td>'+new Date(x.tanggal).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})+'</td><td>'+esc(x.nomor)+'</td><td>'+esc(x.keterangan)+'</td><td>'+money(x.jumlah)+'</td></tr>').join('')||'<tr><td colspan="4" class="note">Belum ada penerimaan hari ini.</td></tr>';
     }
   };
+  window.renderPurchases=function(){
+    const el=$('purchases'); if(!el)return;
+    const ps=Array.isArray(purchases)?purchases:[], prs=Array.isArray(purchaseReturns)?purchaseReturns:[];
+    el.innerHTML=ps.map(p=>{
+      const returned=prs.filter(r=>r.purchase_id===p.id).reduce((a,r)=>a+Number(r.total||0),0);
+      const net=Math.max(0,Number(p.total||0)-returned);
+      return '<tr><td>'+esc(p.nomor_pembelian)+'</td><td>'+esc(p.tanggal)+'</td><td>'+esc(p.supplier||'-')+'</td><td>'+money(net)+(returned?' <span class="note">Retur '+money(returned)+'</span>':'')+'</td><td><button class="btn danger" onclick="openPurchaseReturn(\\''+p.id+'\\')">↩ Retur</button></td></tr>';
+    }).join('')||'<tr><td colspan="5" class="note">Belum ada pembelian.</td></tr>';
+  };
 })();
