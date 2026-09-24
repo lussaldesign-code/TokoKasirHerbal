@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, shell, dialog } = require('electron');
+const { app, BrowserWindow, Menu, shell, dialog, ipcMain } = require('electron');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
 
@@ -11,17 +11,9 @@ function setupAutoUpdater() {
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.allowDowngrade = false;
 
-  autoUpdater.on('checking-for-update', () => {
-    console.log('[updater] checking for update');
-  });
-
-  autoUpdater.on('update-available', info => {
-    console.log('[updater] update available:', info.version);
-  });
-
-  autoUpdater.on('download-progress', progress => {
-    console.log('[updater] download:', Math.round(progress.percent) + '%');
-  });
+  autoUpdater.on('checking-for-update', () => console.log('[updater] checking for update'));
+  autoUpdater.on('update-available', info => console.log('[updater] update available:', info.version));
+  autoUpdater.on('download-progress', progress => console.log('[updater] download:', Math.round(progress.percent) + '%'));
 
   autoUpdater.on('update-downloaded', async info => {
     console.log('[updater] update downloaded:', info.version);
@@ -39,14 +31,35 @@ function setupAutoUpdater() {
     if (result.response === 0) autoUpdater.quitAndInstall(false, true);
   });
 
-  autoUpdater.on('error', error => {
-    console.error('[updater] error:', error);
+  autoUpdater.on('error', error => console.error('[updater] error:', error));
+  setTimeout(() => autoUpdater.checkForUpdates().catch(error => console.error('[updater] check failed:', error)), 5000);
+}
+
+ipcMain.handle('print-report', async (_event, html) => {
+  if (typeof html !== 'string' || !html.trim()) throw new Error('Dokumen cetak kosong.');
+
+  const printWindow = new BrowserWindow({
+    show: false,
+    width: 1000,
+    height: 800,
+    parent: mainWindow || undefined,
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true }
   });
 
-  setTimeout(() => {
-    autoUpdater.checkForUpdates().catch(error => console.error('[updater] check failed:', error));
-  }, 5000);
-}
+  try {
+    await printWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+    await new Promise(resolve => setTimeout(resolve, 250));
+    await new Promise((resolve, reject) => {
+      printWindow.webContents.print({ silent: false, printBackground: true }, (success, reason) => {
+        if (success) resolve();
+        else reject(new Error(reason || 'Gagal membuka dialog printer.'));
+      });
+    });
+    return { ok: true };
+  } finally {
+    if (!printWindow.isDestroyed()) printWindow.close();
+  }
+});
 
 function createWindow() {
   mainWindow = new BrowserWindow({
