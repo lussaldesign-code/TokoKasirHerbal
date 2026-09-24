@@ -1,4 +1,4 @@
-name: Build TokoKasirHerbal Windows Installer
+name: Build TokoKasirLussal Windows Installer
 # Rebuild trigger for current application version
 
 on:
@@ -14,14 +14,14 @@ on:
       - app.js
       - config.js
       - .github/workflows/build-windows.yml
-      - '!TokoKasirHerbal-latest.exe'
+      - '!TokoKasirLussal-latest.exe'
       - '!windows-update.json'
 
 permissions:
   contents: write
 
 concurrency:
-  group: tokokasirherbal-windows-build
+  group: tokokasirlussal-windows-build
   cancel-in-progress: true
 
 jobs:
@@ -106,7 +106,7 @@ jobs:
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TokoKasirHerbal-Windows-Installer
+          name: TokoKasirLussal-Windows-Installer
           path: dist/*Setup-*.exe
           if-no-files-found: error
 
@@ -124,17 +124,17 @@ jobs:
           git fetch origin main
           git reset --hard origin/main
 
-          Copy-Item $installer.FullName "TokoKasirHerbal-latest.exe" -Force
-          $hash = (Get-FileHash "TokoKasirHerbal-latest.exe" -Algorithm SHA256).Hash.ToLower()
+          Copy-Item $installer.FullName "TokoKasirLussal-latest.exe" -Force
+          $hash = (Get-FileHash "TokoKasirLussal-latest.exe" -Algorithm SHA256).Hash.ToLower()
           @"
           {
             "version": "$version",
-            "installer": "https://raw.githubusercontent.com/$env:GITHUB_REPOSITORY/main/TokoKasirHerbal-latest.exe",
+            "installer": "https://raw.githubusercontent.com/$env:GITHUB_REPOSITORY/main/TokoKasirLussal-latest.exe",
             "sha256": "$hash"
           }
           "@ | Set-Content -Path windows-update.json -Encoding utf8
 
-          git add TokoKasirHerbal-latest.exe windows-update.json
+          git add TokoKasirLussal-latest.exe windows-update.json
           if (git diff --cached --quiet) {
             Write-Host "Tidak ada perubahan compatibility manifest."
             exit 0
