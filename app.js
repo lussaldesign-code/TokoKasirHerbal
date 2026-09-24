@@ -92,6 +92,9 @@ async function loadAll(){
  renderAll();
 }
 
+function renderAll(){syncCategoryControls();renderProducts();renderAgents();renderReceivables();renderReports();renderPurchases();renderReturns();renderUsers();fillAgentSelect();fillPurchaseProducts();renderCart();renderPurchaseCart();if(typeof renderReturnsMenu==='function')renderReturnsMenu()}
+function renderProducts(){const q=($('search')?.value||'').toLowerCase(),cat=$('category')?.value||'Semua';const list=products.filter(p=>String(p.nama||'').toLowerCase().includes(q)&&(cat==='Semua'||p.kategori===cat));const cats=[...new Set(list.map(p=>String(p.kategori||'').trim()).filter(Boolean))];$('products').innerHTML=cats.map(c=>{const rack=catalogRack(c);return '<div class="rak"><h3>'+esc(rack.icon||'📦')+' '+esc(rack.label||c)+'</h3><div class="grid">'+list.filter(p=>p.kategori===c).map(p=>'<div class="product" onclick="choosePrice(\''+p.id+'\')"><button class="edit '+(profile?.role==='admin'?'':'hidden')+'" onclick="event.stopPropagation();openProduct(\''+p.id+'\')">✏️</button><img src="'+escAttr(p.gambar||'')+'" onerror="this.src=\'https://placehold.co/300x180?text=Herbal\'"><div class="info"><b>'+esc(p.nama)+'</b><div class="price">'+rp(p.harga_ecer)+'</div><div class="stock">Sisa Stok: '+p.stok+'</div></div></div>').join('')+'</div></div>'}).join('')||'<div class="note">Produk belum tersedia.</div>'}
+
 async function testReceiptPrinter(){
   const name=receiptPrinterName()||$('receiptPrinter')?.value;
   if(!name)return toast('Pilih printer Panda terlebih dahulu.');
