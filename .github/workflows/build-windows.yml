@@ -110,11 +110,14 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Sync with the newest main before committing generated files.
+          # This avoids rebase conflicts when another workflow has pushed meanwhile.
+          git fetch origin main
+          git reset --hard origin/main
           git add TokoKasirHerbal-latest.exe windows-update.json
           if (git diff --cached --quiet) {
             Write-Host "Tidak ada perubahan compatibility manifest."
             exit 0
           }
           git commit -m "chore: publish Windows compatibility updater v$version"
-          git pull --rebase origin main
           git push origin HEAD:main
