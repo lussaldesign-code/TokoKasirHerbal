@@ -1,4 +1,5 @@
 name: Build TokoKasirHerbal Windows Installer
+# Rebuild trigger for current application version
 
 on:
   workflow_dispatch:
