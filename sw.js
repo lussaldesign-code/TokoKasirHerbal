@@ -1,4 +1,4 @@
-const CACHE='tokokasirherbal-remote-v1';
+const CACHE='tokokasirlussal-remote-v1';
 const SHELL=['./','./index.html','./config.js','./app.js','./manifest.webmanifest','./icon-192.svg','./icon-512.svg','./web-version.json'];
 const NETWORK_FIRST=/\/(?:index\.html|app\.js|config\.js|sw\.js|web-version\.json|manifest\.webmanifest)$/i;
 
