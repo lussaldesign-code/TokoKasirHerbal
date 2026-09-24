@@ -130,10 +130,11 @@ function createWindow() {
     }
   });
 
-  const REMOTE_APP_URL = 'https://lussaldesign-code.github.io/TokoKasirLussal/';
-  mainWindow.loadURL(REMOTE_APP_URL).catch(error => {
-    console.error('[web-shell] remote load failed:', error);
-    mainWindow.loadFile(path.join(__dirname, '..', 'index.html'));
+  const REMOTE_APP_URL = 'https://lussaldesign-code.github.io/TokoKasirHerbal/';
+  // Prefer the bundled app so the Windows POS keeps working even when GitHub Pages is unavailable.
+  mainWindow.loadFile(path.join(__dirname, '..', 'index.html')).catch(error => {
+    console.error('[web-shell] local load failed:', error);
+    mainWindow.loadURL(REMOTE_APP_URL).catch(remoteError => console.error('[web-shell] remote load failed:', remoteError));
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
