@@ -91,8 +91,6 @@ jobs:
           s=re.sub(r'versionName\s+["\'][^"\']+["\']', f'versionName "{version}"', s)
           open(p,'w').write(s)
           PY
-        env:
-          VERSION: ${{ github.ref_name }}
 
       - name: Sync Android
         run: ./node_modules/.bin/cap sync android
