@@ -65,7 +65,11 @@ function createWindow() {
     }
   });
 
-  mainWindow.loadFile(path.join(__dirname, '..', 'index.html'));
+  const REMOTE_APP_URL = 'https://lussaldesign-code.github.io/TokoKasirHerbal/';
+  mainWindow.loadURL(REMOTE_APP_URL).catch(error => {
+    console.error('[web-shell] remote load failed:', error);
+    mainWindow.loadFile(path.join(__dirname, '..', 'index.html'));
+  });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:/i.test(url)) shell.openExternal(url);
