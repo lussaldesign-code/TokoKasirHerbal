@@ -70,6 +70,11 @@ jobs:
           # PowerShell status when the release simply does not exist.
           $global:LASTEXITCODE = 0
 
+          # electron-builder requires the release tag to already exist when publishing.
+          # Recreate the version tag after the optional release cleanup above.
+          git tag -f $tag
+          git push origin "refs/tags/$tag" --force
+
       - name: Build and publish Windows release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
