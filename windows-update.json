@@ -1,5 +1,5 @@
 {
-  "version": "1.0.6",
-  "installer": "https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/TokoKasirHerbal-latest.exe?v=1.0.6",
-  "release": "https://github.com/lussaldesign-code/TokoKasirHerbal/releases/tag/v1.0.6"
+  "version": "1.0.9",
+  "installer": "https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/TokoKasirHerbal-latest.exe",
+  "sha256": "8e4a68a5bed046ec78b2d3064db24a3d69b1beb6cef2c3c4355cc89658716137"
 }
