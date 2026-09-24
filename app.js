@@ -115,30 +115,44 @@ function localDay(d=new Date()){const x=new Date(d);return x.getFullYear()+'-'+S
 function reportPaymentLabel(s){return s.metode_pembayaran==='piutang'?'Piutang / DP':'Lunas Tunai'}
 function renderReports(){
  const now=new Date(), day=localDay(now), month=day.slice(0,7);
- const ds=sales.filter(s=>localDay(s.created_at)===day), ms=sales.filter(s=>localDay(s.created_at).slice(0,7)===month);
+ const ss=Array.isArray(sales)?sales:[], si=Array.isArray(saleItems)?saleItems:[];
+ const sr=Array.isArray(saleReturns)?saleReturns:[], sri=Array.isArray(saleReturnItems)?saleReturnItems:[];
+ const ps=Array.isArray(purchases)?purchases:[], pri=Array.isArray(purchaseReturnItems)?purchaseReturnItems:[];
+ const pr=Array.isArray(purchaseReturns)?purchaseReturns:[], rcp=Array.isArray(receivablePayments)?receivablePayments:[];
+ const ds=ss.filter(s=>localDay(s.created_at)===day), ms=ss.filter(s=>localDay(s.created_at).slice(0,7)===month);
+ const srHari=sr.filter(r=>localDay(r.created_at)===day), srBulan=sr.filter(r=>localDay(r.created_at).slice(0,7)===month);
+ const returHari=srHari.reduce((a,r)=>a+Number(r.total||0),0), returBulan=srBulan.reduce((a,r)=>a+Number(r.total||0),0);
  const dpHari=ds.reduce((a,s)=>a+Number(s.dibayar||0),0);
- const pelunasanHari=receivablePayments.filter(p=>localDay(p.created_at)===day).reduce((a,p)=>a+Number(p.jumlah||0),0);
- const income=dpHari+pelunasanHari;
+ const pelunasanHari=rcp.filter(p=>localDay(p.created_at)===day).reduce((a,p)=>a+Number(p.jumlah||0),0);
+ const income=Math.max(0,dpHari+pelunasanHari-returHari);
  const monthInitial=ms.reduce((a,s)=>a+Number(s.dibayar||0),0);
- const monthPayments=receivablePayments.filter(p=>localDay(p.created_at).slice(0,7)===month).reduce((a,p)=>a+Number(p.jumlah||0),0);
- const mincome=monthInitial+monthPayments;
- const outstanding=receivables.reduce((a,r)=>a+Number(r.sisa||0),0);
- const items=saleItems.filter(i=>ds.some(s=>s.id===i.sale_id));
- const productMap={};items.forEach(i=>{const k=i.product_id||i.nama_produk;if(!productMap[k])productMap[k]={nama:i.nama_produk||'Produk',qty:0,total:0};productMap[k].qty+=Number(i.qty||0);productMap[k].total+=Number(i.subtotal||0)});
- const itemRows=Object.values(productMap).sort((a,b)=>b.total-a.total);
- $('income').textContent=rp(income); $('sold').textContent=ds.length+' transaksi'; $('stock').textContent=products.reduce((a,p)=>a+Number(p.stok||0),0)+' Pcs';
- if($('monthIncome'))$('monthIncome').textContent=rp(mincome); if($('monthSold'))$('monthSold').textContent=ms.length+' transaksi';
- if($('debtTotal'))$('debtTotal').textContent=rp(outstanding);
- if($('cashIncome'))$('cashIncome').textContent=rp(dpHari);
- if($('debtPaymentIncome'))$('debtPaymentIncome').textContent=rp(pelunasanHari);
- if($('soldQty'))$('soldQty').textContent=itemRows.reduce((a,x)=>a+x.qty,0)+' Pcs';
- if($('reportDate'))$('reportDate').textContent=new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
- $('sales').innerHTML=ds.map(s=>{const ag=agents.find(a=>a.id===s.agent_id);return `<tr><td>${new Date(s.created_at).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}</td><td><b>${esc(s.nomor_transaksi)}</b></td><td>${esc(ag?.nama||'Umum')}</td><td>${rp(s.total)}</td><td>${rp(s.dibayar)}</td><td>${rp(Math.max(0,Number(s.total||0)-Number(s.dibayar||0)))}</td><td>${esc(reportPaymentLabel(s))}<br><button class="btn danger" style="margin-top:5px" onclick="openSaleReturn('${s.id}')">↩ Retur</button></td></tr>`}).join('')||'<tr><td colspan="7" class="note">Belum ada penjualan hari ini.</td></tr>';
- if($('monthlySales')) $('monthlySales').innerHTML=ms.map(s=>`<tr><td>${new Date(s.created_at).toLocaleDateString('id-ID')}</td><td>${esc(s.nomor_transaksi)}</td><td>${rp(s.total)}</td><td>${rp(s.dibayar)}</td><td>${esc(reportPaymentLabel(s))}</td></tr>`).join('')||'<tr><td colspan="5" class="note">Belum ada penjualan bulan ini.</td></tr>';
- if($('soldProducts'))$('soldProducts').innerHTML=itemRows.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.nama)}</td><td>${x.qty}</td><td>${rp(x.total)}</td></tr>`).join('')||'<tr><td colspan="4" class="note">Belum ada produk terjual hari ini.</td></tr>';
- if($('paymentRows'))$('paymentRows').innerHTML=[...ds.map(s=>({tanggal:s.created_at,nomor:s.nomor_transaksi,keterangan:'Pembayaran transaksi '+s.nomor_transaksi,jumlah:Number(s.dibayar||0)})),...receivablePayments.filter(p=>localDay(p.created_at)===day).map(p=>({tanggal:p.created_at,nomor:'Piutang',keterangan:p.keterangan||'Pembayaran piutang',jumlah:Number(p.jumlah||0)}))].filter(x=>x.jumlah>0).sort((a,b)=>new Date(b.tanggal)-new Date(a.tanggal)).map(x=>`<tr><td>${new Date(x.tanggal).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}</td><td>${esc(x.nomor)}</td><td>${esc(x.keterangan)}</td><td>${rp(x.jumlah)}</td></tr>`).join('')||'<tr><td colspan="4" class="note">Belum ada penerimaan hari ini.</td></tr>';
+ const monthPayments=rcp.filter(p=>localDay(p.created_at).slice(0,7)===month).reduce((a,p)=>a+Number(p.jumlah||0),0);
+ const mincome=Math.max(0,monthInitial+monthPayments-returBulan);
+ const purchaseHari=ps.filter(p=>localDay(p.created_at||p.tanggal)===day);
+ const purchaseBulan=ps.filter(p=>localDay(p.created_at||p.tanggal).slice(0,7)===month);
+ const purRetHari=pr.filter(r=>localDay(r.created_at)===day), purRetBulan=pr.filter(r=>localDay(r.created_at).slice(0,7)===month);
+ const purGrossHari=purchaseHari.reduce((a,p)=>a+Number(p.total||0),0), purGrossBulan=purchaseBulan.reduce((a,p)=>a+Number(p.total||0),0);
+ const purRetHariTotal=purRetHari.reduce((a,r)=>a+Number(r.total||0),0), purRetBulanTotal=purRetBulan.reduce((a,r)=>a+Number(r.total||0),0);
+ const purNetHari=Math.max(0,purGrossHari-purRetHariTotal), purNetBulan=Math.max(0,purGrossBulan-purRetBulanTotal);
+ const outstanding=(Array.isArray(receivables)?receivables:[]).reduce((a,r)=>a+Number(r.sisa||0),0);
+ const returnedQty={}, returnedValue={};
+ sri.forEach(r=>{returnedQty[r.sale_item_id]=(returnedQty[r.sale_item_id]||0)+Number(r.qty||0);returnedValue[r.sale_item_id]=(returnedValue[r.sale_item_id]||0)+Number(r.subtotal||0)});
+ const productMap={};
+ si.filter(i=>ds.some(s=>s.id===i.sale_id)).forEach(i=>{const k=i.product_id||i.nama_produk, q=Math.max(0,Number(i.qty||0)-(returnedQty[i.id]||0)), t=Math.max(0,Number(i.subtotal||0)-(returnedValue[i.id]||0));if(!productMap[k])productMap[k]={nama:i.nama_produk||'Produk',qty:0,total:0};productMap[k].qty+=q;productMap[k].total+=t});
+ sri.filter(r=>srHari.some(x=>x.id===r.sale_return_id)).forEach(r=>{const original=si.find(i=>i.id===r.sale_item_id);if(original&&!ds.some(s=>s.id===original.sale_id)){const k=original.product_id||original.nama_produk;if(!productMap[k])productMap[k]={nama:original.nama_produk||'Produk',qty:0,total:0};productMap[k].qty-=Number(r.qty||0);productMap[k].total-=Number(r.subtotal||0)}});
+ const itemRows=Object.values(productMap).filter(x=>x.qty!==0||x.total!==0).sort((a,b)=>b.total-a.total);
+ const retQtyHari=sri.filter(r=>srHari.some(x=>x.id===r.sale_return_id)).reduce((a,r)=>a+Number(r.qty||0),0);
+ $('income').textContent=rp(income);$('sold').textContent=ds.length+' transaksi';$('stock').textContent=products.reduce((a,p)=>a+Number(p.stok||0),0)+' Pcs';
+ if($('monthIncome'))$('monthIncome').textContent=rp(mincome);if($('monthSold'))$('monthSold').textContent=ms.length+' transaksi';if($('debtTotal'))$('debtTotal').textContent=rp(outstanding);
+ if($('cashIncome'))$('cashIncome').textContent=rp(dpHari-returHari);if($('debtPaymentIncome'))$('debtPaymentIncome').textContent=rp(pelunasanHari);if($('soldQty'))$('soldQty').textContent=itemRows.reduce((a,x)=>a+x.qty,0)+' Pcs';
+ if($('reportDate'))$('reportDate').textContent=now.toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+ if($('reportReturnSummary'))$('reportReturnSummary').innerHTML='<div class="metric card"><span>Retur Penjualan Hari Ini</span><b>'+rp(returHari)+'</b><small class="note">'+retQtyHari+' Pcs dikembalikan</small></div><div class="metric card"><span>Retur Penjualan Bulan Ini</span><b>'+rp(returBulan)+'</b></div><div class="metric card"><span>Pembelian Bersih Hari Ini</span><b>'+rp(purNetHari)+'</b><small class="note">Bruto '+rp(purGrossHari)+' • Retur '+rp(purRetHariTotal)+'</small></div><div class="metric card"><span>Pembelian Bersih Bulan Ini</span><b>'+rp(purNetBulan)+'</b><small class="note">Bruto '+rp(purGrossBulan)+' • Retur '+rp(purRetBulanTotal)+'</small></div>';
+ const salesEl=$('sales');
+ if(salesEl)salesEl.innerHTML=ds.map(s=>{const ag=agents.find(a=>a.id===s.agent_id), returned=sr.filter(r=>r.sale_id===s.id).reduce((a,r)=>a+Number(r.total||0),0), net=Math.max(0,Number(s.total||0)-returned);return '<tr><td>'+new Date(s.created_at).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})+'</td><td><b>'+esc(s.nomor_transaksi)+'</b></td><td>'+esc(ag?.nama||'Umum')+'</td><td>'+rp(net)+(returned?' <span class="note">Retur '+rp(returned)+'</span>':'')+'</td><td>'+rp(s.dibayar)+'</td><td>'+rp(Math.max(0,net-Number(s.dibayar||0)))+'</td><td>'+esc(reportPaymentLabel(s))+'<br><button class="btn danger" style="margin-top:5px" onclick="openSaleReturn(\''+s.id+'\')">↩ Retur</button></td></tr>'}).join('')||'<tr><td colspan="7" class="note">Belum ada penjualan hari ini.</td></tr>';
+ if($('monthlySales'))$('monthlySales').innerHTML=ms.map(s=>{const returned=sr.filter(r=>r.sale_id===s.id).reduce((a,r)=>a+Number(r.total||0),0),net=Math.max(0,Number(s.total||0)-returned);return '<tr><td>'+new Date(s.created_at).toLocaleDateString('id-ID')+'</td><td>'+esc(s.nomor_transaksi)+'</td><td>'+rp(net)+'</td><td>'+rp(s.dibayar)+'</td><td>'+esc(reportPaymentLabel(s))+(returned?' <span class="note">Retur '+rp(returned)+'</span>':'')+'</td></tr>'}).join('')||'<tr><td colspan="5" class="note">Belum ada penjualan bulan ini.</td></tr>';
+ if($('soldProducts'))$('soldProducts').innerHTML=itemRows.map((x,i)=>'<tr><td>'+(i+1)+'</td><td>'+esc(x.nama)+'</td><td>'+x.qty+'</td><td>'+rp(x.total)+'</td></tr>').join('')||'<tr><td colspan="4" class="note">Belum ada produk terjual hari ini.</td></tr>';
+ if($('paymentRows')){const rows=[...ds.map(s=>({tanggal:s.created_at,nomor:s.nomor_transaksi,keterangan:'Pembayaran transaksi '+s.nomor_transaksi,jumlah:Number(s.dibayar||0)})),...rcp.filter(p=>localDay(p.created_at)===day).map(p=>({tanggal:p.created_at,nomor:'Piutang',keterangan:p.keterangan||'Pembayaran piutang',jumlah:Number(p.jumlah||0)})),...srHari.map(r=>({tanggal:r.created_at,nomor:'Retur Penjualan',keterangan:'Retur penjualan'+(r.alasan?' — '+r.alasan:''),jumlah:-Number(r.total||0)}))].filter(x=>x.jumlah!==0).sort((a,b)=>new Date(b.tanggal)-new Date(a.tanggal));$('paymentRows').innerHTML=rows.map(x=>'<tr><td>'+new Date(x.tanggal).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})+'</td><td>'+esc(x.nomor)+'</td><td>'+esc(x.keterangan)+'</td><td>'+rp(x.jumlah)+'</td></tr>').join('')||'<tr><td colspan="4" class="note">Belum ada penerimaan hari ini.</td></tr>'}
 }
-
 function versionParts(v){return String(v||'0').replace(/^v/i,'').split('.').map(x=>parseInt(x,10)||0)}
 function isNewerVersion(latest,current){const a=versionParts(latest),b=versionParts(current);for(let i=0;i<3;i++){if((a[i]||0)>(b[i]||0))return true;if((a[i]||0)<(b[i]||0))return false}return false}
 async function fetchUpdateManifest(primaryUrl,fallbackUrl){
