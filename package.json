@@ -1,6 +1,6 @@
 {
   "name": "tokokasirherbal",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "Herbalinovasi POS - aplikasi kasir Windows, Android, dan PWA",
   "main": "electron/main.cjs",
   "author": "Lussal Design",
@@ -20,13 +20,50 @@
   "build": {
     "appId": "com.herbalinovasi.tokokasir",
     "productName": "TokoKasirHerbal",
-    "directories": {"output": "dist"},
-    "files": ["electron/**/*","index.html","index-supabase.html","app.js","config.js"],
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "index.html",
+      "index-supabase.html",
+      "app.js",
+      "config.js"
+    ],
     "asar": true,
-    "publish": {"provider": "github","owner": "lussaldesign-code","repo": "TokoKasirHerbal","releaseType": "release"},
-    "win": {"target": [{"target": "nsis","arch": ["x64"]}],"artifactName": "TokoKasirHerbal-Setup-${version}.${ext}"},
-    "nsis": {"oneClick": false,"allowToChangeInstallationDirectory": true,"createDesktopShortcut": true,"createStartMenuShortcut": true,"shortcutName": "TokoKasirHerbal"}
+    "publish": {
+      "provider": "github",
+      "owner": "lussaldesign-code",
+      "repo": "TokoKasirHerbal",
+      "releaseType": "release"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "TokoKasirHerbal-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "TokoKasirHerbal",
+      "perMachine": false,
+      "allowElevation": false
+    }
   },
-  "dependencies": {"@capacitor/core": "8.5.2","@capacitor/android": "8.5.2","electron-updater": "^6.6.2"},
-  "engines": {"node": ">=22"}
+  "dependencies": {
+    "@capacitor/core": "8.5.2",
+    "@capacitor/android": "8.5.2",
+    "electron-updater": "^6.6.2"
+  },
+  "engines": {
+    "node": ">=22"
+  }
 }
