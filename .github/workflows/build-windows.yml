@@ -43,25 +43,32 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # GitHub Actions can treat a non-zero exit code from a native command
-          # as a failed PowerShell step. Therefore do not call "gh release delete"
-          # blindly when the release does not exist.
-          $PSNativeCommandUseErrorActionPreference = $false
           $version = node -p "require('./package.json').version"
           $tag = "v$version"
 
+          # Check without allowing a missing release to fail the workflow.
+          $releaseExists = $false
           gh release view $tag --json tagName *> $null
-          $releaseExists = ($LASTEXITCODE -eq 0)
+          if ($LASTEXITCODE -eq 0) {
+            $releaseExists = $true
+          }
+          $global:LASTEXITCODE = 0
 
           if ($releaseExists) {
             Write-Host "Existing release $tag found. Removing it before republishing metadata."
             gh release delete $tag --yes --cleanup-tag
-            if ($LASTEXITCODE -ne 0) {
-              throw "Gagal menghapus release GitHub $tag."
+            $deleteCode = $LASTEXITCODE
+            $global:LASTEXITCODE = 0
+            if ($deleteCode -ne 0) {
+              throw "Gagal menghapus release GitHub $tag (exit code $deleteCode)."
             }
           } else {
-            Write-Host "No existing release $tag to remove."
+            Write-Host "No existing release $tag to remove. Continuing with build."
           }
+
+          # Never leave a non-zero native command exit code as the final
+          # PowerShell status when the release simply does not exist.
+          $global:LASTEXITCODE = 0
 
       - name: Build and publish Windows release
         env:
