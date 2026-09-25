@@ -1,43 +1,7 @@
 const { app, BrowserWindow, Menu, shell, dialog, ipcMain } = require('electron');
 const path = require('path');
-const { autoUpdater } = require('electron-updater');
 
 let mainWindow;
-
-function setupAutoUpdater() {
-  if (!app.isPackaged || process.platform !== 'win32') return;
-
-  autoUpdater.autoDownload = true;
-  // Instalasi update hanya dilakukan melalui alur yang kita kontrol agar tidak terjadi dua proses installer bersamaan.
-  autoUpdater.autoInstallOnAppQuit = false;
-  autoUpdater.allowDowngrade = false;
-
-  autoUpdater.on('checking-for-update', () => console.log('[updater] checking for update'));
-  autoUpdater.on('update-available', info => console.log('[updater] update available:', info.version));
-  autoUpdater.on('download-progress', progress => console.log('[updater] download:', Math.round(progress.percent) + '%'));
-
-  autoUpdater.on('update-downloaded', async info => {
-    console.log('[updater] update downloaded:', info.version);
-    if (!mainWindow || mainWindow.isDestroyed()) {
-      autoUpdater.quitAndInstall(false, true);
-      return;
-    }
-    const result = await dialog.showMessageBox(mainWindow, {
-      type: 'info',
-      title: 'Update TokoKasirLussal',
-      message: 'Update versi ' + info.version + ' sudah siap dipasang.',
-      detail: 'Aplikasi akan ditutup dan dibuka kembali untuk menyelesaikan update.',
-      buttons: ['Update Sekarang', 'Nanti']
-    });
-    if (result.response === 0) {
-      // Jalankan installer setelah proses Electron benar-benar ditutup.
-      autoUpdater.quitAndInstall(true, true);
-    }
-  });
-
-  autoUpdater.on('error', error => console.error('[updater] error:', error));
-  setTimeout(() => autoUpdater.checkForUpdates().catch(error => console.error('[updater] check failed:', error)), 5000);
-}
 
 ipcMain.handle('list-printers', async () => {
   if (!mainWindow || mainWindow.isDestroyed()) return [];
@@ -150,7 +114,7 @@ function createWindow() {
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null);
   createWindow();
-  setupAutoUpdater();
+  // Windows tidak melakukan update otomatis. Update hanya diunduh saat pengguna memilihnya dari menu Cek Update. 
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
