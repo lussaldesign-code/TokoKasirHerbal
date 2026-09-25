@@ -15,6 +15,7 @@ function receiptPrinterName() {
 contextBridge.exposeInMainWorld('electronUpdater', {
   available: true,
   download: (url) => ipcRenderer.invoke('download-update', url),
+  openDownloaded: (filePath) => ipcRenderer.invoke('open-downloaded-update', filePath),
   onProgress: (callback) => {
     const handler = (_event, data) => callback(data);
     ipcRenderer.on('update-download-progress', handler);
