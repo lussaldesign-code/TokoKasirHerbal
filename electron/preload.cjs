@@ -1,7 +1,28 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+function receiptPrinterName() {
+  try {
+    const saved = window.localStorage?.getItem('tokokasirlussal-printer');
+    if (saved) return saved;
+  } catch (_) {}
+  try {
+    return ipcRenderer.sendSync('get-receipt-printer-name') || '';
+  } catch (_) {
+    return '';
+  }
+}
+
 contextBridge.exposeInMainWorld('electronUpdater', {
   available: true
+});
+
+contextBridge.exposeInMainWorld('receiptPrinterName', receiptPrinterName);
+contextBridge.exposeInMainWorld('refreshReceiptPrinters', async () => {
+  try {
+    return await ipcRenderer.invoke('list-printers');
+  } catch (_) {
+    return [];
+  }
 });
 
 contextBridge.exposeInMainWorld('electronPrinter', {
