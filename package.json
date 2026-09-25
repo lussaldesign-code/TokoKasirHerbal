@@ -50,7 +50,6 @@
       "publisherName": [
         "Lussal Design"
       ],
-      "verifyUpdateCodeSignature": true,
       "signAndEditExecutable": true
     },
     "nsis": {
