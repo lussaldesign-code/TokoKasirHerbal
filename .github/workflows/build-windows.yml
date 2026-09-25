@@ -79,6 +79,10 @@ jobs:
       - name: Build and publish Windows release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Optional Authenticode signing. If these secrets are not configured,
+          # electron-builder will keep producing the normal unsigned installer.
+          CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
         run: npm run dist -- --publish always
 
       - name: Verify GitHub release
