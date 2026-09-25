@@ -46,7 +46,12 @@
           ]
         }
       ],
-      "artifactName": "TokoKasirLussal-Setup-${version}.${ext}"
+      "artifactName": "TokoKasirLussal-Setup-${version}.${ext}",
+      "publisherName": [
+        "Lussal Design"
+      ],
+      "verifyUpdateCodeSignature": true,
+      "signAndEditExecutable": true
     },
     "nsis": {
       "oneClick": false,
