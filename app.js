@@ -329,7 +329,7 @@ function setUpdateModal(state, info={}){
     if(icon)icon.textContent='✓';
     if(progress)progress.classList.remove('hidden');
     if(actions)actions.classList.remove('hidden');
-    if(accept){accept.textContent=IS_ELECTRON?'Buka Installer':'Buka APK';accept.disabled=false;accept.onclick=()=>{if(info.url)window.open(info.url,'_blank')}}
+    if(accept){accept.textContent=IS_ELECTRON?'Buka Installer':'Buka APK';accept.disabled=false;accept.onclick=async()=>{if(IS_ELECTRON&&window.electronUpdater?.openDownloaded&&window.__downloadedUpdatePath){await window.electronUpdater.openDownloaded(window.__downloadedUpdatePath)}else if(info.url){window.open(info.url,'_blank')}}}
     if(later){later.textContent='Tutup';later.disabled=false}
   }
   modal.classList.add('show');modal.setAttribute('aria-hidden','false');
@@ -340,6 +340,7 @@ function updateProgress(percent,label,detail){
   const bar=$('updateProgressBar'),pct=$('updateProgressPercent'),lab=$('updateProgressLabel'),det=$('updateProgressDetail');
   if(bar)bar.style.width=p+'%';if(pct)pct.textContent=Math.round(p)+'%';if(lab)lab.textContent=label||'Mengunduh...';if(det)det.textContent=detail||'Mohon tunggu, jangan tutup aplikasi.';
 }
+if(window.electronUpdater?.onProgress){window.electronUpdater.onProgress(data=>{if(data?.total)updateProgress((data.received/data.total)*100,'Mengunduh update...',((data.received/1048576).toFixed(1)+' / '+(data.total/1048576).toFixed(1)+' MB'));else updateProgress(15,'Mengunduh update...','Data sedang diunduh...')});}
 async function downloadUpdateFile(url){
   if(IS_ELECTRON && window.electronUpdater?.download){
     return await window.electronUpdater.download(url);
@@ -364,7 +365,8 @@ async function startUpdateDownload(){
   const accept=$('updateAcceptBtn');if(accept){accept.disabled=true;accept.textContent='Mengunduh...'}
   setUpdateModal('downloading',info);updateProgress(0,'Menyiapkan download...','Menghubungkan ke server update...');
   try{
-    await downloadUpdateFile(info.url);
+    const result=await downloadUpdateFile(info.url);
+    window.__downloadedUpdatePath=result?.path||'';
     updateProgress(100,'Download selesai','File update sudah tersimpan di perangkat.');
     setUpdateModal('done',info);
     if(!IS_ELECTRON)toast('Update berhasil diunduh. Buka APK untuk memasangnya.');
