@@ -4,6 +4,14 @@ const { execFileSync } = require('child_process');
 
 let mainWindow;
 
+
+ipcMain.handle('open-downloaded-update', async (_event, filePath) => {
+  if (typeof filePath !== 'string' || !filePath) throw new Error('File update tidak tersedia.');
+  const error = await shell.openPath(filePath);
+  if (error) throw new Error(error);
+  return {ok:true};
+});
+
 ipcMain.handle('download-update', async (event, url) => {
   if (typeof url !== 'string' || !/^https:\/\//i.test(url)) throw new Error('URL update tidak valid.');
   const senderWindow = BrowserWindow.fromWebContents(event.sender);
