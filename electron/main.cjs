@@ -1,7 +1,33 @@
 const { app, BrowserWindow, Menu, shell, dialog, ipcMain } = require('electron');
 const path = require('path');
+const { execFileSync } = require('child_process');
 
 let mainWindow;
+
+ipcMain.on('get-receipt-printer-name', (event) => {
+  try {
+    const script = "@(Get-CimInstance Win32_Printer | Select-Object Name,Default) | ConvertTo-Json -Compress";
+    const raw = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
+      encoding: 'utf8',
+      windowsHide: true,
+      timeout: 4000
+    }).trim();
+    if (!raw) {
+      event.returnValue = '';
+      return;
+    }
+
+    const parsed = JSON.parse(raw);
+    const printers = Array.isArray(parsed) ? parsed : [parsed];
+    const panda = printers.find(p => /panda/i.test(String(p?.Name || '')));
+    const defaultPrinter = printers.find(p => p?.Default === true || String(p?.Default).toLowerCase() === 'true');
+    const selected = panda || defaultPrinter || printers[0];
+    event.returnValue = String(selected?.Name || '');
+  } catch (error) {
+    console.error('[printer] failed to detect Windows printer:', error);
+    event.returnValue = '';
+  }
+});
 
 ipcMain.handle('list-printers', async () => {
   if (!mainWindow || mainWindow.isDestroyed()) return [];
@@ -114,7 +140,7 @@ function createWindow() {
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null);
   createWindow();
-  // Windows tidak melakukan update otomatis. Update hanya diunduh saat pengguna memilihnya dari menu Cek Update. 
+  // Windows tidak melakukan update otomatis. Update hanya diunduh saat pengguna memilihnya dari menu Cek Update.
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
