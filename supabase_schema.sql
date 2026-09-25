@@ -492,3 +492,102 @@ for each row execute function public.set_updated_at();
 -- Create/link the first admin profile from the Supabase SQL Editor, e.g.:
 -- insert into public.users(auth_user_id,nama,username,role,aktif)
 -- values ('AUTH-USER-UUID','Nama Admin','admin','admin',true);
+
+-- ================================================================
+-- BARANG DIBAWA / STOCK OUT UNTIL COMPLETION
+-- ================================================================
+create table if not exists public.barang_dibawa (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references public.users(id),
+  diambil_oleh text not null,
+  status text not null default 'dibawa' check (status in ('dibawa','selesai')),
+  catatan text,
+  created_at timestamptz not null default now(),
+  completed_at timestamptz
+);
+create table if not exists public.barang_dibawa_items (
+  id uuid primary key default gen_random_uuid(),
+  barang_dibawa_id uuid not null references public.barang_dibawa(id) on delete cascade,
+  product_id uuid not null references public.products(id),
+  nama_produk text not null,
+  qty_dibawa integer not null check (qty_dibawa > 0),
+  qty_terjual integer not null default 0 check (qty_terjual >= 0),
+  qty_kembali integer not null default 0 check (qty_kembali >= 0),
+  harga numeric(14,2) not null default 0,
+  created_at timestamptz not null default now()
+);
+alter table public.barang_dibawa enable row level security;
+alter table public.barang_dibawa_items enable row level security;
+revoke all on table public.barang_dibawa, public.barang_dibawa_items from anon, authenticated;
+grant select on table public.barang_dibawa, public.barang_dibawa_items to authenticated;
+drop policy if exists barang_dibawa_read on public.barang_dibawa;
+drop policy if exists barang_dibawa_items_read on public.barang_dibawa_items;
+create policy barang_dibawa_read on public.barang_dibawa for select to authenticated using ((select public.my_user_id()) is not null);
+create policy barang_dibawa_items_read on public.barang_dibawa_items for select to authenticated using ((select public.my_user_id()) is not null);
+
+create or replace function public.create_barang_dibawa(p_user_id uuid,p_diambil_oleh text,p_catatan text default null,p_items jsonb default '[]'::jsonb)
+returns jsonb language plpgsql security definer set search_path='' as $$
+declare v_user public.users%rowtype; v_product public.products%rowtype; v_header uuid; v_item jsonb; v_qty integer; v_total integer:=0;
+begin
+ select * into v_user from public.users where auth_user_id=(select auth.uid()) and aktif=true limit 1;
+ if v_user.id is null or v_user.id<>p_user_id then raise exception 'Pengguna tidak valid'; end if;
+ if nullif(trim(p_diambil_oleh),'') is null then raise exception 'Nama pengambil wajib diisi'; end if;
+ if jsonb_typeof(p_items)<>'array' or jsonb_array_length(p_items)=0 then raise exception 'Barang yang dibawa masih kosong'; end if;
+ insert into public.barang_dibawa(user_id,diambil_oleh,catatan) values(p_user_id,trim(p_diambil_oleh),nullif(trim(coalesce(p_catatan,'')),'')) returning id into v_header;
+ for v_item in select * from jsonb_array_elements(p_items) loop
+  v_qty:=coalesce((v_item->>'qty')::integer,0);
+  if v_qty<=0 then raise exception 'Qty barang dibawa tidak valid'; end if;
+  select * into v_product from public.products where id=(v_item->>'product_id')::uuid and aktif=true for update;
+  if v_product.id is null then raise exception 'Produk tidak ditemukan'; end if;
+  if v_product.stok<v_qty then raise exception 'Stok % tidak cukup. Tersedia %',v_product.nama,v_product.stok; end if;
+  insert into public.barang_dibawa_items(barang_dibawa_id,product_id,nama_produk,qty_dibawa,harga) values(v_header,v_product.id,v_product.nama,v_qty,v_product.harga_ecer);
+  update public.products set stok=stok-v_qty,updated_at=now() where id=v_product.id;
+  insert into public.stock_movements(product_id,user_id,tipe,qty,stok_sebelum,stok_sesudah,reference_type,reference_id,keterangan)
+  values(v_product.id,p_user_id,'keluar',v_qty,v_product.stok,v_product.stok-v_qty,'barang_dibawa',v_header,'Barang dibawa oleh '||trim(p_diambil_oleh));
+  v_total:=v_total+v_qty;
+ end loop;
+ return jsonb_build_object('id',v_header,'total_qty',v_total);
+end; $$;
+
+create or replace function public.complete_barang_dibawa(p_user_id uuid,p_barang_dibawa_id uuid,p_items jsonb)
+returns jsonb language plpgsql security definer set search_path='' as $$
+declare v_user public.users%rowtype; v_header public.barang_dibawa%rowtype; v_item public.barang_dibawa_items%rowtype; v_sold integer; v_return integer; v_sale uuid; v_no text; v_total numeric:=0; v_return_total integer:=0; v_sold_total integer:=0; v_remaining integer; v_product public.products%rowtype;
+begin
+ select * into v_user from public.users where auth_user_id=(select auth.uid()) and aktif=true limit 1;
+ if v_user.id is null or v_user.id<>p_user_id then raise exception 'Pengguna tidak valid'; end if;
+ select * into v_header from public.barang_dibawa where id=p_barang_dibawa_id for update;
+ if v_header.id is null then raise exception 'Data barang dibawa tidak ditemukan'; end if;
+ if v_header.status='selesai' then raise exception 'Barang dibawa ini sudah diselesaikan'; end if;
+ if jsonb_typeof(p_items)<>'array' then raise exception 'Data penyelesaian tidak valid'; end if;
+ for v_item in select * from public.barang_dibawa_items where barang_dibawa_id=p_barang_dibawa_id for update loop
+  select coalesce((x->>'qty_terjual')::integer,0),coalesce((x->>'qty_kembali')::integer,0) into v_sold,v_return
+  from jsonb_array_elements(p_items) x where (x->>'item_id')::uuid=v_item.id limit 1;
+  if v_sold is null then v_sold:=0; end if; if v_return is null then v_return:=0; end if;
+  if v_sold<0 or v_return<0 or v_sold+v_return<>v_item.qty_dibawa then raise exception 'Qty % harus memenuhi dibawa = terjual + kembali',v_item.nama_produk; end if;
+  update public.barang_dibawa_items set qty_terjual=v_sold,qty_kembali=v_return where id=v_item.id;
+  if v_return>0 then
+   select * into v_product from public.products where id=v_item.product_id for update;
+   if v_product.id is null then raise exception 'Produk % tidak ditemukan',v_item.nama_produk; end if;
+   update public.products set stok=stok+v_return,updated_at=now() where id=v_item.product_id;
+   insert into public.stock_movements(product_id,user_id,tipe,qty,stok_sebelum,stok_sesudah,reference_type,reference_id,keterangan)
+   values(v_item.product_id,p_user_id,'masuk',v_return,v_product.stok,v_product.stok+v_return,'barang_dibawa_kembali',p_barang_dibawa_id,'Pengembalian barang dibawa oleh '||v_header.diambil_oleh);
+  end if;
+  v_sold_total:=v_sold_total+v_sold; v_return_total:=v_return_total+v_return; v_total:=v_total+(v_sold*v_item.harga);
+ end loop;
+ select coalesce(sum(qty_dibawa),0)-coalesce(sum(qty_terjual),0)-coalesce(sum(qty_kembali),0) into v_remaining from public.barang_dibawa_items where barang_dibawa_id=p_barang_dibawa_id;
+ if v_remaining<>0 then raise exception 'Qty penyelesaian belum lengkap'; end if;
+ if v_sold_total>0 then
+  v_no:='TRX-BD-'||to_char(clock_timestamp(),'YYYYMMDDHH24MISS')||'-'||upper(substr(replace(gen_random_uuid()::text,'-',''),1,6));
+  insert into public.sales(nomor_transaksi,kasir_id,metode_pembayaran,dibayar,kembalian,subtotal,total,status)
+  values(v_no,p_user_id,'tunai',v_total,0,v_total,v_total,'selesai') returning id into v_sale;
+  for v_item in select * from public.barang_dibawa_items where barang_dibawa_id=p_barang_dibawa_id and qty_terjual>0 loop
+   insert into public.sale_items(sale_id,product_id,nama_produk,harga,qty,subtotal,tipe_harga) values(v_sale,v_item.product_id,v_item.nama_produk,v_item.harga,v_item.qty_terjual,v_item.harga*v_item.qty_terjual,'ecer');
+  end loop;
+ end if;
+ update public.barang_dibawa set status='selesai',completed_at=now() where id=p_barang_dibawa_id;
+ return jsonb_build_object('sale_id',v_sale,'nomor_transaksi',v_no,'total_terjual',v_sold_total,'total_kembali',v_return_total,'total_penjualan',v_total);
+end; $$;
+revoke all on function public.create_barang_dibawa(uuid,text,text,jsonb) from public,anon;
+revoke all on function public.complete_barang_dibawa(uuid,uuid,jsonb) from public,anon;
+grant execute on function public.create_barang_dibawa(uuid,text,text,jsonb) to authenticated;
+grant execute on function public.complete_barang_dibawa(uuid,uuid,jsonb) to authenticated;
