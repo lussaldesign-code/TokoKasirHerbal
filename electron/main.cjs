@@ -4,6 +4,36 @@ const { execFileSync } = require('child_process');
 
 let mainWindow;
 
+ipcMain.handle('download-update', async (event, url) => {
+  if (typeof url !== 'string' || !/^https:\/\//i.test(url)) throw new Error('URL update tidak valid.');
+  const senderWindow = BrowserWindow.fromWebContents(event.sender);
+  if (!senderWindow) throw new Error('Jendela aplikasi tidak tersedia.');
+  return await new Promise((resolve, reject) => {
+    let settled = false;
+    const fail = (err) => { if (!settled) { settled = true; reject(err instanceof Error ? err : new Error(String(err))); } };
+    senderWindow.webContents.session.once('will-download', (_event, item) => {
+      const downloadsPath = app.getPath('downloads');
+      const safeName = String(item.getFilename() || 'TokoKasirLussal-update.exe').replace(/[\\/:*?"<>|]/g, '_');
+      const target = path.join(downloadsPath, safeName);
+      item.setSavePath(target);
+      item.on('updated', (_event, state) => {
+        if (state === 'interrupted') return fail(new Error('Download terputus.'));
+        const total = item.getTotalBytes();
+        const received = item.getReceivedBytes();
+        const percent = total > 0 ? (received / total) * 100 : 0;
+        event.sender.send('update-download-progress', { percent, received, total, filename: safeName });
+      });
+      item.once('done', (_event, state) => {
+        if (state !== 'completed') return fail(new Error('Download gagal: '+state));
+        settled = true;
+        resolve({ok:true,path:target,filename:safeName});
+      });
+    });
+    try { senderWindow.webContents.downloadURL(url); }
+    catch (e) { fail(e); }
+  });
+});
+
 ipcMain.on('get-receipt-printer-name', (event) => {
   try {
     const script = "@(Get-CimInstance Win32_Printer | Select-Object Name,Default) | ConvertTo-Json -Compress";
