@@ -302,6 +302,77 @@ async function fetchUpdateManifest(primaryUrl,fallbackUrl){
   }
   throw lastError||Error('Manifest update tidak dapat diakses.');
 }
+function setUpdateModal(state, info={}){
+  const modal=$('updateModal'); if(!modal)return;
+  const title=$('updateTitle'),msg=$('updateMessage'),cur=$('updateCurrentVersion'),latest=$('updateLatestVersion');
+  const actions=$('updateActions'),progress=$('updateProgressWrap'),accept=$('updateAcceptBtn'),later=$('updateLaterBtn');
+  const icon=$('updateIcon');
+  if(cur)cur.textContent='v'+APP_VERSION;
+  if(latest)latest.textContent=info.version?'v'+info.version:'-';
+  if(state==='available'){
+    if(title)title.textContent='Update tersedia';
+    if(msg)msg.textContent='Versi baru TokoKasirLussal tersedia. Pilih Setuju untuk mulai mengunduh, atau Nanti jika ingin melanjutkan nanti.';
+    if(icon)icon.textContent='↻';
+    if(actions)actions.classList.remove('hidden');
+    if(progress)progress.classList.add('hidden');
+    if(accept){accept.disabled=false;accept.textContent='Setuju & Download'}
+    if(later){later.disabled=false;later.textContent='Nanti'}
+  }else if(state==='downloading'){
+    if(title)title.textContent='Mengunduh update...';
+    if(msg)msg.textContent='Update sedang diunduh. Aplikasi tetap dapat digunakan selama proses berlangsung.';
+    if(icon)icon.textContent='↓';
+    if(actions)actions.classList.add('hidden');
+    if(progress)progress.classList.remove('hidden');
+  }else if(state==='done'){
+    if(title)title.textContent='Download selesai';
+    if(msg)msg.textContent=IS_ELECTRON?'Installer sudah diunduh. Jalankan installer untuk memasang versi terbaru.':'File APK sudah diunduh. Buka file APK untuk memasang versi terbaru.';
+    if(icon)icon.textContent='✓';
+    if(progress)progress.classList.remove('hidden');
+    if(actions)actions.classList.remove('hidden');
+    if(accept){accept.textContent=IS_ELECTRON?'Buka Installer':'Buka APK';accept.disabled=false;accept.onclick=()=>{if(info.url)window.open(info.url,'_blank')}}
+    if(later){later.textContent='Tutup';later.disabled=false}
+  }
+  modal.classList.add('show');modal.setAttribute('aria-hidden','false');
+}
+function closeUpdateModal(){const m=$('updateModal');if(!m)return;m.classList.remove('show');m.setAttribute('aria-hidden','true');}
+function updateProgress(percent,label,detail){
+  const p=Math.max(0,Math.min(100,Number(percent)||0));
+  const bar=$('updateProgressBar'),pct=$('updateProgressPercent'),lab=$('updateProgressLabel'),det=$('updateProgressDetail');
+  if(bar)bar.style.width=p+'%';if(pct)pct.textContent=Math.round(p)+'%';if(lab)lab.textContent=label||'Mengunduh...';if(det)det.textContent=detail||'Mohon tunggu, jangan tutup aplikasi.';
+}
+async function downloadUpdateFile(url){
+  if(IS_ELECTRON && window.electronUpdater?.download){
+    return await window.electronUpdater.download(url);
+  }
+  const res=await fetch(url,{cache:'no-store'});
+  if(!res.ok)throw Error('Download gagal (HTTP '+res.status+').');
+  const total=Number(res.headers.get('content-length')||0);
+  if(!res.body){
+    const blob=await res.blob(); const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=url.split('/').pop()||'TokoKasirLussal-update';a.click();return {ok:true};
+  }
+  const reader=res.body.getReader();const chunks=[];let received=0;
+  while(true){
+    const {done,value}=await reader.read();if(done)break;
+    chunks.push(value);received+=value.byteLength;
+    updateProgress(total?(received/total*100):Math.min(95,received/1000000),'Mengunduh update...',total?((received/1048576).toFixed(1)+' / '+(total/1048576).toFixed(1)+' MB'):'Data sedang diunduh...');
+  }
+  const blob=new Blob(chunks);const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=url.split('/').pop()||'TokoKasirLussal-update';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),30000);return {ok:true};
+}
+async function startUpdateDownload(){
+  if(!window.__latestUpdateInfo?.url)return toast('Link update tidak tersedia.');
+  const info=window.__latestUpdateInfo;
+  const accept=$('updateAcceptBtn');if(accept){accept.disabled=true;accept.textContent='Mengunduh...'}
+  setUpdateModal('downloading',info);updateProgress(0,'Menyiapkan download...','Menghubungkan ke server update...');
+  try{
+    await downloadUpdateFile(info.url);
+    updateProgress(100,'Download selesai','File update sudah tersimpan di perangkat.');
+    setUpdateModal('done',info);
+    if(!IS_ELECTRON)toast('Update berhasil diunduh. Buka APK untuk memasangnya.');
+  }catch(e){
+    console.error('downloadUpdateFile',e);
+    closeUpdateModal();toast('Gagal mengunduh update: '+(e.message||'periksa koneksi internet.'));
+  }
+}
 async function checkForUpdate(){
   const btn=$('checkUpdateBtn');
   if(btn){btn.disabled=true;btn.textContent='⏳ Mengecek...'}
@@ -309,39 +380,27 @@ async function checkForUpdate(){
     const primary=IS_ELECTRON?WINDOWS_UPDATE_MANIFEST_URL:UPDATE_MANIFEST_URL;
     const fallback=IS_ELECTRON?WINDOWS_UPDATE_MANIFEST_FALLBACK:UPDATE_MANIFEST_FALLBACK;
     let info=null;
-    try{
-      info=await fetchUpdateManifest(primary,fallback);
-    }catch(manifestError){
+    try{info=await fetchUpdateManifest(primary,fallback);}
+    catch(manifestError){
       console.warn('[updater] manifest fetch failed, trying GitHub Releases API',manifestError);
       const api='https://api.github.com/repos/lussaldesign-code/TokoKasirHerbal/releases/latest?t='+Date.now();
       const rr=await fetch(api,{cache:'no-store',headers:{Accept:'application/vnd.github+json'}});
       if(!rr.ok)throw Error('Server update tidak dapat dihubungi (HTTP '+rr.status+').');
-      const rel=await rr.json();
-      const latestRel=String(rel.tag_name||'').replace(/^v/i,'');
-      const assets=Array.isArray(rel.assets)?rel.assets:[];
+      const rel=await rr.json();const latestRel=String(rel.tag_name||'').replace(/^v/i,'');const assets=Array.isArray(rel.assets)?rel.assets:[];
       const asset=assets.find(x=>IS_ELECTRON?/Setup-[0-9].*\.exe$/i.test(x.name):/\.apk$/i.test(x.name));
       info={version:latestRel,installer:asset?.browser_download_url||'',apk:asset?.browser_download_url||''};
     }
-    const latest=String(info?.version||'').trim();
-    let url=String(IS_ELECTRON?(info?.installer||''):(info?.apk||''));
+    const latest=String(info?.version||'').trim();const url=String(IS_ELECTRON?(info?.installer||''):(info?.apk||''));
     if(!latest)throw Error('Versi update tidak valid atau server update belum tersedia.');
     if(isNewerVersion(latest,APP_VERSION)){
-      if(!url)url='https://github.com/lussaldesign-code/TokoKasirLussal/releases/latest';
-      const tipe=IS_ELECTRON?'installer Windows (.exe)':'APK Android';
-      const ok=confirm('Update tersedia: v'+latest+'\n\nVersi aplikasi saat ini: v'+APP_VERSION+'\n\nUnduh '+tipe+' terbaru sekarang?');
-      if(ok){
-        if(IS_ELECTRON){window.open(url,'_blank');toast('Membuka installer Windows terbaru.');}
-        else{window.location.href=url;toast('Membuka unduhan APK terbaru. Setelah selesai, buka APK untuk memasang update.');}
-      }
+      const finalInfo={...info,version:latest,url:url||'https://github.com/lussaldesign-code/TokoKasirLussal/releases/latest'};
+      window.__latestUpdateInfo=finalInfo;
+      setUpdateModal('available',finalInfo);
       return;
     }
     toast('Aplikasi sudah versi terbaru (v'+APP_VERSION+'). Server mendeteksi v'+latest+'.');
-  }catch(e){
-    console.error('checkForUpdate',e);
-    toast('Gagal mengecek update: '+(e.message||'periksa koneksi internet.'));
-  }finally{
-    if(btn){btn.disabled=false;btn.textContent='🔄 Cek Update'}
-  }
+  }catch(e){console.error('checkForUpdate',e);toast('Gagal mengecek update: '+(e.message||'periksa koneksi internet.'))}
+  finally{if(btn){btn.disabled=false;btn.textContent='🔄 Cek Update'}}
 }
 async function checkRemoteWebUpdate(){
   try{
