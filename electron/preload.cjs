@@ -13,7 +13,13 @@ function receiptPrinterName() {
 }
 
 contextBridge.exposeInMainWorld('electronUpdater', {
-  available: true
+  available: true,
+  download: (url) => ipcRenderer.invoke('download-update', url),
+  onProgress: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on('update-download-progress', handler);
+    return () => ipcRenderer.removeListener('update-download-progress', handler);
+  }
 });
 
 contextBridge.exposeInMainWorld('receiptPrinterName', receiptPrinterName);
