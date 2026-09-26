@@ -208,11 +208,11 @@ function tab(name,el){const target=$('tab-'+name);if(!target){console.warn('Tab 
 function goDashboardAction(name){const target=$('tab-'+name);if(!target){toast('Menu belum tersedia: '+name);return;}const nav=[...document.querySelectorAll('.nav')].find(x=>(x.getAttribute('onclick')||'').includes("tab('"+name+"'"));tab(name,nav||null);target.scrollIntoView({behavior:'smooth',block:'start'});}
 async function loadAll(){
  const required=[
-  ['products',sb.from('products').select('*').eq('aktif',true).order('nama')],
-  ['agents',sb.from('agents').select('*').eq('aktif',true).order('nama')],
-  ['receivables',sb.from('receivables').select('*').order('created_at',{ascending:false})],
-  ['barang_dibawa',sb.from('barang_dibawa').select('*').order('created_at',{ascending:false})],
-  ['barang_dibawa_items',sb.from('barang_dibawa_items').select('*').order('created_at',{ascending:false})]
+ ['products',sb.from('products').select('*').eq('aktif',true).order('nama')],
+ ['agents',sb.from('agents').select('*').eq('aktif',true).order('nama')],
+ ['receivables',sb.from('receivables').select('*').order('created_at',{ascending:false})],
+ ['barang_dibawa',sb.from('barang_dibawa').select('*').order('created_at',{ascending:false})],
+ ['barang_dibawa_items',sb.from('barang_dibawa_items').select('*').order('created_at',{ascending:false})]
  ];
  const requiredResults=await Promise.all(required.map(async([name,q])=>{
   try{const x=await q;if(x.error)throw x.error;return {name,data:x.data||[],error:null}}
@@ -253,6 +253,9 @@ async function loadAll(){
  sales=get('sales');saleItems=get('sale_items');saleReturns=get('sale_returns');saleReturnItems=get('sale_return_items');
  receivablePayments=get('receivable_payments');purchases=get('purchases');purchaseItems=get('purchase_items');
  purchaseReturns=get('purchase_returns');purchaseReturnItems=get('purchase_return_items');users=get('users');
+ const agentById=Object.fromEntries(agents.map(a=>[a.id,a]));
+ const saleById=Object.fromEntries(sales.map(s=>[s.id,s]));
+ receivables=receivables.map(r=>({...r,agents:r.agents||agentById[r.agen_id]||agentById[r.agent_id]||null,sales:r.sales||saleById[r.sale_id]||null}));
  const agentById=Object.fromEntries(agents.map(a=>[a.id,a]));
  const saleById=Object.fromEntries(sales.map(s=>[s.id,s]));
  receivables=receivables.map(r=>({...r,agents:r.agents||agentById[r.agen_id]||agentById[r.agent_id]||null,sales:r.sales||saleById[r.sale_id]||null}));
