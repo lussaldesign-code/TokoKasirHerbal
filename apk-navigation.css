@@ -123,3 +123,53 @@
     display:block!important;margin-top:9px!important;color:#7f9c8e!important;
   }
 }
+
+
+/* APK SETTINGS FIX V2 — compact, stable Settings layout. */
+@media(max-width:800px){
+  html.apk-nav-enabled body.app-screen #tab-akun.apk-settings-fixed{
+    display:flex!important;flex-direction:column!important;
+    min-height:calc(100dvh - 85px)!important;height:calc(100dvh - 85px)!important;
+    overflow:hidden!important;
+    background:linear-gradient(145deg,#050806,#07110c)!important;
+  }
+  html.apk-nav-enabled body.app-screen #tab-akun.apk-settings-fixed .account-head{
+    flex:0 0 auto!important;width:100%!important;position:relative!important;
+    padding:13px 14px!important;box-sizing:border-box!important;
+    background:linear-gradient(180deg,#09140f,#07100c)!important;
+  }
+  html.apk-nav-enabled body.app-screen #tab-akun.apk-settings-fixed .account-content.apk-settings-content-fixed{
+    flex:1 1 auto!important;min-height:0!important;width:100%!important;
+    overflow-y:auto!important;overflow-x:hidden!important;
+    -webkit-overflow-scrolling:touch!important;
+    padding:12px 12px calc(18px + 72px + env(safe-area-inset-bottom))!important;
+    box-sizing:border-box!important;
+  }
+  html.apk-nav-enabled body.app-screen #tab-akun.apk-settings-fixed .account-summary{
+    width:100%!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    margin-bottom:12px!important;
+  }
+  html.apk-nav-enabled body.app-screen #tab-akun.apk-settings-fixed .account-stat{
+    min-height:70px!important;padding:10px 12px!important;
+  }
+  html.apk-nav-enabled body.app-screen #tab-akun.apk-settings-fixed #printerSettingsCard.apk-settings-printer,
+  html.apk-nav-enabled body.app-screen #tab-akun.apk-settings-fixed .apk-settings-printer{
+    display:block!important;width:100%!important;margin:0 0 12px!important;
+    box-sizing:border-box!important;
+  }
+  html.apk-nav-enabled body.app-screen #tab-akun.apk-settings-fixed .account-toolbar{
+    width:100%!important;margin:0 0 10px!important;
+  }
+  html.apk-nav-enabled body.app-screen #tab-akun.apk-settings-fixed .account-grid{
+    width:100%!important;grid-template-columns:1fr!important;gap:10px!important;
+  }
+  html.apk-nav-enabled body.app-screen #tab-akun.apk-settings-fixed .account-card{
+    min-height:132px!important;padding:14px!important;
+  }
+  html.apk-nav-enabled body.app-screen #tab-akun.apk-settings-fixed .account-head-actions{
+    width:100%!important;display:grid!important;grid-template-columns:1fr 1fr!important;
+  }
+  html.apk-nav-enabled body.app-screen #tab-akun.apk-settings-fixed .account-version{
+    grid-column:1/-1!important;text-align:center!important;
+  }
+}
