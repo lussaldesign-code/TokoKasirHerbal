@@ -208,7 +208,7 @@ async function detectReceiptPrinters(showToast=false){
     const o=document.createElement('option');o.value=saved;o.textContent=saved+' — tersimpan';el.appendChild(o);el.value=saved;
   }
   el.disabled=false;
-  if(status)status.textContent=printers.length?printers.length+' printer terdeteksi':'Belum nhận diện được printer dari perangkat ini';
+  if(status)status.textContent=printers.length?printers.length+' printer terdeteksi':'Belum ada printer yang terdeteksi';
   if(note)note.textContent=el.value?'Printer dipilih: '+el.value:'Belum ada printer dipilih.';
   if(showToast)toast(printers.length?'Ditemukan '+printers.length+' printer.':'API daftar printer belum tersedia di perangkat ini.');
   return printers;
