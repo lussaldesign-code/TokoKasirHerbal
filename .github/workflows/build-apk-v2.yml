@@ -1,0 +1,93 @@
+name: Build Fresh TokoKasirLussal APK V2
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'apk-version.txt'
+      - 'apk-navigation-v2.js'
+      - 'apk-navigation-v2.css'
+      - '.github/workflows/build-apk-v2.yml'
+concurrency:
+  group: tokokasirlussal-fresh-apk
+  cancel-in-progress: false
+jobs:
+  apk:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+      - name: Install image tools
+        run: sudo apt-get update && sudo apt-get install -y imagemagick
+      - name: Prepare fresh APK bundle
+        shell: bash
+        run: |
+          set -e
+          VERSION="$(tr -d '[:space:]' < apk-version.txt)"
+          export VERSION
+          rm -rf mobile && mkdir -p mobile/www
+          cp index-supabase.html mobile/www/index.html
+          cp app.js config.js sw.js mobile/www/
+          cp apk-navigation-v2.css apk-navigation-v2.js mobile/www/
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,os
+          p=Path('mobile/www/index.html'); s=p.read_text(encoding='utf-8')
+          for ident in ['tokokasirlussal-mobile-nav-v4','tokokasirlussal-apk-swipe-nav-script']:
+              s=re.sub(r'<style[^>]*id=["']'+re.escape(ident)+r'["'][^>]*>.*?</style>','',s,flags=re.S|re.I)
+              s=re.sub(r'<script[^>]*id=["']'+re.escape(ident)+r'["'][^>]*>.*?</script>','',s,flags=re.S|re.I)
+          s=s.replace('apk-navigation.css','apk-navigation-v2.css').replace('apk-navigation.js','apk-navigation-v2.js')
+          s=s.replace('icon-192.svg','apk-icon.svg').replace('icon-512.svg','apk-icon.svg')
+          s=s.replace('config.js?v=20260926','config.js?v='+os.environ['VERSION'])
+          s=s.replace('app.js?v=20260927-web-final-fix-v1','app.js?v='+os.environ['VERSION'])
+          p.write_text(s,encoding='utf-8')
+          PY
+          cat > mobile/www/apk-icon.svg <<'SVG'
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#06140e"/><rect x="18" y="18" width="476" height="476" rx="94" fill="none" stroke="#10b981" stroke-width="12"/><path d="M125 185h262l-25 66H150z" fill="#0b2419" stroke="#34d399" stroke-width="7"/><path d="M142 177h228l-20 72H162z" fill="#10b981"/><path d="M156 249v25c0 17 14 31 31 31s31-14 31-31v-25m0 0v25c0 17 14 31 31 31s31-14 31-31v-25m0 0v25c0 17 14 31 31 31s31-14 31-31v-25m0 0v25c0 17 14 31 31 31s31-14 31-31v-25" fill="none" stroke="#d1fae5" stroke-width="8"/><rect x="177" y="306" width="158" height="123" rx="19" fill="#0d1b15" stroke="#34d399" stroke-width="9"/><rect x="205" y="327" width="102" height="42" rx="10" fill="#07110c" stroke="#6ee7b7" stroke-width="6"/><path d="M122 419c44 37 91 49 139 40 46-9 87-36 130-84" fill="none" stroke="#34d399" stroke-width="18" stroke-linecap="round"/><path d="M118 412c-32-23-48-57-45-91 36 9 67 30 83 59-8 17-20 27-38 32z" fill="#10b981"/><path d="M387 406c28-20 43-49 44-80-32 7-60 24-75 49 6 14 17 24 31 31z" fill="#34d399"/></svg>
+          SVG
+          sed -i "s#tokokasirlussal-v[0-9.]*#tokokasirlussal-v$VERSION#g" mobile/www/sw.js
+      - name: Install packages
+        run: npm install --legacy-peer-deps --no-audit --no-fund
+      - name: Generate Android
+        run: rm -rf android && ./node_modules/.bin/cap add android
+      - name: Set version and icon
+        shell: bash
+        run: |
+          set -e
+          VERSION="$(tr -d '[:space:]' < apk-version.txt)"
+          python3 - <<'PY'
+          import re
+          p='android/app/build.gradle'; s=open(p).read(); v=open('apk-version.txt').read().strip()
+          a=list(map(int,v.split('.'))); code=a[0]*10000+a[1]*100+a[2]
+          s=re.sub(r'versionCode\s+\d+',f'versionCode {code}',s)
+          s=re.sub(r'versionName\s+["\'][^"\']+["\']',f'versionName "{v}"',s)
+          open(p,'w').write(s)
+          PY
+          for spec in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+            density="${spec%%:*}"; size="${spec##*:}"; d="android/app/src/main/res/mipmap-$density"; mkdir -p "$d"
+            convert mobile/www/apk-icon.svg -resize "$size"x"$size" "$d/ic_launcher.png"
+            cp "$d/ic_launcher.png" "$d/ic_launcher_round.png"
+          done
+          rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+      - name: Sync
+        run: ./node_modules/.bin/cap sync android
+      - name: Build
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon --no-parallel --stacktrace -Dorg.gradle.jvmargs="-Xmx4g"
+      - name: Upload APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: TokoKasirLussal-Fresh-Android-APK
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 90
