@@ -752,6 +752,9 @@ openBarangDibawaComplete=function(id){window.__carryCompleteId=id;return _oldOpe
     const max=Math.max(0,h-18);
     const next=Math.max(0,Math.min(max,startTranslate+e.clientY-startY));
     sheet.style.transform='translateY('+next+'px)';
+    if(handle){
+      handle.style.transform='translateY(-'+next+'px)';
+    }
     e.preventDefault();
   }
   function end(e){
@@ -763,6 +766,7 @@ openBarangDibawaComplete=function(id){window.__carryCompleteId=id;return _oldOpe
     const elapsed=Math.max(16,performance.now()-(window.__sheetDragTime||performance.now()));
     const velocity=(e.clientY-startY)/elapsed;
     sheet.style.removeProperty('transform');
+    if(handle)handle.style.removeProperty('transform');
     applyState(velocity<-0.35||current<h*.45?'expanded':'collapsed',true);
   }
   function init(){
