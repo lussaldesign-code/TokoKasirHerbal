@@ -1,92 +1,44 @@
-/* APK-ONLY navigation overlay. Never loaded by web/PWA or Windows. */
+/* APK-ONLY navigation: horizontal scrolling + vertical hide/show. */
 @media (max-width:800px){
-  body.app-screen .side{
-    position:fixed!important;
-    left:0!important;right:0!important;bottom:0!important;top:auto!important;
-    width:100%!important;
-    height:70px!important;
-    max-height:70px!important;
-    padding:6px 9px!important;
-    display:flex!important;
-    flex-direction:row!important;
-    align-items:center!important;
-    justify-content:flex-start!important;
-    gap:6px!important;
-    overflow-x:auto!important;
-    overflow-y:hidden!important;
-    scrollbar-width:none!important;
-    -webkit-overflow-scrolling:touch!important;
-    overscroll-behavior-x:contain!important;
-    touch-action:none!important;
-    transform:translate3d(0,0,0)!important;
-    transition:transform .24s cubic-bezier(.2,.8,.2,1)!important;
-    will-change:transform!important;
-    z-index:9999!important;
+  html.apk-nav-enabled body.app-screen .side,
+  html.apk-swipe-nav body.app-screen .side{
+    position:fixed!important;left:0!important;right:0!important;bottom:0!important;top:auto!important;
+    width:100%!important;height:72px!important;max-height:72px!important;
+    padding:7px 8px!important;display:flex!important;flex-direction:row!important;align-items:center!important;
+    justify-content:flex-start!important;gap:6px!important;
+    overflow-x:auto!important;overflow-y:hidden!important;scrollbar-width:none!important;
+    -webkit-overflow-scrolling:touch!important;overscroll-behavior-x:contain!important;
+    touch-action:pan-x!important;transform:translate3d(0,0,0)!important;
+    transition:transform .24s ease!important;will-change:transform!important;z-index:9999!important;
   }
-  body.app-screen .side::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
-  body.app-screen .side .brand{display:none!important}
-  body.app-screen .side .nav{
-    flex:0 0 82px!important;
-    width:82px!important;
-    min-width:82px!important;
-    max-width:82px!important;
-    height:58px!important;
-    min-height:48px!important;
-    margin:0!important;
-    padding:3px 3px!important;
-    display:flex!important;
-    flex-direction:column!important;
-    align-items:center!important;
-    justify-content:center!important;
-    gap:2px!important;
-    font-size:10px!important;
-    line-height:1.1!important;
-    border-radius:12px!important;
-    touch-action:none!important;
-    scroll-snap-align:center!important;
-    transform:none!important;
+  html.apk-nav-enabled body.app-screen .side::-webkit-scrollbar,
+  html.apk-swipe-nav body.app-screen .side::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
+  html.apk-nav-enabled body.app-screen .side .brand,
+  html.apk-swipe-nav body.app-screen .side .brand{display:none!important}
+  html.apk-nav-enabled body.app-screen .side .nav,
+  html.apk-swipe-nav body.app-screen .side .nav{
+    flex:0 0 82px!important;width:82px!important;min-width:82px!important;max-width:82px!important;
+    height:58px!important;min-height:48px!important;margin:0!important;padding:3px!important;
+    display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;
+    gap:2px!important;font-size:10px!important;line-height:1.1!important;border-radius:12px!important;
+    touch-action:pan-x!important;transform:none!important;scroll-snap-align:center!important;
   }
-  body.app-screen .side .nav span{
-    width:auto!important;
-    height:25px!important;
-    font-size:21px!important;
-    line-height:1!important;
+  html.apk-nav-enabled body.app-screen .side .nav span,
+  html.apk-swipe-nav body.app-screen .side .nav span{width:auto!important;height:25px!important;font-size:21px!important;line-height:1!important}
+  html.apk-nav-enabled body.app-screen .side .nav.active span,
+  html.apk-swipe-nav body.app-screen .side .nav.active span{transform:scale(1.04)!important}
+  html.apk-nav-enabled body.app-screen .side .apk-nav-handle,
+  html.apk-swipe-nav body.app-screen .side .apk-nav-handle{
+    position:absolute!important;left:50%!important;bottom:3px!important;transform:translateX(-50%)!important;
+    width:54px!important;height:5px!important;border-radius:99px!important;background:#a7f3d0!important;
+    opacity:.85!important;pointer-events:auto!important;z-index:10000!important;
   }
-  body.app-screen .side .nav.active span{transform:scale(1.04)!important}
-  body.app-screen .side .nav.logout{margin:0!important}
-  body.app-screen .side.apk-nav-hidden{
-    transform:translate3d(0,calc(100% - 25px),0)!important;
-  }
-  body.app-screen .side.apk-nav-hidden .nav{
-    opacity:0!important;
-    pointer-events:none!important;
-  }
-  body.app-screen .side .apk-nav-handle{
-    position:absolute!important;
-    left:50%!important;
-    bottom:3px!important;
-    transform:translateX(-50%)!important;
-    width:54px!important;
-    height:5px!important;
-    border-radius:99px!important;
-    background:#a7f3d0!important;
-    opacity:.8!important;
-    box-shadow:0 0 12px #10b98155!important;
-    pointer-events:auto!important;
-    z-index:10000!important;
-  }
-  body.app-screen .side.apk-nav-hidden .apk-nav-handle{
-    bottom:10px!important;
-    height:5px!important;
-    opacity:1!important;
-  }
-  body.app-screen .side.apk-nav-dragging{
-    transition:none!important;
-  }
-  body.app-screen .side.apk-nav-dragging .nav{
-    transition:none!important;
-  }
-  body.app-screen .main{
-    padding-bottom:calc(9px + 70px + env(safe-area-inset-bottom))!important;
-  }
+  html.apk-nav-enabled body.app-screen .side.apk-nav-hidden,
+  html.apk-swipe-nav body.app-screen .side.apk-nav-hidden{transform:translate3d(0,calc(100% - 25px),0)!important}
+  html.apk-nav-enabled body.app-screen .side.apk-nav-hidden .nav,
+  html.apk-swipe-nav body.app-screen .side.apk-nav-hidden .nav{opacity:0!important;pointer-events:none!important}
+  html.apk-nav-enabled body.app-screen .side.apk-nav-dragging,
+  html.apk-swipe-nav body.app-screen .side.apk-nav-dragging{transition:none!important}
+  html.apk-nav-enabled body.app-screen .main,
+  html.apk-swipe-nav body.app-screen .main{padding-bottom:calc(9px + 72px + env(safe-area-inset-bottom))!important}
 }
