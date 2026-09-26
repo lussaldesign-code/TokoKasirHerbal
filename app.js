@@ -207,49 +207,53 @@ function isAdminOnlyTab(name){return ['agen','piutang','pembelian','laporan','ak
 function tab(name,el){const target=$('tab-'+name);if(!target){console.warn('Tab tidak ditemukan:',name);toast('Menu '+name+' belum tersedia.');return false;}const role=String(profile?.role||'').trim().toLowerCase();if(isAdminOnlyTab(name)&&role!=='admin'){toast('Menu ini khusus Admin.');return false;}document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));target.classList.add('active');document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));const nav=el||[...document.querySelectorAll('.nav')].find(x=>(x.getAttribute('onclick')||'').includes("tab('"+name+"'"));nav?.classList.add('active');if(name==='retur'){try{renderReturns()}catch(e){console.error('renderReturns',e);toast('Retur gagal dimuat: '+(e.message||e))}}if(name==='laporan'){try{renderReports()}catch(e){console.error('renderReports',e);toast('Laporan gagal dimuat: '+(e.message||e))}}if(name==='akun'){try{updateAccountView();renderUsers();if(typeof refreshReceiptPrinters==='function')refreshReceiptPrinters()}catch(e){console.error('renderAccount',e);toast('Pengaturan gagal dimuat: '+(e.message||e))}}return true}
 function goDashboardAction(name){const target=$('tab-'+name);if(!target){toast('Menu belum tersedia: '+name);return;}const nav=[...document.querySelectorAll('.nav')].find(x=>(x.getAttribute('onclick')||'').includes("tab('"+name+"'"));tab(name,nav||null);target.scrollIntoView({behavior:'smooth',block:'start'});}
 async function loadAll(){
- const required=[
-  sb.from('products').select('*').eq('aktif',true).order('nama'),
-  sb.from('agents').select('*').eq('aktif',true).order('nama'),
-  sb.from('receivables').select('*, agents(nama), sales(nomor_transaksi,created_at)').order('created_at',{ascending:false}),
-  sb.from('barang_dibawa').select('*').order('created_at',{ascending:false}),
-  sb.from('barang_dibawa_items').select('*').order('created_at',{ascending:false})
- ];
- const results=await Promise.all(required);
- for(const x of results)if(x.error)throw x.error;
- const [p,a,r,bd,bdi]=results;
- products=p.data||[];agents=a.data||[];receivables=r.data||[];barangDibawa=bd.data||[];barangDibawaItems=bdi.data||[];
- await loadDashboardCatalog();
- sales=[];saleItems=[];receivablePayments=[];purchases=[];purchaseItems=[];
- saleReturns=[];saleReturnItems=[];purchaseReturns=[];purchaseReturnItems=[];users=[];
+  if(!sb)throw Error('Database belum siap.');
+  const role=String(profile?.role||'').trim().toLowerCase();
+  async function read(name,query,fallback=[]){
+    try{
+      const result=await query;
+      if(result.error){console.warn('loadAll '+name,result.error);return fallback}
+      return result.data||fallback;
+    }catch(e){
+      console.warn('loadAll '+name,e);
+      return fallback;
+    }
+  }
 
- const common=[
-  ['sales',profile?.role==='admin'
-    ?sb.from('sales').select('*').order('created_at',{ascending:false}).limit(1000)
-    :sb.from('sales').select('*').eq('kasir_id',profile.id).order('created_at',{ascending:false}).limit(500)],
-  ['sale_items',sb.from('sale_items').select('*').order('created_at',{ascending:false}).limit(5000)],
-  ['sale_returns',sb.from('sale_returns').select('*').order('created_at',{ascending:false}).limit(500)],
-  ['sale_return_items',sb.from('sale_return_items').select('*').order('created_at',{ascending:false}).limit(5000)]
- ];
- const adminOnly=profile?.role==='admin'?[
-  ['receivable_payments',sb.from('receivable_payments').select('*').order('created_at',{ascending:false}).limit(5000)],
-  ['purchases',sb.from('purchases').select('*').order('created_at',{ascending:false}).limit(500)],
-  ['purchase_items',sb.from('purchase_items').select('*').order('created_at',{ascending:false}).limit(5000)],
-  ['purchase_returns',sb.from('purchase_returns').select('*').order('created_at',{ascending:false}).limit(500)],
-  ['purchase_return_items',sb.from('purchase_return_items').select('*').order('created_at',{ascending:false}).limit(5000)],
-  ['users',sb.from('users').select('id,username,nama,role,aktif,created_at,updated_at,auth_user_id').order('nama')]
- ]:[];
- const optional=[...common,...adminOnly];
- const optionalResults=await Promise.all(optional.map(async([name,q])=>{
-  try{const x=await q;if(x.error){console.warn('loadAll '+name,x.error);return {data:[]}}return x}
-  catch(e){console.warn('loadAll '+name,e);return {data:[]}}
- }));
- const get=n=>optionalResults[optional.findIndex(x=>x[0]===n)]?.data||[];
- sales=get('sales');saleItems=get('sale_items');saleReturns=get('sale_returns');saleReturnItems=get('sale_return_items');
- receivablePayments=get('receivable_payments');purchases=get('purchases');purchaseItems=get('purchase_items');
- purchaseReturns=get('purchase_returns');purchaseReturnItems=get('purchase_return_items');users=get('users');
- renderAll();
+  /* Core catalog data is loaded independently so one optional table cannot blank the whole app. */
+  products=await read('products',sb.from('products').select('*').eq('aktif',true).order('nama'),products);
+  agents=await read('agents',sb.from('agents').select('*').eq('aktif',true).order('nama'),agents);
+  receivables=await read('receivables',sb.from('receivables').select('*, agents(nama), sales(nomor_transaksi,created_at)').order('created_at',{ascending:false}),receivables);
+  barangDibawa=await read('barang_dibawa',sb.from('barang_dibawa').select('*').order('created_at',{ascending:false}),barangDibawa);
+  barangDibawaItems=await read('barang_dibawa_items',sb.from('barang_dibawa_items').select('*').order('created_at',{ascending:false}),barangDibawaItems);
+
+  await loadDashboardCatalog();
+
+  const common=[
+    ['sales',role==='admin'
+      ?sb.from('sales').select('*').order('created_at',{ascending:false}).limit(1000)
+      :sb.from('sales').select('*').eq('kasir_id',profile.id).order('created_at',{ascending:false}).limit(500)],
+    ['sale_items',sb.from('sale_items').select('*').order('created_at',{ascending:false}).limit(5000)],
+    ['sale_returns',sb.from('sale_returns').select('*').order('created_at',{ascending:false}).limit(500)],
+    ['sale_return_items',sb.from('sale_return_items').select('*').order('created_at',{ascending:false}).limit(5000)]
+  ];
+  const adminOnly=role==='admin'?[
+    ['receivable_payments',sb.from('receivable_payments').select('*').order('created_at',{ascending:false}).limit(5000)],
+    ['purchases',sb.from('purchases').select('*').order('created_at',{ascending:false}).limit(500)],
+    ['purchase_items',sb.from('purchase_items').select('*').order('created_at',{ascending:false}).limit(5000)],
+    ['purchase_returns',sb.from('purchase_returns').select('*').order('created_at',{ascending:false}).limit(500)],
+    ['purchase_return_items',sb.from('purchase_return_items').select('*').order('created_at',{ascending:false}).limit(5000)],
+    ['users',sb.from('users').select('id,username,nama,role,aktif,created_at,updated_at,auth_user_id').order('nama')]
+  ]:[];
+  const optional=[...common,...adminOnly];
+  const loaded=await Promise.all(optional.map(([name,q])=>read(name,q,[])));
+  const get=name=>loaded[optional.findIndex(x=>x[0]===name)]||[];
+  sales=get('sales');saleItems=get('sale_items');saleReturns=get('sale_returns');saleReturnItems=get('sale_return_items');
+  receivablePayments=get('receivable_payments');purchases=get('purchases');purchaseItems=get('purchase_items');
+  purchaseReturns=get('purchase_returns');purchaseReturnItems=get('purchase_return_items');users=get('users');
+
+  renderAll();
 }
-
 function changeAmount(){const total=cart.reduce((n,x)=>n+Number(x.harga||0)*Number(x.qty||0),0);const cash=Number($('cash')?.value||0);const el=$('change');if(el)el.textContent=cash>=total&&total>0?'Kembalian: '+rp(cash-total):cash>0?'Kurang: '+rp(Math.max(0,total-cash)):''}
 function renderCart(){const el=$('cart');if(!el)return;el.innerHTML=cart.length?cart.map((x,i)=>'<div class="cart-item"><div style="flex:1;min-width:0"><b>'+esc(x.nama)+'</b><small style="display:block;color:#789487">'+esc(x.type_label||'Ecer')+' • '+rp(x.harga)+'</small></div><div style="display:flex;align-items:center;gap:6px"><button class="btn secondary" style="padding:4px 8px" onclick="changeCartQty('+i+',-1)">−</button><b>'+x.qty+'</b><button class="btn secondary" style="padding:4px 8px" onclick="changeCartQty('+i+',1)">+</button><button class="btn secondary" style="padding:4px 8px" onclick="removeCartItem('+i+')">✕</button></div><b style="min-width:85px;text-align:right">'+rp(x.harga*x.qty)+'</b></div>').join(''):'<div class="note">Belum ada produk di keranjang.</div>';const total=cart.reduce((n,x)=>n+Number(x.harga||0)*Number(x.qty||0),0);if($('total'))$('total').textContent=rp(total);changeAmount()}
 function changeCartQty(index,delta){if(!cart[index])return;cart[index].qty=Math.max(0,Number(cart[index].qty||0)+delta);if(cart[index].qty===0)cart.splice(index,1);renderCart()}
@@ -563,7 +567,7 @@ function renderUsers(){if(profile?.role!=='admin'){$('users').innerHTML='';retur
 function setAccountRole(prefix,role){const select=$(prefix+'UserRole');if(!select)return;select.value=role;const wrap=$(prefix+'PinWrap'),input=$(prefix+'UserPassword');if(wrap)wrap.classList.toggle('hidden',role!=='admin');if(wrap)wrap.classList.toggle('pin-slide-in',role==='admin');if(input){input.value='';input.disabled=role!=='admin';input.placeholder=role==='admin'?'••••':'Kasir tidak menggunakan PIN';}const modal=$(prefix==='edit'?'userModal':'newUserModal');modal?.querySelectorAll('.role-choice').forEach(b=>b.classList.toggle('active',b.dataset.role===role));}function syncAccountPinField(mode,prefix){const isAdmin=mode==='admin';const wrap=$(prefix+'PinWrap'),input=$(prefix+'UserPassword');if(wrap)wrap.classList.toggle('hidden',!isAdmin);if(input){input.value='';input.placeholder=isAdmin?'••••':'Kasir tidak menggunakan PIN';input.disabled=!isAdmin;input.setAttribute('aria-hidden',String(!isAdmin));}if(wrap){wrap.classList.toggle('pin-slide-in',isAdmin);}}
 function openUserEditor(id){if(profile?.role!=='admin')return toast('Hanya admin yang dapat mengelola akun.');const u=users.find(x=>x.id===id);if(!u)return toast('Akun tidak ditemukan.');$('editUserId').value=u.id;$('editUserNama').value=u.nama||'';$('editUserUsername').value=u.username||'';$('editUserRole').value=u.role||'karyawan';$('editUserAktif').value=u.aktif?'true':'false';syncAccountPinField(u.role==='admin'?'admin':'karyawan','edit');openModal('userModal')}
 async function saveUserEdit(){try{if(profile?.role!=='admin')return toast('Hanya admin yang dapat mengelola akun.');const id=$('editUserId').value,nama=$('editUserNama').value.trim(),username=$('editUserUsername').value.trim().toLowerCase(),role=$('editUserRole').value,aktif=$('editUserAktif').value==='true',pin=$('editUserPassword').value.trim(),oldRole=users.find(u=>u.id===id)?.role;if(!id||!nama||!username)return toast('Nama dan username wajib diisi.');if(!/^[a-z0-9._-]{3,30}$/.test(username))return toast('Username 3-30 karakter: huruf, angka, titik, garis bawah atau strip.');if(id===profile.id&&(role!=='admin'||!aktif))return toast('Akun admin yang sedang digunakan tidak dapat diturunkan atau dinonaktifkan.');if(role==='admin'&&pin&&!/^[0-9]{4}$/.test(pin))return toast('PIN admin harus tepat 4 angka.');if(role==='karyawan'&&pin)return toast('Kasir tidak menggunakan PIN.');if(role==='admin'&&oldRole!=='admin'&&!pin)return toast('PIN wajib diisi saat akun kasir diubah menjadi admin.');const {data,error}=await sb.rpc('admin_update_user',{p_user_id:id,p_nama:nama,p_username:username,p_role:role,p_aktif:aktif,p_pin:pin||null});if(error)throw error;if(!data?.length)throw Error('Database tidak mengembalikan akun yang diperbarui.');if(id===profile.id){profile={...profile,...data[0]};localStorage.setItem('tokokasirlussal-username',profile.username);updateAccountView();if($('activeUser'))$('activeUser').textContent='Admin Aktif: '+(profile.nama||profile.username||'-')}closeModal('userModal');await loadAll();toast('Akun berhasil diperbarui.')}catch(e){console.error('saveUserEdit',e);toast('Gagal memperbarui akun: '+(e.message||'periksa database/RLS'))}}
-function openProduct(id){if(String(profile?.role||'').toLowerCase()!=='admin')return toast('Hanya admin yang dapat mengelola produk.');const p=id?products.find(x=>x.id===id):null;const deleteBtn=$('deleteProductBtn');if(deleteBtn)deleteBtn.classList.toggle('hidden',!p);selectedProductImage=p?.gambar||'';$('productTitle').textContent=p?'Edit Produk':'Produk Baru';$('productId').value=p?.id||'';$('pNama').value=p?.nama||'';$('pEcer').value=p?.harga_ecer||0;$('pReseller').value=p?.harga_reseller||0;$('pAgen').value=p?.harga_agen||0;$('pGrosir').value=p?.harga_grosir||0;$('pStok').value=p?.stok||0;$('pKategori').value=p?.kategori||'Kapsul';$('pGambar').value=p?.gambar&&!p.gambar.startsWith('data:image/')?p.gambar:'';const fileInput=$('pGambarFile'),cameraInput=$('pGambarCamera');if(fileInput)fileInput.value='';if(cameraInput)cameraInput.value='';const preview=$('pGambarPreview');if(preview){if(p?.gambar){preview.src=p.gambar;preview.classList.remove('hidden')}else{preview.src='';preview.classList.add('hidden')}}openModal('productModal')}
+function openProduct(id){if(String(profile?.role||'').trim().toLowerCase()!=='admin')return toast('Hanya admin yang dapat mengelola produk.');const p=id?products.find(x=>x.id===id):null;const deleteBtn=$('deleteProductBtn');if(deleteBtn)deleteBtn.classList.toggle('hidden',!p);selectedProductImage=p?.gambar||'';$('productTitle').textContent=p?'Edit Produk':'Produk Baru';$('productId').value=p?.id||'';$('pNama').value=p?.nama||'';$('pEcer').value=p?.harga_ecer||0;$('pReseller').value=p?.harga_reseller||0;$('pAgen').value=p?.harga_agen||0;$('pGrosir').value=p?.harga_grosir||0;$('pStok').value=p?.stok||0;$('pKategori').value=p?.kategori||'Kapsul';$('pGambar').value=p?.gambar&&!p.gambar.startsWith('data:image/')?p.gambar:'';const fileInput=$('pGambarFile'),cameraInput=$('pGambarCamera');if(fileInput)fileInput.value='';if(cameraInput)cameraInput.value='';const preview=$('pGambarPreview');if(preview){if(p?.gambar){preview.src=p.gambar;preview.classList.remove('hidden')}else{preview.src='';preview.classList.add('hidden')}}openModal('productModal')}
 function previewProductImage(event){const file=event.target.files?.[0];if(!file)return;if(!file.type.startsWith('image/')){event.target.value='';return toast('File harus berupa gambar.')}if(file.size>8*1024*1024){event.target.value='';return toast('Ukuran gambar maksimal 8 MB.')}const reader=new FileReader();reader.onload=()=>{const preview=$('pGambarPreview');if(preview){preview.src=reader.result;preview.classList.remove('hidden')}};reader.onerror=()=>toast('Gagal membaca gambar.');reader.readAsDataURL(file)}
 function compressImage(file,max=900,quality=.76){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onerror=reject;reader.onload=()=>{const img=new Image();img.onerror=reject;img.onload=()=>{const scale=Math.min(1,max/Math.max(img.width,img.height)),w=Math.max(1,Math.round(img.width*scale)),h=Math.max(1,Math.round(img.height*scale)),c=document.createElement('canvas');c.width=w;c.height=h;const ctx=c.getContext('2d');ctx.drawImage(img,0,0,w,h);resolve(c.toDataURL('image/jpeg',quality))};img.src=reader.result};reader.readAsDataURL(file)})}
 async function saveProduct(){
@@ -584,6 +588,7 @@ async function saveProduct(){
     }
     const kategori=$('pKategori').value||'Lainnya';
     const id=$('productId').value;
+    if(!sb)throw Error('Database belum siap.');
     let data,error;
     if(id){
       const result=await sb.rpc('kiosk_update_product',{
