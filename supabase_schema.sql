@@ -567,3 +567,74 @@ begin
  update public.barang_dibawa set status='selesai',completed_at=now() where id=p_barang_dibawa_id; return jsonb_build_object('sale_id',v_sale,'nomor_transaksi',v_no,'total_terjual',v_sold_total,'total_kembali',v_return_total,'total_penjualan',v_total);
 end; $$;
 revoke all on function public.create_barang_dibawa(uuid,text,text,jsonb) from public,anon; revoke all on function public.complete_barang_dibawa(uuid,uuid,jsonb) from public,anon; grant execute on function public.create_barang_dibawa(uuid,text,text,jsonb) to authenticated; grant execute on function public.complete_barang_dibawa(uuid,uuid,jsonb) to authenticated;
+
+
+-- ================================================================
+-- PRODUCT EDIT FOR KIOSK AUTH
+-- The app authenticates through kiosk_sessions, so product updates
+-- must authorize the linked kiosk user instead of comparing auth.uid()
+-- directly to users.auth_user_id.
+-- ================================================================
+create or replace function public.kiosk_update_product(
+  p_product_id uuid,
+  p_nama text,
+  p_harga_ecer numeric,
+  p_harga_reseller numeric,
+  p_harga_agen numeric,
+  p_harga_grosir numeric,
+  p_stok integer,
+  p_kategori text,
+  p_gambar text default null,
+  p_aktif boolean default true
+)
+returns public.products
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_user public.users%rowtype;
+  v_product public.products%rowtype;
+begin
+  select u.* into v_user
+  from public.users u
+  join public.kiosk_sessions ks on ks.user_id=u.id
+  where ks.auth_user_id=(select auth.uid())
+    and u.aktif=true
+  limit 1;
+
+  if v_user.id is null or lower(coalesce(v_user.role,'')) <> 'admin' then
+    raise exception 'Hanya admin yang dapat mengubah produk';
+  end if;
+
+  if p_product_id is null then raise exception 'ID produk tidak valid'; end if;
+  if nullif(trim(coalesce(p_nama,'')),'') is null then raise exception 'Nama produk wajib diisi'; end if;
+  if coalesce(p_harga_ecer,0) < 0
+     or coalesce(p_harga_reseller,0) < 0
+     or coalesce(p_harga_agen,0) < 0
+     or coalesce(p_harga_grosir,0) < 0
+     or coalesce(p_stok,0) < 0 then
+    raise exception 'Harga dan stok tidak boleh negatif';
+  end if;
+
+  update public.products
+  set nama=trim(p_nama),
+      harga_ecer=coalesce(p_harga_ecer,0),
+      harga_reseller=coalesce(p_harga_reseller,0),
+      harga_agen=coalesce(p_harga_agen,0),
+      harga_grosir=coalesce(p_harga_grosir,0),
+      stok=coalesce(p_stok,0),
+      kategori=coalesce(nullif(trim(p_kategori),''),'Lainnya'),
+      gambar=p_gambar,
+      aktif=coalesce(p_aktif,true),
+      updated_at=now()
+  where id=p_product_id
+  returning * into v_product;
+
+  if v_product.id is null then raise exception 'Produk tidak ditemukan'; end if;
+  return v_product;
+end;
+$$;
+
+revoke all on function public.kiosk_update_product(uuid,text,numeric,numeric,numeric,numeric,integer,text,text,boolean) from public, anon;
+grant execute on function public.kiosk_update_product(uuid,text,numeric,numeric,numeric,numeric,integer,text,text,boolean) to authenticated;
