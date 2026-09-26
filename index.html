@@ -474,6 +474,116 @@ body.login-screen .side,body.login-screen .notify-wrap,body.login-screen .stock-
   }
 }
 </style>
+
+<style id="tokokasirlussal-apk-bottom-sheet-v4">
+/* APK only: web/PWA never receives these rules. */
+@media(max-width:800px){
+  html.apk-swipe-nav body.app-screen{--apk-nav-height:82px}
+  html.apk-swipe-nav body.app-screen .main{
+    height:100dvh!important;
+    max-height:100dvh!important;
+    box-sizing:border-box!important;
+    padding-bottom:calc(var(--apk-nav-height) + env(safe-area-inset-bottom) + 8px)!important;
+    overflow:auto!important;
+  }
+  html.apk-swipe-nav body.app-screen .side{
+    position:fixed!important;left:0!important;right:0!important;bottom:0!important;top:auto!important;
+    width:100%!important;height:var(--apk-nav-height)!important;max-height:none!important;
+    box-sizing:border-box!important;z-index:60!important;margin:0!important;
+    padding:6px 7px calc(20px + env(safe-area-inset-bottom))!important;
+    display:flex!important;flex-direction:row!important;align-items:center!important;
+    justify-content:flex-start!important;gap:4px!important;
+    overflow-x:auto!important;overflow-y:hidden!important;
+    -webkit-overflow-scrolling:touch!important;scrollbar-width:none!important;
+    -ms-overflow-style:none!important;touch-action:pan-x!important;
+    overscroll-behavior-x:contain!important;transform:none!important;
+    transition:height .2s ease,box-shadow .2s ease!important;
+    border-radius:18px 18px 0 0!important;border-top:1px solid #1d3d30!important;
+    box-shadow:0 -10px 35px #0008!important;
+  }
+  html.apk-swipe-nav body.app-screen .side::-webkit-scrollbar{display:none!important}
+  html.apk-swipe-nav body.app-screen .side.apk-sheet-dragging{transition:none!important}
+  html.apk-swipe-nav body.app-screen .side .nav{
+    flex:0 0 76px!important;width:76px!important;min-width:76px!important;max-width:76px!important;
+    height:56px!important;min-height:56px!important;margin:0!important;padding:2px 3px!important;
+    display:flex!important;align-items:center!important;justify-content:center!important;
+    flex-direction:column!important;gap:1px!important;touch-action:pan-x!important;border-radius:12px!important;
+  }
+  html.apk-swipe-nav body.app-screen .side .nav span{width:25px!important;height:22px!important;font-size:18px!important;line-height:1!important}
+  html.apk-swipe-nav body.app-screen .side .nav.logout{margin-top:0!important}
+  html.apk-swipe-nav body.app-screen .apk-sheet-handle{
+    position:fixed!important;left:50%!important;
+    bottom:calc(var(--apk-nav-height) - 15px - env(safe-area-inset-bottom))!important;
+    transform:translateX(-50%)!important;width:72px!important;height:18px!important;
+    display:flex!important;align-items:center!important;justify-content:center!important;
+    z-index:1000!important;cursor:grab!important;touch-action:none!important;
+    -webkit-user-select:none!important;user-select:none!important;
+  }
+  html.apk-swipe-nav body.app-screen .apk-sheet-handle span{
+    display:block!important;width:48px!important;height:4px!important;border-radius:999px!important;
+    background:#789889!important;box-shadow:0 1px 6px #0008!important;
+  }
+  html.apk-swipe-nav body.app-screen .apk-sheet-handle.expanded span{width:56px!important;background:#a9c5b7!important}
+  html.apk-swipe-nav body.app-screen .side.apk-sheet-expanded{box-shadow:0 -16px 45px #000a!important}
+}
+.apk-sheet-handle{display:none}
+body.login-screen .apk-sheet-handle{display:none!important;visibility:hidden!important;pointer-events:none!important}
+</style>
+<script id="tokokasirlussal-apk-bottom-sheet-v4-script">
+(function(){
+  function setup(){
+    if(!window.Capacitor||window.innerWidth>800||!document.body.classList.contains('app-screen')) return;
+    const side=document.querySelector('body.app-screen .side');
+    if(!side)return;
+    let handle=document.querySelector('.apk-sheet-handle');
+    if(!handle){
+      handle=document.createElement('div');
+      handle.className='apk-sheet-handle';
+      handle.setAttribute('aria-label','Geser menu navigasi');
+      handle.innerHTML='<span></span>';
+      document.body.appendChild(handle);
+    }
+    if(handle.dataset.ready==='1')return;
+    handle.dataset.ready='1';
+    const MIN=82,MAX=132;
+    let dragging=false,startY=0,startH=MIN;
+    function setHeight(h,animate){
+      h=Math.max(MIN,Math.min(MAX,h));
+      document.documentElement.style.setProperty('--apk-nav-height',h+'px');
+      side.style.setProperty('--apk-nav-height',h+'px');
+      side.classList.toggle('apk-sheet-expanded',h>MIN+18);
+      handle.classList.toggle('expanded',h>MIN+18);
+      side.classList.toggle('apk-sheet-dragging',!animate);
+    }
+    function snap(h){
+      setHeight(h>=(MIN+MAX)/2?MAX:MIN,true);
+    }
+    handle.addEventListener('touchstart',e=>{
+      if(!document.body.classList.contains('app-screen'))return;
+      const t=e.touches?.[0];if(!t)return;
+      dragging=true;startY=t.clientY;startH=parseFloat(getComputedStyle(side).height)||MIN;
+      side.classList.add('apk-sheet-dragging');e.preventDefault();
+    },{passive:false});
+    handle.addEventListener('touchmove',e=>{
+      if(!dragging)return;
+      const t=e.touches?.[0];if(!t)return;
+      setHeight(startH+(startY-t.clientY),false);e.preventDefault();
+    },{passive:false});
+    handle.addEventListener('touchend',e=>{
+      if(!dragging)return;
+      dragging=false;snap(parseFloat(getComputedStyle(side).height)||MIN);e.preventDefault();
+    },{passive:false});
+    handle.addEventListener('touchcancel',()=>{if(dragging){dragging=false;snap(parseFloat(getComputedStyle(side).height)||MIN)}},{passive:true});
+    handle.addEventListener('click',()=>snap((parseFloat(getComputedStyle(side).height)||MIN)>=MAX-4?MIN:MAX));
+    setHeight(MIN,true);
+  }
+  function refresh(){if(window.Capacitor&&document.body.classList.contains('app-screen'))setup()}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',refresh);
+  else refresh();
+  window.addEventListener('load',refresh);
+  new MutationObserver(refresh).observe(document.body,{attributes:true,attributeFilter:['class']});
+})();
+</script>
 </head><body class="login-screen">
 <div id="login" class="login"><div class="login-box card premium-login"><div class="login-brand"><div class="login-logo">🌿</div><div><b>TokoKasirLussal</b><small>Premium Point of Sale</small></div></div><div class="login-copy"><span class="eyebrow">SECURE ACCESS</span><h1 id="loginTitle">Login Kasir</h1><p id="loginHint" class="note">Masukkan username kasir untuk masuk ke dashboard.</p></div><div class="login-switch"><button id="loginKasirBtn" class="btn primary" type="button" onclick="setLoginMode('kasir')">👤 Kasir</button><button id="loginAdminBtn" class="btn secondary" type="button" onclick="setLoginMode('admin')">🔐 Admin</button></div><div id="usernameField" class="field"><label id="usernameLabel">Username</label><input id="username" type="text" autocomplete="username" placeholder="Masukkan username kasir" onkeydown="if(event.key==='Enter')login()"></div><div id="pinField" class="pin-wrap hidden"><label>PIN LOGIN</label><div class="pin-dots"><input id="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="••••" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)" onkeydown="if(event.key==='Enter')login()"></div><small>4 angka</small></div><button id="loginSubmit" class="btn primary login-submit" type="button" onclick="window.login()">Masuk ke Dashboard <span>→</span></button><button id="installBtn" class="btn secondary hidden" style="width:100%;margin-top:10px" onclick="installApp()">📲 Pasang di HP</button></div></div>
 <div id="app" class="app hidden"><nav class="side card"><div class="brand"><div class="brand-icon">🌿</div><div><b>Manajemen Toko Kasir</b><small>Point of Sale</small></div></div><button class="nav active" onclick="tab('dashboard',this)"><span>⌂</span>Dashboard</button><button class="nav" onclick="tab('kasir',this)"><span>🛒</span>Kasir</button><button id="navAgen" class="nav" onclick="tab('agen',this)"><span>👥</span>Agen</button><button id="navPiutang" class="nav" onclick="tab('piutang',this)"><span>📒</span>Piutang</button><button id="navPembelian" class="nav" onclick="tab('pembelian',this)"><span>📦</span>Pembelian</button><button id="navBarangDibawa" class="nav" onclick="tab('barang-dibawa',this)"><span>🚚</span>Barang Dibawa</button><button id="navRetur" class="nav" onclick="tab('retur',this)"><span>↩️</span>Retur</button><button id="navLaporan" class="nav" onclick="tab('laporan',this)"><span>📊</span>Laporan</button><button id="navAkun" class="nav" onclick="tab('akun',this)"><span>⚙️</span>Pengaturan</button><button class="nav logout" onclick="logout()"><span>🚪</span>Keluar</button></nav>
