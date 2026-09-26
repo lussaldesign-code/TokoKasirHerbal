@@ -38,30 +38,7 @@ document.addEventListener('pointerdown',e=>{
 },{passive:true});
 function toast(m){$('toast').textContent=m;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),3000)}
 function requireConfig(){if(!CONFIG.url||!CONFIG.key){toast('Isi config.js dengan Supabase URL dan publishable/anon key.');throw Error('Supabase config belum diisi')}}
-async function ensureSession(){
-  requireConfig();
-  const STORAGE='tokokasirlussal-auth-v2';
-  const makeClient=()=>supabase.createClient(CONFIG.url,CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:STORAGE}});
-  if(!sb)sb=makeClient();
-  let s;
-  try{s=await sb.auth.getSession();}catch(e){
-    console.warn('[auth] session storage error, resetting local auth',e);
-    try{localStorage.removeItem(STORAGE)}catch(_){}
-    sb=makeClient();
-    s=await sb.auth.getSession();
-  }
-  if(s.error){
-    try{localStorage.removeItem(STORAGE)}catch(_){}
-    sb=makeClient();
-    s=await sb.auth.getSession();
-  }
-  const existing=s.data?.session;
-  if(existing?.user?.id)return existing;
-  const r=await sb.auth.signInAnonymously();
-  if(r.error)throw Error('Login otomatis Supabase gagal: '+r.error.message);
-  if(!r.data?.session)throw Error('Supabase tidak mengembalikan sesi.');
-  return r.data.session;
-}
+async function ensureSession(){requireConfig();if(!sb)sb=supabase.createClient(CONFIG.url,CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'tokokasirlussal-auth'}});let s=await sb.auth.getSession();if(s.error)throw s.error;const existing=s.data?.session;if(existing?.user?.is_anonymous===true)return existing;if(existing){await sb.auth.signOut({scope:'local'});}let r=await sb.auth.signInAnonymously();if(r.error)throw Error('Login otomatis Supabase gagal: '+r.error.message);if(!r.data?.session)throw Error('Supabase tidak mengembalikan sesi.');return r.data.session}
 let loginMode='kasir';
 function setLoginMode(mode){loginMode=mode;const isAdmin=mode==='admin';$('loginKasirBtn')?.classList.toggle('primary',!isAdmin);$('loginKasirBtn')?.classList.toggle('secondary',isAdmin);$('loginAdminBtn')?.classList.toggle('primary',isAdmin);$('loginAdminBtn')?.classList.toggle('secondary',!isAdmin);$('usernameField')?.classList.remove('hidden');$('pinField')?.classList.toggle('hidden',!isAdmin);if($('usernameLabel'))$('usernameLabel').textContent=isAdmin?'Username Admin':'Username Kasir';if($('username'))$('username').placeholder=isAdmin?'Masukkan username admin':'Masukkan username kasir';if($('loginTitle'))$('loginTitle').textContent=isAdmin?'Login Admin':'Login Kasir';if($('loginHint'))$('loginHint').textContent=isAdmin?'Masukkan username admin dan PIN 4 angka.':'Masukkan username kasir untuk masuk.';if(isAdmin)$('pin')?.focus();else $('username')?.focus()}
 let loginBusy=false;
@@ -71,7 +48,7 @@ async function login(){
   const submit=$('loginSubmit');
   const oldText=submit?.innerHTML;
   if(submit){submit.disabled=true;submit.setAttribute('aria-busy','true');submit.innerHTML='Memproses login... <span>⏳</span>';}
-  try{const pin=($('pin')?.value||'').trim(),username=($('username')?.value||'').trim().toLowerCase();if(!username)return toast(loginMode==='admin'?'Masukkan username admin terlebih dahulu.':'Masukkan username kasir terlebih dahulu.');if(loginMode==='admin'&&!/^[0-9]{4}$/.test(pin))return toast('PIN admin harus tepat 4 angka.');let session=await ensureSession();currentUser=session.user;let result=loginMode==='admin'?await sb.rpc('kiosk_login_pin',{p_username:username,p_pin:pin}):await sb.rpc('kiosk_login_cashier',{p_username:username});if(result.error&&/JWT|session|anonymous|not authenticated/i.test(result.error.message||'')){await sb.auth.signOut();session=await ensureSession();currentUser=session.user;result=loginMode==='admin'?await sb.rpc('kiosk_login_pin',{p_username:username,p_pin:pin}):await sb.rpc('kiosk_login_cashier',{p_username:username});}if(result.error)throw result.error;const data=result.data;if(!data?.length)throw Error('Akun tidak ditemukan atau tidak aktif.');const account=data[0];if(loginMode==='admin'&&account.role!=='admin')throw Error('Akun ini bukan akun admin.');if(loginMode==='kasir'&&account.role==='admin')throw Error('Gunakan tombol Login Admin.');const prof=await sb.rpc('kiosk_profile',{p_username:account.username});if(prof.error)throw prof.error;if(!prof.data?.length)throw Error('Profil akun belum tersedia.');profile=prof.data[0];profile.auth_user_id=currentUser.id;if(!profile.aktif)throw Error('Akun tidak aktif.');localStorage.setItem('tokokasirlussal-username',profile.username);showApp();try{await loadAll()}catch(loadErr){console.error('loadAll after login',loadErr);toast('Login berhasil, tetapi data belum dapat dimuat: '+(loadErr?.message||'periksa data Supabase'));}}catch(e){console.error('login',e);const m=String(e?.message||e);if(/anonymous.*(disabled|not enabled)|anonymous sign.?ins.*disabled/i.test(m))toast('Login otomatis Supabase belum diizinkan oleh Auth Supabase.');else toast(m||'Login gagal')}finally{loginBusy=false;if(submit){submit.disabled=false;submit.removeAttribute('aria-busy');submit.innerHTML=oldText||'Masuk ke Dashboard <span>→</span>';}}
+  try{const pin=($('pin')?.value||'').trim(),username=($('username')?.value||'').trim().toLowerCase();if(!username)return toast(loginMode==='admin'?'Masukkan username admin terlebih dahulu.':'Masukkan username kasir terlebih dahulu.');if(loginMode==='admin'&&!/^[0-9]{4}$/.test(pin))return toast('PIN admin harus tepat 4 angka.');let session=await ensureSession();currentUser=session.user;let result=loginMode==='admin'?await sb.rpc('kiosk_login_pin',{p_username:username,p_pin:pin}):await sb.rpc('kiosk_login_cashier',{p_username:username});if(result.error&&/JWT|session|anonymous|not authenticated/i.test(result.error.message||'')){await sb.auth.signOut();session=await ensureSession();currentUser=session.user;result=loginMode==='admin'?await sb.rpc('kiosk_login_pin',{p_username:username,p_pin:pin}):await sb.rpc('kiosk_login_cashier',{p_username:username});}if(result.error)throw result.error;const data=result.data;if(!data?.length)throw Error('Akun tidak ditemukan atau tidak aktif.');const account=data[0];if(loginMode==='admin'&&account.role!=='admin')throw Error('Akun ini bukan akun admin.');if(loginMode==='kasir'&&account.role==='admin')throw Error('Gunakan tombol Login Admin.');const prof=await sb.rpc('kiosk_profile',{p_username:account.username});if(prof.error)throw prof.error;if(!prof.data?.length)throw Error('Profil akun belum tersedia.');profile=prof.data[0];profile.auth_user_id=currentUser.id;if(!profile.aktif)throw Error('Akun tidak aktif.');localStorage.setItem('tokokasirlussal-username',profile.username);showApp();try{await loadAll()}catch(loadErr){console.error('loadAll after login',loadErr);toast('Login berhasil, tetapi data belum dapat dimuat: '+(loadErr?.message||'periksa data Supabase'));}}catch(e){console.error('login',e);const m=String(e?.message||e);if(/anonymous|disabled|sign.?in/i.test(m))toast('Login otomatis Supabase gagal. Aktifkan Anonymous Sign-Ins di Supabase Authentication.');else toast(m||'Login gagal')}finally{loginBusy=false;if(submit){submit.disabled=false;submit.removeAttribute('aria-busy');submit.innerHTML=oldText||'Masuk ke Dashboard <span>→</span>';}}
 }async function loadProfileByUsername(username){const {data,error}=await sb.rpc('kiosk_profile',{p_username:username});if(error)throw error;if(!data?.length)throw Error('Profil akun belum tersedia.');profile=data[0]}
 async function restoreLogin(){showLogin()}
 async function logout(){try{localStorage.removeItem('tokokasirlussal-username');if(sb)await sb.auth.signOut()}finally{location.reload()}}
@@ -825,7 +802,7 @@ async function installApp(){
   if(b)b.classList.add('hidden');
 }
 if('serviceWorker' in navigator){
-  window.addEventListener('load',async()=>{try{if(!('serviceWorker' in navigator))return;const reg=await navigator.serviceWorker.register('./sw.js?v=20260926-2',{updateViaCache:'none'});await reg.update();}catch(e){console.warn('PWA service worker',e)}});
+  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(e=>console.warn('PWA service worker',e)));
 }
 
 /* LOGIN CLICK FALLBACK: bind directly after the app script has loaded. */
