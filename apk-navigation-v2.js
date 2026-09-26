@@ -27,3 +27,23 @@ function fix(){if(!document.documentElement.classList.contains('apk-v2'))return;
 function bind(){fix();const t=document.getElementById('tab-akun');if(!t||t.dataset.apkV2Settings)return;t.dataset.apkV2Settings='1';new MutationObserver(fix).observe(t,{childList:true,subtree:true})}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();window.addEventListener('load',bind);
 })();
+(function(){
+'use strict';
+function addCameraShortcut(){
+ if(!document.documentElement.classList.contains('apk-v2'))return;
+ const modal=document.getElementById('productModal'), file=document.getElementById('pGambarCamera');
+ if(!modal||!file||modal.dataset.apkCameraReady==='1')return;
+ modal.dataset.apkCameraReady='1';
+ const box=modal.querySelector('.modalbox'); if(!box)return;
+ const old=box.querySelector('.photo-actions'); if(old) old.classList.add('apk-camera-actions');
+ const btn=document.createElement('button');
+ btn.type='button'; btn.className='apk-camera-main'; btn.innerHTML='📷 <span>Ambil Foto Produk</span><small>Kamera perangkat</small>';
+ btn.addEventListener('click',()=>file.click());
+ const target=box.querySelector('#pGambarPreview');
+ if(target&&target.parentNode)target.parentNode.insertBefore(btn,target);
+ else box.appendChild(btn);
+}
+function boot(){addCameraShortcut();const m=document.getElementById('productModal');if(m)new MutationObserver(addCameraShortcut).observe(m,{attributes:true,childList:true,subtree:true});}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+window.addEventListener('load',boot);
+})();
