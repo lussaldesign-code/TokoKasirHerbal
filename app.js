@@ -207,6 +207,13 @@ function renderReceivables(){$('receivables').innerHTML=receivables.map(r=>`<tr>
 async function payDebt(id,sisa){const v=prompt('Nominal pembayaran',String(sisa));if(!v)return;const amount=Number(v);if(!Number.isFinite(amount)||amount<=0)return toast('Nominal pembayaran tidak valid.');try{const {error}=await sb.rpc('pay_receivable',{p_receivable_id:id,p_kasir_id:profile.id,p_jumlah:amount,p_keterangan:'Pembayaran piutang'});if(error)throw error;await loadAll();toast('Pembayaran piutang berhasil.')}catch(e){toast(e.message)}}
 function localDay(d=new Date()){const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')}
 function reportPaymentLabel(s){return s.metode_pembayaran==='piutang'?'Piutang / DP':'Lunas Tunai'}
+function switchReportView(view,button){
+ const target=view==='month'?'reportViewMonth':'reportViewToday';
+ document.querySelectorAll('.report-view').forEach(x=>x.classList.toggle('active',x.id===target));
+ document.querySelectorAll('.report-switch-btn').forEach(x=>x.classList.toggle('active',x===button||x.dataset.reportView===view));
+ const active=document.getElementById(target);
+ if(active)active.scrollTop=0;
+}
 function renderReports(){
  const now=new Date(),day=localDay(now),month=day.slice(0,7);
  const ss=Array.isArray(sales)?sales:[],si=Array.isArray(saleItems)?saleItems:[];
@@ -286,6 +293,8 @@ function renderReports(){
    return '<tr><td>'+new Date(s.created_at).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})+'</td><td><b>'+esc(s.nomor_transaksi)+'</b></td><td>'+transactionProducts(s)+'</td><td>'+transactionUser(s)+'</td><td>'+esc(ag?.nama||'Umum')+'</td><td>'+rp(total)+'</td><td>'+rp(paid)+'</td><td>'+esc(reportPaymentLabel(s))+'</td></tr>';
  }).join('')||'<tr><td colspan="8" class="note">Belum ada penjualan aktif hari ini.</td></tr>';
 
+ if($('todayReportCount'))$('todayReportCount').textContent=activeDaySales.length+' transaksi';
+ if($('monthReportCount'))$('monthReportCount').textContent=activeMonthSales.length+' transaksi';
  if($('monthlySales'))$('monthlySales').innerHTML=activeMonthSales.map(s=>{
    const total=Number(s.total||0),paid=paymentNet(s);
    return '<tr><td>'+new Date(s.created_at).toLocaleDateString('id-ID')+'</td><td>'+esc(s.nomor_transaksi)+'</td><td>'+transactionProducts(s)+'</td><td>'+transactionUser(s)+'</td><td>'+rp(total)+'</td><td>'+rp(paid)+'</td><td>'+esc(reportPaymentLabel(s))+'</td></tr>';
