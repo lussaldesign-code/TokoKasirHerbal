@@ -826,31 +826,3 @@ if('serviceWorker' in navigator){
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();
 })();
-
-/* LOGIN CLICK GUARD v3: capture login actions independently of inline handlers. */
-(function installLoginClickGuard(){
-  function bind(){
-    const root=document.getElementById('login');
-    if(!root || root.dataset.clickGuard==='1')return;
-    root.dataset.clickGuard='1';
-    document.addEventListener('click',function(e){
-      if(!document.body.classList.contains('login-screen'))return;
-      const el=e.target?.closest?.('#loginKasirBtn,#loginAdminBtn,#loginSubmit');
-      if(!el || !root.contains(el))return;
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      if(el.id==='loginKasirBtn') return window.setLoginMode?.('kasir');
-      if(el.id==='loginAdminBtn') return window.setLoginMode?.('admin');
-      if(el.id==='loginSubmit') return window.login?.();
-    },true);
-    document.addEventListener('keydown',function(e){
-      if(!document.body.classList.contains('login-screen') || e.key!=='Enter')return;
-      const el=e.target?.closest?.('#username,#pin');
-      if(!el)return;
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      window.login?.();
-    },true);
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();
-})();
