@@ -343,56 +343,55 @@ body[data-user-role="cashier"] .side .nav.logout{display:flex!important}
 .carry-item-row{display:grid;grid-template-columns:1fr 110px 44px;gap:8px;margin:8px 0}.carry-item-row select,.carry-item-row input{width:100%;padding:11px;border:1px solid #214437;border-radius:10px;background:#09110d;color:#ecfdf5}
 .carry-complete-row{display:grid;grid-template-columns:1fr 110px 110px;gap:8px;align-items:center}.carry-complete-row input{padding:10px;border:1px solid #214437;border-radius:10px;background:#09110d;color:#ecfdf5}
 @media(max-width:800px){.notify-wrap{top:10px;right:12px}.notify-menu{right:-4px;width:275px}.carry-section{padding:12px}.carry-item-row{grid-template-columns:1fr 85px 44px}.carry-complete-row{grid-template-columns:1fr 85px 85px}.side{overflow-x:auto;justify-content:flex-start}.nav{min-width:70px}.nav.logout{min-width:60px}}
-</style><style id="tokokasirlussal-mobile-bottom-sheet-v1">
+</style><style id="tokokasirlussal-mobile-bottom-sheet-v2">
 @media(max-width:800px){
  body.mobile-sheet-open{overflow:hidden}
  .app{padding-bottom:0!important}
  .side{
-  --sheet-handle:28px;position:fixed!important;left:8px!important;right:8px!important;bottom:8px!important;
-  width:auto!important;height:min(90dvh,760px)!important;padding:38px 8px calc(8px + env(safe-area-inset-bottom))!important;
-  display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:5px!important;
-  border-radius:24px!important;z-index:60!important;transform:translateY(calc(100% - 82px));
-  transition:transform .32s cubic-bezier(.22,.8,.22,1),box-shadow .32s ease!important;will-change:transform;
-  touch-action:none;overflow:hidden!important;
+  position:fixed!important;left:0!important;right:0!important;bottom:0!important;width:100%!important;
+  height:76px!important;padding:30px 0 0!important;
+  display:flex!important;flex-direction:row!important;align-items:stretch!important;gap:0!important;
+  border-radius:18px 18px 0 0!important;z-index:60!important;
+  background:linear-gradient(180deg,#08120d,#030705)!important;
+  border-top:1px solid #1d3d30!important;
+  box-shadow:0 -10px 35px #0007!important;
+  transform:translateY(calc(100% - 18px));
+  transition:transform .28s cubic-bezier(.22,.8,.22,1),box-shadow .28s ease!important;
+  will-change:transform;overflow:hidden!important;touch-action:none;
  }
- .side.sheet-half{transform:translateY(46%)} .side.sheet-expanded{transform:translateY(0)}
- .side.sheet-dragging{transition:none!important}.side .brand{display:none!important}
- .side .nav{flex:0 0 auto!important;width:100%!important;min-height:48px!important;height:48px!important;padding:5px 12px!important;
-  justify-content:flex-start!important;flex-direction:row!important;gap:12px!important;font-size:13px!important;text-align:left!important;border-radius:13px!important}
- .side .nav span{width:28px!important;height:28px!important;font-size:19px!important}.side .nav.logout{margin-top:auto!important}
- .mobile-sheet-handle{position:absolute;left:0;right:0;top:0;height:38px;display:flex;align-items:center;justify-content:center;cursor:grab;touch-action:none}
- .mobile-sheet-handle:active{cursor:grabbing}.mobile-sheet-handle span{display:block;width:48px;height:5px;border-radius:99px;background:#557568;box-shadow:0 1px 5px #0006}
- .side.sheet-expanded .mobile-sheet-handle span{width:58px;background:#10b981}
- .mobile-sheet-backdrop{position:fixed;inset:0;background:#0008;z-index:55;opacity:0;pointer-events:none;transition:opacity .25s ease;backdrop-filter:blur(2px)}
- .mobile-sheet-backdrop.show{opacity:1;pointer-events:auto}.main{height:100dvh!important;padding-bottom:18px!important;overflow:auto!important}
+ .side.sheet-expanded{transform:translateY(0)}
+ .side.sheet-dragging{transition:none!important}
+ .side .brand{display:none!important}
+ .mobile-sheet-handle{
+  position:absolute!important;left:0;right:0;top:0;height:30px;
+  display:flex;align-items:center;justify-content:center;cursor:grab;touch-action:none;z-index:2;
+ }
+ .mobile-sheet-handle:active{cursor:grabbing}
+ .mobile-sheet-handle span{
+  display:block;width:46px;height:4px;border-radius:99px;
+  background:#fff;box-shadow:0 0 8px #fff6;
+ }
+ .side.sheet-expanded .mobile-sheet-handle span{width:54px;background:#fff}
+ .side .nav{
+  flex:0 0 auto!important;width:auto!important;min-width:78px!important;height:46px!important;min-height:46px!important;
+  padding:3px 8px!important;justify-content:center!important;flex-direction:column!important;
+  gap:1px!important;font-size:9px!important;text-align:center!important;border-radius:11px!important;
+ }
+ .side .nav span{width:25px!important;height:20px!important;font-size:18px!important}
+ .side .nav.logout{margin-top:0!important}
+ .side.sheet-collapsed .nav{visibility:hidden!important;pointer-events:none!important}
+ .side.sheet-expanded .nav{visibility:visible!important;pointer-events:auto!important}
+ .side{
+  overflow-x:auto!important;overflow-y:hidden!important;scrollbar-width:none!important;
+  justify-content:flex-start!important;
+ }
+ .side::-webkit-scrollbar{display:none}
+ .mobile-sheet-backdrop{display:none!important}
+ .main{height:100dvh!important;padding-bottom:18px!important;overflow:auto!important}
  .main,.tab{overscroll-behavior:contain}
- .side:not(.sheet-half):not(.sheet-expanded){padding-top:34px!important;flex-direction:row!important;align-items:flex-end!important;gap:4px!important}
- .side:not(.sheet-half):not(.sheet-expanded) .nav{display:none!important}
- .side:not(.sheet-half):not(.sheet-expanded) .nav:nth-of-type(1),
- .side:not(.sheet-half):not(.sheet-expanded) .nav:nth-of-type(2),
- .side:not(.sheet-half):not(.sheet-expanded) .nav:nth-of-type(6),
- .side:not(.sheet-half):not(.sheet-expanded) .nav:nth-of-type(8){
-  display:flex!important;flex:1 1 0!important;width:auto!important;min-width:0!important;height:44px!important;min-height:44px!important;
-  padding:3px 5px!important;justify-content:center!important;flex-direction:column!important;gap:1px!important;font-size:9px!important;text-align:center!important}
- .side:not(.sheet-half):not(.sheet-expanded) .nav:nth-of-type(1) span,
- .side:not(.sheet-half):not(.sheet-expanded) .nav:nth-of-type(2) span,
- .side:not(.sheet-half):not(.sheet-expanded) .nav:nth-of-type(6) span,
- .side:not(.sheet-half):not(.sheet-expanded) .nav:nth-of-type(8) span{width:25px!important;height:20px!important;font-size:18px!important}
- .side:not(.sheet-half):not(.sheet-expanded) .nav.logout{display:none!important}
 }
 @media(min-width:801px){.mobile-sheet-handle,.mobile-sheet-backdrop{display:none!important}}
-@media(prefers-reduced-motion:reduce){.side,.mobile-sheet-backdrop{transition:none!important}}
-<style id="tokokasirlussal-apk-stability-v1">
-.hidden{display:none!important}
-#login[aria-hidden="true"],#app[aria-hidden="true"]{display:none!important}
-body.login-screen #app{display:none!important}
-body.app-screen #login{display:none!important}
-@media(max-width:800px){
-  .modal{z-index:100!important}
-  .modalbox{position:relative;z-index:101!important;max-height:calc(100dvh - 24px)!important}
-  body.modal-open .side{pointer-events:none!important}
-  body.modal-open .mobile-sheet-backdrop{display:none!important;pointer-events:none!important}
-}
+@media(prefers-reduced-motion:reduce){.side{transition:none!important}}
 </style></head><body>
 <div id="login" class="login"><div class="login-box card premium-login"><div class="login-brand"><div class="login-logo">🌿</div><div><b>TokoKasirLussal</b><small>Premium Point of Sale</small></div></div><div class="login-copy"><span class="eyebrow">SECURE ACCESS</span><h1 id="loginTitle">Login Admin</h1><p id="loginHint" class="note">Masukkan username kasir untuk masuk ke dashboard.</p></div><div class="login-switch"><button id="loginKasirBtn" class="btn primary" type="button" onclick="setLoginMode('kasir')">👤 Kasir</button><button id="loginAdminBtn" class="btn secondary" type="button" onclick="setLoginMode('admin')">🔐 Admin</button></div><div id="usernameField" class="field"><label id="usernameLabel">Username</label><input id="username" type="text" autocomplete="username" placeholder="Masukkan username kasir" onkeydown="if(event.key==='Enter')login()"></div><div id="pinField" class="pin-wrap hidden"><label>PIN LOGIN</label><div class="pin-dots"><input id="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="••••" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)" onkeydown="if(event.key==='Enter')login()"></div><small>4 angka</small></div><button class="btn primary login-submit" type="button" onclick="login()">Masuk ke Dashboard <span>→</span></button><button id="installBtn" class="btn secondary hidden" style="width:100%;margin-top:10px" onclick="installApp()">📲 Pasang di HP</button></div></div>
 <div id="app" class="app hidden"><nav class="side card"><div class="mobile-sheet-handle" id="mobileSheetHandle" aria-label="Tarik navigasi"><span></span></div><div class="brand"><div class="brand-icon">🌿</div><div><b>Manajemen Toko Kasir</b><small>Point of Sale</small></div></div><button class="nav active" onclick="tab('dashboard',this)"><span>⌂</span>Dashboard</button><button class="nav" onclick="tab('kasir',this)"><span>🛒</span>Kasir</button><button id="navAgen" class="nav" onclick="tab('agen',this)"><span>👥</span>Agen</button><button id="navPiutang" class="nav" onclick="tab('piutang',this)"><span>📒</span>Piutang</button><button id="navPembelian" class="nav" onclick="tab('pembelian',this)"><span>📦</span>Pembelian</button><button id="navBarangDibawa" class="nav" onclick="tab('barang-dibawa',this)"><span>🚚</span>Barang Dibawa</button><button id="navLaporan" class="nav" onclick="tab('laporan',this)"><span>📊</span>Laporan</button><button id="navAkun" class="nav" onclick="tab('akun',this)"><span>⚙️</span>Pengaturan</button><button class="nav logout" onclick="logout()"><span>🚪</span>Keluar</button></nav>
