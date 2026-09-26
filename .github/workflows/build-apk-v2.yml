@@ -55,8 +55,8 @@ jobs:
           s = s.replace("apk-navigation.js", "apk-navigation-v2.js")
           s = s.replace("icon-192.svg", "apk-icon.svg")
           s = s.replace("icon-512.svg", "apk-icon.svg")
-          s = re.sub(r"config\.js\?v=[^"'" + r"]*", "config.js?v=" + os.environ["VERSION"], s)
-          s = re.sub(r"app\.js\?v=[^"'" + r"]*", "app.js?v=" + os.environ["VERSION"], s)
+          s = re.sub(r"""config\.js\?v=[^"']+""", "config.js?v=" + os.environ["VERSION"], s)
+          s = re.sub(r"""app\.js\?v=[^"']+""", "app.js?v=" + os.environ["VERSION"], s)
           p.write_text(s, encoding="utf-8")
           PY
           sed -i "s#tokokasirlussal-v[0-9.]*#tokokasirlussal-v$VERSION#g" mobile/www/sw.js
