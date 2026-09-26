@@ -802,7 +802,7 @@ async function installApp(){
   if(b)b.classList.add('hidden');
 }
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(e=>console.warn('PWA service worker',e)));
+  window.addEventListener('load',async()=>{try{if(!('serviceWorker' in navigator))return;const reg=await navigator.serviceWorker.register('./sw.js?v=20260926-2',{updateViaCache:'none'});await reg.update();}catch(e){console.warn('PWA service worker',e)}});
 }
 
 /* LOGIN CLICK FALLBACK: bind directly after the app script has loaded. */
