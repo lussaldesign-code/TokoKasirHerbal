@@ -376,6 +376,87 @@ body[data-user-role="cashier"] .side .nav.logout{display:flex!important}
  .report-table{border-radius:14px}
  .report-table table{min-width:920px}
 }
+</style><style id="tokokasirlussal-mobile-bottom-sheet-v2">
+@media(max-width:800px){
+ body.mobile-sheet-open{overflow:hidden}
+ .app{padding-bottom:0!important}
+ .side{
+  position:fixed!important;left:0!important;right:0!important;bottom:0!important;width:100%!important;
+  height:76px!important;padding:30px 0 0!important;
+  display:flex!important;flex-direction:row!important;align-items:stretch!important;gap:0!important;
+  border-radius:18px 18px 0 0!important;z-index:60!important;
+  background:linear-gradient(180deg,#08120d,#030705)!important;
+  border-top:1px solid #1d3d30!important;
+  box-shadow:0 -10px 35px #0007!important;
+  transform:translateY(calc(100% - 18px));
+  transition:transform .28s cubic-bezier(.22,.8,.22,1),box-shadow .28s ease!important;
+  will-change:transform;overflow:hidden!important;touch-action:none;
+ }
+ .side.sheet-expanded{transform:translateY(0)}
+ .side.sheet-dragging{transition:none!important}
+ .side .brand{display:none!important}
+ .mobile-sheet-handle{
+  position:fixed!important;left:0!important;right:0!important;bottom:auto!important;top:0!important;height:30px!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;cursor:grab!important;touch-action:none!important;z-index:100!important;
+  pointer-events:auto!important;
+ }
+ .mobile-sheet-handle:active{cursor:grabbing}
+ .mobile-sheet-handle span{
+  display:block;width:46px;height:4px;border-radius:99px;
+  background:#fff;box-shadow:0 0 8px #fff6;
+ }
+ .side.sheet-expanded .mobile-sheet-handle span{width:54px;background:#fff}
+ .side .nav{
+  flex:0 0 auto!important;width:auto!important;min-width:78px!important;height:46px!important;min-height:46px!important;
+  padding:3px 8px!important;justify-content:center!important;flex-direction:column!important;
+  gap:1px!important;font-size:9px!important;text-align:center!important;border-radius:11px!important;
+ }
+ .side .nav span{width:25px!important;height:20px!important;font-size:18px!important}
+ .side .nav.logout{margin-top:0!important}
+ .side.sheet-collapsed .nav{visibility:hidden!important;pointer-events:none!important}
+ .side.sheet-expanded .nav{visibility:visible!important;pointer-events:auto!important}
+ .side{
+  overflow-x:auto!important;overflow-y:hidden!important;scrollbar-width:none!important;
+  justify-content:flex-start!important;
+ }
+ .side::-webkit-scrollbar{display:none}
+ .mobile-sheet-backdrop{display:none!important}
+ .main{height:100dvh!important;padding-bottom:18px!important;overflow:auto!important}
+ .main,.tab{overscroll-behavior:contain}
+}
+@media(min-width:801px){.mobile-sheet-handle,.mobile-sheet-backdrop{display:none!important}}
+@media(prefers-reduced-motion:reduce){.side{transition:none!important}}
+<style id="tokokasirlussal-apk-swipe-nav-v1">
+html.apk-swipe-nav body{overflow:hidden!important}
+@media(max-width:800px){
+  html.apk-swipe-nav .side{
+    height:72px!important;max-height:72px!important;bottom:0!important;
+    flex-direction:row!important;overflow:hidden!important;
+    touch-action:none!important;transform:translateY(0)!important;
+    transition:transform .22s ease!important;
+    padding:7px 8px calc(7px + env(safe-area-inset-bottom))!important;
+    border-radius:16px 16px 0 0!important;
+  }
+  html.apk-swipe-nav .side.apk-nav-hidden{
+    transform:translateY(calc(100% - 18px))!important;
+  }
+  html.apk-swipe-nav .side.apk-nav-hidden .nav{visibility:hidden!important;pointer-events:none!important}
+  html.apk-swipe-nav .side.apk-nav-hidden:before{
+    content:"";position:absolute;left:50%;top:5px;width:52px;height:4px;
+    border-radius:99px;background:#7d9d8f;transform:translateX(-50%);
+    pointer-events:none;
+  }
+  html.apk-swipe-nav .side:not(.apk-nav-hidden):before{
+    content:"";position:absolute;left:50%;top:5px;width:42px;height:3px;
+    border-radius:99px;background:#426858;transform:translateX(-50%);
+    pointer-events:none;
+  }
+  html.apk-swipe-nav .side .nav{
+    flex:1 1 0!important;width:auto!important;min-width:0!important;
+    touch-action:none!important;
+  }
+  html.apk-swipe-nav .side.apk-nav-dragging{transition:none!important}
+}
 </style></style><style id="login-navigation-isolation">body.login-screen .side,body.login-screen .mobile-sheet-handle,body.login-screen .mobile-sheet-backdrop{display:none!important;visibility:hidden!important;pointer-events:none!important}body.app-screen .side{display:flex;visibility:visible;pointer-events:auto}</style><style id="login-notification-isolation">
 /* Login-only UI isolation: notifications are available only after authentication */
 body.login-screen .notify-wrap,
@@ -391,199 +472,19 @@ body.login-screen #login *{pointer-events:auto!important}
 body.login-screen .side,body.login-screen .notify-wrap,body.login-screen .stock-toast,body.login-screen #notificationMenu,body.login-screen .mobile-sheet-backdrop{display:none!important;visibility:hidden!important;pointer-events:none!important}
 <style>.return-section{display:none;flex-direction:column;overflow:auto}.return-section.active{display:flex}.return-section .tablebox{overflow:auto}.return-section table{min-width:760px}</style></style>
 <style id="tokokasirlussal-web-layout-fix-v1">
-/* Web responsive layout: desktop keeps the left sidebar; narrow web screens use a clean top menu. APK is handled separately by apk-swipe-nav. */
+/* Web keeps the desktop sidebar layout even on narrow browser windows. APK-only navigation is enabled by html.apk-swipe-nav. */
 @media(max-width:800px){
-  html:not(.apk-swipe-nav) .app{
-    display:flex!important;
-    flex-direction:column!important;
-    height:100dvh!important;
-    overflow:hidden!important;
-  }
-  html:not(.apk-swipe-nav) .side{
-    position:relative!important;
-    inset:auto!important;
-    order:0!important;
-    width:100%!important;
-    min-width:0!important;
-    height:70px!important;
-    max-height:70px!important;
-    flex:0 0 70px!important;
-    padding:7px 8px!important;
-    display:flex!important;
-    flex-direction:row!important;
-    align-items:center!important;
-    overflow-x:auto!important;
-    overflow-y:hidden!important;
-    gap:5px!important;
-    border:0!important;
-    border-bottom:1px solid #193128!important;
-    border-radius:0!important;
-    transform:none!important;
-    box-shadow:0 8px 25px rgba(0,0,0,.18)!important;
-    scrollbar-width:none!important;
-    -ms-overflow-style:none!important;
-  }
-  html:not(.apk-swipe-nav) .side::-webkit-scrollbar{display:none!important}
-  html:not(.apk-swipe-nav) .side .brand{display:none!important}
-  html:not(.apk-swipe-nav) .side .nav{
-    flex:0 0 78px!important;
-    width:78px!important;
-    min-width:78px!important;
-    max-width:78px!important;
-    height:54px!important;
-    min-height:54px!important;
-    padding:3px 4px!important;
-    flex-direction:column!important;
-    justify-content:center!important;
-    align-items:center!important;
-    gap:1px!important;
-    font-size:9px!important;
-    text-align:center!important;
-    border-radius:11px!important;
-  }
-  html:not(.apk-swipe-nav) .side .nav span{
-    width:25px!important;
-    height:21px!important;
-    font-size:18px!important;
-    line-height:1!important;
-  }
-  html:not(.apk-swipe-nav) .side .nav.logout{margin-top:0!important}
-  html:not(.apk-swipe-nav) .main{
-    order:1!important;
-    width:100%!important;
-    flex:1 1 auto!important;
-    min-width:0!important;
-    height:auto!important;
-    min-height:0!important;
-    padding:10px!important;
-    overflow:auto!important;
-  }
-  html:not(.apk-swipe-nav) .tab{
-    height:auto!important;
-    min-height:calc(100dvh - 90px)!important;
-    overflow:visible!important;
-  }
-  html:not(.apk-swipe-nav) .dashboard-tab{
-    overflow:auto!important;
-    padding:0!important;
-  }
-  html:not(.apk-swipe-nav) .mobile-sheet-handle,
-  html:not(.apk-swipe-nav) .mobile-sheet-backdrop,
-  html:not(.apk-swipe-nav) .apk-sheet-handle{
-    display:none!important;
-  }
+  html:not(.apk-swipe-nav) .app{display:flex!important;flex-direction:row!important;height:100vh!important;overflow:hidden!important}
+  html:not(.apk-swipe-nav) .side{position:relative!important;inset:auto!important;order:0!important;width:245px!important;min-width:245px!important;height:100vh!important;max-height:none!important;padding:24px 16px!important;display:flex!important;flex-direction:column!important;overflow-y:auto!important;overflow-x:hidden!important;border:0!important;border-radius:0!important;transform:none!important;box-shadow:none!important}
+  html:not(.apk-swipe-nav) .side .brand{display:flex!important}
+  html:not(.apk-swipe-nav) .side .nav{flex:0 0 47px!important;width:100%!important;min-width:0!important;height:47px!important;min-height:47px!important;padding:0 13px!important;flex-direction:row!important;justify-content:flex-start!important;font-size:13px!important;gap:12px!important}
+  html:not(.apk-swipe-nav) .side .nav span{width:25px!important;height:auto!important;font-size:19px!important}
+  html:not(.apk-swipe-nav) .main{order:1!important;width:auto!important;flex:1 1 auto!important;height:100vh!important;min-width:0!important;padding:24px!important;overflow:hidden!important}
+  html:not(.apk-swipe-nav) .tab{height:100%!important;min-height:0!important;overflow:hidden!important}
+  html:not(.apk-swipe-nav) .dashboard-tab{overflow:auto!important;padding:0!important}
+  html:not(.apk-swipe-nav) .mobile-sheet-handle,html:not(.apk-swipe-nav) .mobile-sheet-backdrop{display:none!important}
 }
 </style>
-
-<style id="tokokasirlussal-apk-bottom-sheet-v4">
-/* APK only: web/PWA never receives these rules. */
-@media(max-width:800px){
-  html.apk-swipe-nav body.app-screen{--apk-nav-height:82px}
-  html.apk-swipe-nav body.app-screen .main{
-    height:100dvh!important;
-    max-height:100dvh!important;
-    box-sizing:border-box!important;
-    padding-bottom:calc(var(--apk-nav-height) + env(safe-area-inset-bottom) + 8px)!important;
-    overflow:auto!important;
-  }
-  html.apk-swipe-nav body.app-screen .side{
-    position:fixed!important;left:0!important;right:0!important;bottom:0!important;top:auto!important;
-    width:100%!important;height:var(--apk-nav-height)!important;max-height:none!important;
-    box-sizing:border-box!important;z-index:60!important;margin:0!important;
-    padding:6px 7px calc(20px + env(safe-area-inset-bottom))!important;
-    display:flex!important;flex-direction:row!important;align-items:center!important;
-    justify-content:flex-start!important;gap:4px!important;
-    overflow-x:auto!important;overflow-y:hidden!important;
-    -webkit-overflow-scrolling:touch!important;scrollbar-width:none!important;
-    -ms-overflow-style:none!important;touch-action:pan-x!important;
-    overscroll-behavior-x:contain!important;transform:none!important;
-    transition:height .2s ease,box-shadow .2s ease!important;
-    border-radius:18px 18px 0 0!important;border-top:1px solid #1d3d30!important;
-    box-shadow:0 -10px 35px #0008!important;
-  }
-  html.apk-swipe-nav body.app-screen .side::-webkit-scrollbar{display:none!important}
-  html.apk-swipe-nav body.app-screen .side.apk-sheet-dragging{transition:none!important}
-  html.apk-swipe-nav body.app-screen .side .nav{
-    flex:0 0 76px!important;width:76px!important;min-width:76px!important;max-width:76px!important;
-    height:56px!important;min-height:56px!important;margin:0!important;padding:2px 3px!important;
-    display:flex!important;align-items:center!important;justify-content:center!important;
-    flex-direction:column!important;gap:1px!important;touch-action:pan-x!important;border-radius:12px!important;
-  }
-  html.apk-swipe-nav body.app-screen .side .nav span{width:25px!important;height:22px!important;font-size:18px!important;line-height:1!important}
-  html.apk-swipe-nav body.app-screen .side .nav.logout{margin-top:0!important}
-  html.apk-swipe-nav body.app-screen .apk-sheet-handle{
-    position:fixed!important;left:50%!important;
-    bottom:calc(var(--apk-nav-height) - 15px - env(safe-area-inset-bottom))!important;
-    transform:translateX(-50%)!important;width:72px!important;height:18px!important;
-    display:flex!important;align-items:center!important;justify-content:center!important;
-    z-index:1000!important;cursor:grab!important;touch-action:none!important;
-    -webkit-user-select:none!important;user-select:none!important;
-  }
-  html.apk-swipe-nav body.app-screen .apk-sheet-handle span{
-    display:block!important;width:48px!important;height:4px!important;border-radius:999px!important;
-    background:#789889!important;box-shadow:0 1px 6px #0008!important;
-  }
-  html.apk-swipe-nav body.app-screen .apk-sheet-handle.expanded span{width:56px!important;background:#a9c5b7!important}
-  html.apk-swipe-nav body.app-screen .side.apk-sheet-expanded{box-shadow:0 -16px 45px #000a!important}
-}
-.apk-sheet-handle{display:none}
-body.login-screen .apk-sheet-handle{display:none!important;visibility:hidden!important;pointer-events:none!important}
-</style>
-<script id="tokokasirlussal-apk-bottom-sheet-v4-script">
-(function(){
-  function setup(){
-    if(!window.Capacitor||window.innerWidth>800||!document.body.classList.contains('app-screen')) return;
-    const side=document.querySelector('body.app-screen .side');
-    if(!side)return;
-    let handle=document.querySelector('.apk-sheet-handle');
-    if(!handle){
-      handle=document.createElement('div');
-      handle.className='apk-sheet-handle';
-      handle.setAttribute('aria-label','Geser menu navigasi');
-      handle.innerHTML='<span></span>';
-      document.body.appendChild(handle);
-    }
-    if(handle.dataset.ready==='1')return;
-    handle.dataset.ready='1';
-    const MIN=82,MAX=132;
-    let dragging=false,startY=0,startH=MIN;
-    function setHeight(h,animate){
-      h=Math.max(MIN,Math.min(MAX,h));
-      document.documentElement.style.setProperty('--apk-nav-height',h+'px');
-      side.style.setProperty('--apk-nav-height',h+'px');
-      side.classList.toggle('apk-sheet-expanded',h>MIN+18);
-      handle.classList.toggle('expanded',h>MIN+18);
-      side.classList.toggle('apk-sheet-dragging',!animate);
-    }
-    function snap(h){
-      setHeight(h>=(MIN+MAX)/2?MAX:MIN,true);
-    }
-    handle.addEventListener('touchstart',e=>{
-      if(!document.body.classList.contains('app-screen'))return;
-      const t=e.touches?.[0];if(!t)return;
-      dragging=true;startY=t.clientY;startH=parseFloat(getComputedStyle(side).height)||MIN;
-      side.classList.add('apk-sheet-dragging');e.preventDefault();
-    },{passive:false});
-    handle.addEventListener('touchmove',e=>{
-      if(!dragging)return;
-      const t=e.touches?.[0];if(!t)return;
-      setHeight(startH+(startY-t.clientY),false);e.preventDefault();
-    },{passive:false});
-    handle.addEventListener('touchend',e=>{
-      if(!dragging)return;
-      dragging=false;snap(parseFloat(getComputedStyle(side).height)||MIN);e.preventDefault();
-    },{passive:false});
-    handle.addEventListener('touchcancel',()=>{if(dragging){dragging=false;snap(parseFloat(getComputedStyle(side).height)||MIN)}},{passive:true});
-    handle.addEventListener('click',()=>snap((parseFloat(getComputedStyle(side).height)||MIN)>=MAX-4?MIN:MAX));
-    setHeight(MIN,true);
-  }
-  function refresh(){if(window.Capacitor&&document.body.classList.contains('app-screen'))setup()}
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',refresh);
-  else refresh();
-  window.addEventListener('load',refresh);
-  new MutationObserver(refresh).observe(document.body,{attributes:true,attributeFilter:['class']});
-})();
-</script>
 </head><body class="login-screen">
 <div id="login" class="login"><div class="login-box card premium-login"><div class="login-brand"><div class="login-logo">🌿</div><div><b>TokoKasirLussal</b><small>Premium Point of Sale</small></div></div><div class="login-copy"><span class="eyebrow">SECURE ACCESS</span><h1 id="loginTitle">Login Kasir</h1><p id="loginHint" class="note">Masukkan username kasir untuk masuk ke dashboard.</p></div><div class="login-switch"><button id="loginKasirBtn" class="btn primary" type="button" onclick="setLoginMode('kasir')">👤 Kasir</button><button id="loginAdminBtn" class="btn secondary" type="button" onclick="setLoginMode('admin')">🔐 Admin</button></div><div id="usernameField" class="field"><label id="usernameLabel">Username</label><input id="username" type="text" autocomplete="username" placeholder="Masukkan username kasir" onkeydown="if(event.key==='Enter')login()"></div><div id="pinField" class="pin-wrap hidden"><label>PIN LOGIN</label><div class="pin-dots"><input id="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="••••" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)" onkeydown="if(event.key==='Enter')login()"></div><small>4 angka</small></div><button id="loginSubmit" class="btn primary login-submit" type="button" onclick="window.login()">Masuk ke Dashboard <span>→</span></button><button id="installBtn" class="btn secondary hidden" style="width:100%;margin-top:10px" onclick="installApp()">📲 Pasang di HP</button></div></div>
 <div id="app" class="app hidden"><nav class="side card"><div class="brand"><div class="brand-icon">🌿</div><div><b>Manajemen Toko Kasir</b><small>Point of Sale</small></div></div><button class="nav active" onclick="tab('dashboard',this)"><span>⌂</span>Dashboard</button><button class="nav" onclick="tab('kasir',this)"><span>🛒</span>Kasir</button><button id="navAgen" class="nav" onclick="tab('agen',this)"><span>👥</span>Agen</button><button id="navPiutang" class="nav" onclick="tab('piutang',this)"><span>📒</span>Piutang</button><button id="navPembelian" class="nav" onclick="tab('pembelian',this)"><span>📦</span>Pembelian</button><button id="navBarangDibawa" class="nav" onclick="tab('barang-dibawa',this)"><span>🚚</span>Barang Dibawa</button><button id="navRetur" class="nav" onclick="tab('retur',this)"><span>↩️</span>Retur</button><button id="navLaporan" class="nav" onclick="tab('laporan',this)"><span>📊</span>Laporan</button><button id="navAkun" class="nav" onclick="tab('akun',this)"><span>⚙️</span>Pengaturan</button><button class="nav logout" onclick="logout()"><span>🚪</span>Keluar</button></nav>
