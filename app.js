@@ -78,17 +78,6 @@ async function logout(){try{localStorage.removeItem('tokokasirlussal-username');
 async function loadProfile(){if(!currentUser?.id)throw Error('Sesi login tidak valid.');const {data,error}=await sb.from('users').select('*').eq('auth_user_id',currentUser.id).maybeSingle();if(error)throw error;if(!data)throw Error('Profile pengguna belum dibuat di public.users.');profile=data}
 function showLogin(){document.body.classList.add('login-screen');document.body.classList.remove('app-screen','mobile-sheet-open');document.querySelector('.side')?.style.removeProperty('transform');document.querySelector('.side')?.classList.remove('nav-gesture-dragging');$('app')?.classList.add('hidden');$('app')?.setAttribute('aria-hidden','true');$('login')?.classList.remove('hidden');$('login')?.removeAttribute('aria-hidden')}
 function showApp(){document.body.classList.remove('login-screen');document.body.classList.add('app-screen');$('login')?.classList.add('hidden');$('login')?.setAttribute('aria-hidden','true');$('app')?.classList.remove('hidden');$('app')?.removeAttribute('aria-hidden');const admin=String(profile?.role||'').toLowerCase()==='admin';document.documentElement.dataset.userRole=admin?'admin':'cashier';document.body.dataset.userRole=admin?'admin':'cashier';if($('activeUser'))$('activeUser').textContent=(admin?'Admin':'Kasir')+' Aktif: '+(profile?.nama||profile?.username||'-');updateAccountView();showAppVersion();['navAgen','navPiutang','navPembelian','navRetur','navLaporan','navAkun'].forEach(id=>{const el=$(id);if(el)el.style.setProperty('display',admin?'flex':'none','important')});if($('addProductBtn'))$('addProductBtn').style.setProperty('display',admin?'block':'none','important');if($('addAgentBtn'))$('addAgentBtn').style.setProperty('display',admin?'block':'none','important');if(!admin){document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));$('tab-dashboard')?.classList.add('active');document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));document.querySelector('.nav[onclick*="tab(\'dashboard\'"]')?.classList.add('active')}}
-/* TOKOKASIRLUSSAL_MOBILE_SWIPE_V2 */
-const _originalTab=tab;
-tab=function(name,el){
- const ok=_originalTab(name,el);
- if(ok && window.innerWidth<=800){
-   const target=$('tab-'+name);
-   if(target){target.scrollTop=0; target.scrollLeft=0;}
-   document.querySelector('.main')?.scrollTo({top:0,left:0,behavior:'instant'});
- }
- return ok;
-};
 /* TOKOKASIRLUSSAL_MOBILE_SWIPE_V1 */
 const MOBILE_TAB_ORDER=['dashboard','kasir','agen','piutang','pembelian','barang-dibawa','retur','laporan','akun'];
 let mobileSwipeStartX=0,mobileSwipeStartY=0,mobileSwipeTracking=false;
@@ -131,41 +120,6 @@ function setupMobileSwipe(){
     mobileGoBySwipe(dx<0?1:-1);
   },{passive:true});
 }
-/* APK NAV ORDER FIX: keep every visible feature in its real tab, including Pengaturan/Akun. */
-(function setupApkNavTargets(){
-  function bind(){
-    if(!window.Capacitor)return;
-    document.querySelectorAll('body.app-screen .side .nav').forEach(function(btn){
-      if(btn.dataset.apkTargetReady==='1')return;
-      const onclick=btn.getAttribute('onclick')||'';
-      const m=onclick.match(/tab\(['"]([^'"]+)['"]/);
-      if(!m)return;
-      btn.dataset.apkTarget=m[1];
-      btn.dataset.apkTargetReady='1';
-      btn.addEventListener('click',function(){
-        const name=btn.dataset.apkTarget;
-        const target=document.getElementById('tab-'+name);
-        if(!target)return;
-        document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
-        target.classList.add('active');
-        document.querySelectorAll('body.app-screen .side .nav').forEach(x=>x.classList.remove('active'));
-        btn.classList.add('active');
-        if(name==='akun'){
-          try{updateAccountView();renderUsers();refreshReceiptPrinters();}catch(e){console.error('renderAccount',e)}
-        }
-        if(name==='laporan'){
-          try{renderReports();}catch(e){console.error('renderReports',e)}
-        }
-        target.scrollTop=0;
-        document.querySelector('.main')?.scrollTo({top:0,left:0,behavior:'smooth'});
-        try{history.replaceState(null,'','#'+name)}catch(_){}
-      },{passive:true});
-    });
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);
-  else bind();
-  window.addEventListener('load',bind);
-})();
 function setupMobileTabState(){
   setupMobileSwipe();
   const hash=location.hash.replace('#','');
@@ -176,7 +130,7 @@ function setupMobileTabState(){
 }
 
 function isAdminOnlyTab(name){return ['agen','piutang','pembelian','laporan','akun'].includes(name)}
-function tab(name,el){const target=$('tab-'+name);if(!target){console.warn('Tab tidak ditemukan:',name);toast('Menu '+name+' belum tersedia.');return false;}const role=String(profile?.role||'').trim().toLowerCase();if(isAdminOnlyTab(name)&&role!=='admin'){toast('Menu ini khusus Admin.');return false;}document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));target.classList.add('active');document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));const nav=el||[...document.querySelectorAll('.nav')].find(x=>(x.getAttribute('onclick')||'').includes("tab('"+name+"'"));nav?.classList.add('active');if(name==='retur'){try{renderReturns()}catch(e){console.error('renderReturns',e);toast('Retur gagal dimuat: '+(e.message||e))}}if(name==='laporan'){try{renderReports()}catch(e){console.error('renderReports',e);toast('Laporan gagal dimuat: '+(e.message||e))}}if(name==='akun'){try{updateAccountView();renderUsers();refreshReceiptPrinters()}catch(e){console.error('renderAccount',e);toast('Pengaturan gagal dimuat: '+(e.message||e))}}return true}
+function tab(name,el){const target=$('tab-'+name);if(!target){console.warn('Tab tidak ditemukan:',name);toast('Menu '+name+' belum tersedia.');return false;}if(profile?.role!=='admin'&&isAdminOnlyTab(name)){toast('Menu ini khusus Admin.');return false;}document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));target.classList.add('active');document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));el?.classList.add('active');if(name==='retur'){try{renderReturns()}catch(e){console.error('renderReturns',e);toast('Retur gagal dimuat: '+(e.message||e))}}if(name==='laporan'){try{renderReports()}catch(e){console.error('renderReports',e);toast('Laporan gagal dimuat: '+(e.message||e))}}if(name==='akun'){try{updateAccountView();renderUsers();refreshReceiptPrinters()}catch(e){console.error('renderAccount',e);toast('Pengaturan gagal dimuat: '+(e.message||e))}}return true}
 function goDashboardAction(name){const target=$('tab-'+name);if(!target){toast('Menu belum tersedia: '+name);return;}const nav=[...document.querySelectorAll('.nav')].find(x=>(x.getAttribute('onclick')||'').includes("tab('"+name+"'"));tab(name,nav||null);target.scrollIntoView({behavior:'smooth',block:'start'});}
 async function loadAll(){
  const required=[
