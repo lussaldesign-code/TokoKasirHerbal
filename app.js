@@ -749,9 +749,11 @@ const _oldOpenBarangDibawaComplete=openBarangDibawaComplete;
 openBarangDibawaComplete=function(id){window.__carryCompleteId=id;return _oldOpenBarangDibawaComplete(id)};
 /* TOKOKASIRLUSSAL_MOBILE_NAV_V4 */
 (function setupMobileNavigationBar(){
+  // Gerakan bottom-sheet ini khusus APK/Capacitor. Web/PWA memakai layout web normal.
+  if(!window.Capacitor)return;
   let bar=null, dragging=false, startY=0, startX=0, startTranslate=0, verticalGesture=false;
-  const mobile=()=>window.innerWidth<=800;
-  const getBar=()=>document.querySelector('.side');
+  const mobile=()=>!!window.Capacitor&&window.innerWidth<=800;
+  const getBar=()=>document.querySelector('body.app-screen .side');
   function maxTranslate(){ return Math.max(0,(bar?.getBoundingClientRect().height||67)-18); }
   function apply(t,animate=true){
     if(!bar||!mobile())return;
