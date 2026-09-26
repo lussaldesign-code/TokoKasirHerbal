@@ -717,76 +717,59 @@ async function completeBarangDibawa(){
 }
 const _oldOpenBarangDibawaComplete=openBarangDibawaComplete;
 openBarangDibawaComplete=function(id){window.__carryCompleteId=id;return _oldOpenBarangDibawaComplete(id)};
-/* TOKOKASIRLUSSAL_MOBILE_BOTTOM_SHEET_V2 */
-(function setupMobileBottomSheet(){
-  let sheet,handle,dragging=false,currentState='collapsed',startY=0,startTranslate=0;
-  function isMobile(){return window.innerWidth<=800}
-  function getSheet(){return document.querySelector('.side')}
-  function stateTranslate(state){
-    if(!sheet)return 0;
-    const h=sheet.getBoundingClientRect().height||76;
-    return state==='collapsed'?Math.max(0,h-18):0;
-  }
-  function applyState(state,animate=true){
-    sheet=getSheet();if(!sheet||!isMobile())return;
-    currentState=state;
-    sheet.classList.toggle('sheet-collapsed',state==='collapsed');
-    sheet.classList.toggle('sheet-expanded',state==='expanded');
-    sheet.classList.toggle('sheet-dragging',!animate);
-    document.body.classList.toggle('mobile-sheet-open',state==='expanded');
-    if(!animate)sheet.style.transform='translateY('+stateTranslate(state)+'px)';
-    else sheet.style.removeProperty('transform');
+/* TOKOKASIRLUSSAL_MOBILE_NAV_V4 */
+(function setupMobileNavigationBar(){
+  let bar=null, dragging=false, startY=0, startX=0, startTranslate=0, verticalGesture=false;
+  const mobile=()=>window.innerWidth<=800;
+  const getBar=()=>document.querySelector('.side');
+  function maxTranslate(){ return Math.max(0,(bar?.getBoundingClientRect().height||67)-18); }
+  function apply(t,animate=true){
+    if(!bar||!mobile())return;
+    bar.classList.toggle('nav-gesture-dragging',!animate);
+    bar.style.transform='translateY('+Math.max(0,Math.min(maxTranslate(),t))+'px)';
   }
   function begin(e){
-    if(!isMobile()||!sheet)return;
-    startY=e.clientY;
-    const rect=sheet.getBoundingClientRect();
-    startTranslate=rect.top-(window.innerHeight-rect.height);
-    dragging=true;
-    sheet.classList.add('sheet-dragging');
-    handle.setPointerCapture?.(e.pointerId);
+    if(!mobile()||!bar)return;
+    startY=e.clientY;startX=e.clientX;startTranslate=bar.getBoundingClientRect().top-(window.innerHeight-bar.getBoundingClientRect().height);
+    verticalGesture=false;dragging=true;
+    bar.classList.add('nav-gesture-dragging');
   }
   function move(e){
-    if(!dragging||!sheet)return;
-    const h=sheet.getBoundingClientRect().height||76;
-    const max=Math.max(0,h-18);
-    const next=Math.max(0,Math.min(max,startTranslate+e.clientY-startY));
-    sheet.style.transform='translateY('+next+'px)';
-    if(handle){
-      handle.style.transform='translateY(-'+next+'px)';
+    if(!dragging||!bar)return;
+    const dx=e.clientX-startX,dy=e.clientY-startY;
+    if(!verticalGesture && Math.abs(dx)>Math.abs(dy)+8){
+      dragging=false;bar.classList.remove('nav-gesture-dragging');return;
     }
-    e.preventDefault();
+    if(Math.abs(dy)>=Math.abs(dx)+4)verticalGesture=true;
+    if(!verticalGesture)return;
+    const next=Math.max(0,Math.min(maxTranslate(),startTranslate+dy));
+    apply(next,false);e.preventDefault();
   }
   function end(e){
-    if(!dragging||!sheet)return;
-    dragging=false;
-    const h=sheet.getBoundingClientRect().height||76;
-    const rect=sheet.getBoundingClientRect();
-    const current=rect.top-(window.innerHeight-h);
-    const elapsed=Math.max(16,performance.now()-(window.__sheetDragTime||performance.now()));
-    const velocity=(e.clientY-startY)/elapsed;
-    sheet.style.removeProperty('transform');
-    if(handle)handle.style.removeProperty('transform');
-    applyState(velocity<-0.35||current<h*.45?'expanded':'collapsed',true);
+    if(!dragging||!bar)return;
+    dragging=false;bar.classList.remove('nav-gesture-dragging');
+    const h=bar.getBoundingClientRect().height||67;
+    const current=Math.max(0,Math.min(h-18,bar.getBoundingClientRect().top-(window.innerHeight-h)));
+    const dy=e.clientY-startY;
+    if(verticalGesture){
+      const target=(dy< -18 || current<h*.45)?0:h-18;
+      apply(target,true);
+    }else{
+      bar.style.removeProperty('transform');
+    }
   }
   function init(){
-    sheet=getSheet();
-    handle=document.getElementById('mobileSheetHandle');
-    if(!sheet||!handle||sheet.dataset.bottomSheetReady==='1')return;
-    sheet.dataset.bottomSheetReady='1';
-    handle.addEventListener('pointerdown',e=>{window.__sheetDragTime=performance.now();begin(e)});
-    handle.addEventListener('pointermove',move);
-    handle.addEventListener('pointerup',end);
-    handle.addEventListener('pointercancel',end);
-    window.addEventListener('resize',()=>{
-      if(isMobile())applyState(currentState);
-      else{sheet.style.removeProperty('transform');document.body.classList.remove('mobile-sheet-open')}
-    });
-    applyState('collapsed');
+    bar=getBar();if(!bar||bar.dataset.mobileNavV4==='1')return;
+    bar.dataset.mobileNavV4='1';
+    bar.addEventListener('pointerdown',begin,{passive:true});
+    bar.addEventListener('pointermove',move,{passive:false});
+    bar.addEventListener('pointerup',end,{passive:true});
+    bar.addEventListener('pointercancel',end,{passive:true});
+    window.addEventListener('resize',()=>{if(!mobile()){bar.style.removeProperty('transform');bar.classList.remove('nav-gesture-dragging')}});
+    bar.style.transform='translateY('+(maxTranslate())+'px)';
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
-})();
-let deferredInstallPrompt=null;
+})();\nlet deferredInstallPrompt=null;
 window.addEventListener('beforeinstallprompt',e=>{
   e.preventDefault();
   deferredInstallPrompt=e;
