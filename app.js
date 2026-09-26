@@ -1005,3 +1005,20 @@ if('serviceWorker' in navigator){
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();
   window.addEventListener('load',bind);
 })();
+
+/* PRODUCT EDIT STABILITY — reliable delegated handler */
+(function(){
+  function bindProductEdit(){
+    if(window.__productEditStableBound)return;
+    window.__productEditStableBound=true;
+    document.addEventListener('click',function(e){
+      const btn=e.target.closest && e.target.closest('[data-edit-id]');
+      if(!btn)return;
+      e.preventDefault();
+      e.stopPropagation();
+      const id=btn.getAttribute('data-edit-id');
+      if(id && typeof openProduct==='function')openProduct(id);
+    },true);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindProductEdit,{once:true});else bindProductEdit();
+})();
