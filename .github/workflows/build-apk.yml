@@ -15,6 +15,8 @@ on:
       - 'manifest.webmanifest'
       - 'icon-192.svg'
       - 'icon-512.svg'
+      - 'apk-navigation.css'
+      - 'apk-navigation.js'
       - '.github/workflows/build-apk.yml'
       - '!TokoKasirLussal-latest.apk'
       - '!update.json'
@@ -61,12 +63,24 @@ jobs:
           mkdir -p mobile/www
           cp index-supabase.html mobile/www/index.html
           cp app.js config.js manifest.webmanifest icon-192.svg icon-512.svg sw.js mobile/www/
+          # APK-only navigation overlay. Web/PWA and Windows source files remain untouched.
+          cp apk-navigation.css apk-navigation.js mobile/www/
           sed -i "s#config.js#config.js?v=$VERSION#g" mobile/www/index.html
           sed -i "s#app.js#app.js?v=$VERSION#g" mobile/www/index.html
           sed -i "s#tokokasirlussal-v[0-9.]*#tokokasirlussal-v$VERSION#g" mobile/www/sw.js
+          python3 - <<PY
+          from pathlib import Path
+          p=Path('mobile/www/index.html')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace('</head>', '<link rel="stylesheet" href="apk-navigation.css?v=$VERSION"></head>', 1)
+          s=s.replace('</body>', '<script src="apk-navigation.js?v=$VERSION"></script></body>', 1)
+          p.write_text(s, encoding='utf-8')
+          PY
           test -s mobile/www/index.html
           test -s mobile/www/app.js
           test -s mobile/www/config.js
+          test -s mobile/www/apk-navigation.css
+          test -s mobile/www/apk-navigation.js
 
       - name: Install npm packages
         run: npm install --legacy-peer-deps --no-audit --no-fund
