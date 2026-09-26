@@ -138,7 +138,7 @@ function setupMobileSwipe(){
     document.querySelectorAll('body.app-screen .side .nav').forEach(function(btn){
       if(btn.dataset.apkTargetReady==='1')return;
       const onclick=btn.getAttribute('onclick')||'';
-      const m=onclick.match(/tab\\(['"]([^'"]+)['"]/);
+      const m=onclick.match(/tab\(['"]([^'"]+)['"]/);
       if(!m)return;
       btn.dataset.apkTarget=m[1];
       btn.dataset.apkTargetReady='1';
