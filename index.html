@@ -520,63 +520,111 @@ body.login-screen .side,body.login-screen .notify-wrap,body.login-screen .stock-
 <div id="newUserModal" class="modal"><div class="modalbox"><h3>Tambah Akun</h3><p class="note">Buat akun baru untuk Admin atau Kasir.</p><div class="field"><label>Nama Lengkap</label><input id="newUserNama" autocomplete="name" placeholder="Contoh: Budi"></div><div class="field"><label>Username</label><input id="newUserUsername" autocomplete="username" placeholder="contoh: budi.kasir"></div><div class="field"><label>Jenis Akun</label><select id="newUserRole" onchange="syncAccountPinField(this.value==='admin'?'admin':'karyawan','new')"><option value="karyawan">🛒 Kasir</option><option value="admin">🛡️ Admin</option></select></div><div id="newPinWrap" class="field pin-edit-wrap hidden"><label>PIN Admin</label><div class="pin-dots"><input id="newUserPassword" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="new-password" placeholder="••••" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"></div><small>4 angka • PIN digunakan untuk login Admin</small></div><div class="actions"><button class="btn secondary" onclick="closeModal('newUserModal')">Batal</button><button class="btn primary" onclick="saveNewUser()">＋ Buat Akun</button></div></div></div>
 <div id="userModal" class="modal"><div class="modalbox"><h3>Edit Akun</h3><input id="editUserId" type="hidden"><div class="field"><label>Nama Lengkap</label><input id="editUserNama" autocomplete="name"></div><div class="field"><label>Username</label><input id="editUserUsername" autocomplete="username"></div><div class="field"><label>Jenis Akun</label><select id="editUserRole" onchange="syncAccountPinField(this.value==='admin'?'admin':'karyawan','edit')"><option value="karyawan">🛒 Kasir</option><option value="admin">🛡️ Admin</option></select></div><div class="field"><label>Status</label><select id="editUserAktif"><option value="true">Aktif</option><option value="false">Nonaktif</option></select></div><div id="editPinWrap" class="field pin-edit-wrap hidden"><label>PIN Admin <span class="note">(opsional)</span></label><div class="pin-dots"><input id="editUserPassword" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="new-password" placeholder="••••" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"></div><small>4 angka • kosongkan jika PIN tidak diubah</small></div><div class="actions"><button class="btn secondary" onclick="closeModal('userModal')">Batal</button><button class="btn primary" onclick="saveUserEdit()">💾 Simpan Perubahan</button></div></div></div><div id="barangDibawaModal" class="modal"><div class="modalbox"><h3>Barang Dibawa</h3><div class="field"><label>Diambil oleh</label><input id="carryPerson" list="carryPeople" placeholder="Nama orang yang membawa barang"><datalist id="carryPeople"></datalist></div><div class="field"><label>Barang</label><div id="carryItems"></div><button type="button" class="btn secondary" style="width:100%;margin-top:6px" onclick="addCarryRow()">＋ Tambah Barang</button></div><div id="carrySummary" class="note">Total barang: 0</div><div class="field"><label>Catatan</label><input id="carryNote" placeholder="Opsional"></div><div class="actions"><button class="btn secondary" onclick="closeModal('barangDibawaModal')">Batal</button><button class="btn primary" onclick="saveBarangDibawa()">Simpan</button></div></div></div><div id="barangDibawaCompleteModal" class="modal"><div class="modalbox"><h3>Selesaikan Barang Dibawa</h3><p class="note">Pastikan setiap barang: dibawa = terjual + kembali.</p><div id="carryCompleteItems"></div><div class="actions"><button class="btn secondary" onclick="closeModal('barangDibawaCompleteModal')">Batal</button><button class="btn primary" onclick="completeBarangDibawa()">Selesaikan</button></div></div></div><div class="notify-wrap"><button id="notificationBell" class="notify-bell" type="button" onclick="toggleNotifications()">🔔<span id="notificationBadge" class="notify-badge">0</span></button><div id="notificationMenu" class="notify-menu"><div class="notify-head"><span>Notifikasi Stok</span><span id="notificationCount">0</span></div><div id="notificationList"></div></div></div><div id="stockToast" class="stock-toast"></div><div id="priceModal" class="modal"><div class="modalbox"><h3 id="priceName">Pilih Harga</h3><div id="priceButtons" class="grid"></div><div class="actions"><button class="btn secondary" onclick="closeModal('priceModal')">Batal</button></div></div></div><div id="toast" class="toast"></div><script src="app.js?v=20260926-navfix1"></script><script id="tokokasirlussal-apk-swipe-nav-script">
 (function(){
-  function initApkSwipeNav(){
+  function init(){
     if(!window.Capacitor)return;
     document.documentElement.classList.add('apk-swipe-nav');
-    var side=document.querySelector('.side');
+    var side=document.querySelector('body.app-screen .side');
     if(!side||side.dataset.swipeNavReady==='1')return;
     side.dataset.swipeNavReady='1';
-    var startY=0,lastY=0,moved=false;
-    side.addEventListener('touchstart',function(e){
-      if(!e.touches||!e.touches[0])return;
-      startY=lastY=e.touches[0].clientY;moved=false;
-      side.classList.add('apk-nav-dragging');
+    side.addEventListener('click',function(e){
+      var nav=e.target.closest('.nav');if(!nav)return;
+      setTimeout(function(){try{nav.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'})}catch(_){}},40);
     },{passive:true});
-    side.addEventListener('touchmove',function(e){
-      if(!e.touches||!e.touches[0])return;
-      lastY=e.touches[0].clientY;
-      if(Math.abs(lastY-startY)>8)moved=true;
-    },{passive:true});
-    side.addEventListener('touchend',function(){
-      side.classList.remove('apk-nav-dragging');
-      if(!moved)return;
-      var delta=lastY-startY;
-      if(delta<-35)side.classList.remove('apk-nav-hidden');
-      else if(delta>35)side.classList.add('apk-nav-hidden');
-    },{passive:true});
-    side.addEventListener('touchcancel',function(){side.classList.remove('apk-nav-dragging')},{passive:true});
   }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initApkSwipeNav);
-  else initApkSwipeNav();
-  window.addEventListener('load',initApkSwipeNav);
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+  window.addEventListener('load',init);
+})();
+</script>
+<script id="tokokasirlussal-apk-bottom-sheet-script">
+(function(){
+  function setup(){
+    if(!window.Capacitor||window.innerWidth>800||!document.body.classList.contains('app-screen'))return;
+    var side=document.querySelector('body.app-screen .side');if(!side)return;
+    var h=document.querySelector('.apk-sheet-handle');
+    if(!h){
+      h=document.createElement('div');h.className='apk-sheet-handle';h.setAttribute('aria-label','Geser menu navigasi');
+      h.innerHTML='<span></span>';document.body.appendChild(h);
+    }
+    if(h.dataset.ready==='1')return;
+    h.dataset.ready='1';
+    var MIN=82,MAX=132,drag=false,startY=0,startH=MIN;
+    function setH(v,animate){
+      v=Math.max(MIN,Math.min(MAX,v));
+      document.documentElement.style.setProperty('--apk-nav-height',v+'px');
+      side.style.setProperty('--apk-nav-height',v+'px');
+      side.classList.toggle('apk-sheet-dragging',!animate);
+      h.classList.toggle('expanded',v>MIN+15);
+    }
+    function snap(v){setH(v>107?MAX:MIN,true)}
+    h.addEventListener('touchstart',function(e){
+      if(!document.body.classList.contains('app-screen'))return;
+      var t=e.touches&&e.touches[0];if(!t)return;
+      drag=true;startY=t.clientY;startH=parseFloat(getComputedStyle(side).height)||MIN;
+      e.preventDefault();
+    },{passive:false});
+    h.addEventListener('touchmove',function(e){
+      if(!drag)return;var t=e.touches&&e.touches[0];if(!t)return;
+      setH(startH+(startY-t.clientY),false);e.preventDefault();
+    },{passive:false});
+    h.addEventListener('touchend',function(e){
+      if(!drag)return;drag=false;snap(parseFloat(getComputedStyle(side).height)||MIN);e.preventDefault();
+    },{passive:false});
+    h.addEventListener('touchcancel',function(){if(drag){drag=false;snap(parseFloat(getComputedStyle(side).height)||MIN)}},{passive:true});
+    h.addEventListener('click',function(){snap((parseFloat(getComputedStyle(side).height)||MIN)>=120?MIN:MAX)});
+    setH(MIN,true);
+  }
+  function refresh(){if(window.Capacitor&&document.body.classList.contains('app-screen'))setup()}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',refresh);else refresh();
+  window.addEventListener('load',refresh);
+  new MutationObserver(refresh).observe(document.body,{attributes:true,attributeFilter:['class']});
 })();
 </script></body></html>
-<style id="tokokasirlussal-mobile-nav-v4">
-/* Login must own the entire screen: mobile navigation is app-only. */
-body.login-screen #app,body.login-screen #app .side,body.login-screen .side{display:none!important;visibility:hidden!important;pointer-events:none!important}
-body.app-screen #app{display:block!important;visibility:visible!important}
-body.app-screen .side{visibility:visible!important;pointer-events:auto!important}
-
+<style id="tokokasirlussal-apk-bottom-sheet-final">
+/* APK ONLY. Login screen is explicitly excluded. */
+body.login-screen .side,body.login-screen .apk-sheet-handle{display:none!important;visibility:hidden!important;pointer-events:none!important}
 @media(max-width:800px){
-  .side{
+  html.apk-swipe-nav body.app-screen{--apk-nav-height:82px}
+  html.apk-swipe-nav body.app-screen .main{
+    height:100dvh!important;max-height:100dvh!important;box-sizing:border-box!important;
+    padding-bottom:calc(var(--apk-nav-height) + env(safe-area-inset-bottom) + 8px)!important;
+    overflow:auto!important;
+  }
+  html.apk-swipe-nav body.app-screen .side{
     position:fixed!important;left:0!important;right:0!important;bottom:0!important;top:auto!important;
-    width:100%!important;height:67px!important;max-height:67px!important;
-    padding:5px 7px!important;display:flex!important;flex-direction:row!important;align-items:center!important;
-    gap:4px!important;border-radius:16px 16px 0 0!important;
-    overflow-x:auto!important;overflow-y:hidden!important;scrollbar-width:none!important;
-    touch-action:pan-x!important;overscroll-behavior-x:contain!important;
-    transform:translateY(0)!important;transition:transform .24s ease!important;
-    will-change:transform!important;
+    width:100%!important;height:var(--apk-nav-height)!important;max-height:132px!important;
+    box-sizing:border-box!important;z-index:60!important;margin:0!important;
+    padding:6px 7px calc(20px + env(safe-area-inset-bottom))!important;
+    display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:flex-start!important;gap:4px!important;
+    overflow-x:auto!important;overflow-y:hidden!important;-webkit-overflow-scrolling:touch!important;
+    scrollbar-width:none!important;-ms-overflow-style:none!important;touch-action:pan-x!important;
+    overscroll-behavior-x:contain!important;transform:none!important;border-radius:18px 18px 0 0!important;
+    border-top:1px solid #1d3d30!important;box-shadow:0 -10px 35px #0008!important;
+    transition:height .2s ease,box-shadow .2s ease!important;will-change:height;
   }
-  .side::-webkit-scrollbar{display:none!important}
-  .side.nav-gesture-dragging{transition:none!important}
-  .side .brand{display:none!important}
-  .side .nav{flex:0 0 76px!important;width:76px!important;min-width:76px!important;height:56px!important;
-    margin:0!important;padding:0 3px!important;justify-content:center!important;flex-direction:column!important;
-    gap:1px!important;font-size:9px!important;touch-action:pan-x!important;
+  html.apk-swipe-nav body.app-screen .side::-webkit-scrollbar{display:none!important}
+  html.apk-swipe-nav body.app-screen .side.apk-sheet-dragging{transition:none!important}
+  html.apk-swipe-nav body.app-screen .side .nav{
+    flex:0 0 76px!important;width:76px!important;min-width:76px!important;max-width:76px!important;
+    height:56px!important;min-height:56px!important;margin:0!important;padding:2px 3px!important;
+    display:flex!important;align-items:center!important;justify-content:center!important;flex-direction:column!important;
+    gap:1px!important;touch-action:pan-x!important;border-radius:12px!important;
   }
-  .side .nav span{height:22px!important;font-size:18px!important}
-  .side .nav.logout{margin-top:0!important}
-  .mobile-sheet-handle,.mobile-sheet-backdrop{display:none!important}
+  html.apk-swipe-nav body.app-screen .side .nav span{width:25px!important;height:22px!important;font-size:18px!important;line-height:1!important}
+  html.apk-swipe-nav body.app-screen .side .nav.logout{margin-top:0!important}
+  html.apk-swipe-nav body.app-screen .apk-sheet-handle{
+    position:fixed!important;left:50%!important;bottom:calc(var(--apk-nav-height) - 12px - env(safe-area-inset-bottom))!important;
+    transform:translateX(-50%)!important;width:76px!important;height:24px!important;display:flex!important;
+    align-items:center!important;justify-content:center!important;z-index:1000!important;cursor:grab!important;
+    touch-action:none!important;-webkit-user-select:none!important;user-select:none!important;
+  }
+  html.apk-swipe-nav body.app-screen .apk-sheet-handle span{
+    display:block!important;width:50px!important;height:5px!important;border-radius:999px!important;
+    background:#789889!important;box-shadow:0 1px 6px #0008!important;transition:.2s!important;
+  }
+  html.apk-swipe-nav body.app-screen .apk-sheet-handle.expanded span{width:58px!important;background:#a9c5b7!important}
+}
+.apk-sheet-handle{display:none}
+@media(max-width:800px){
+  html.apk-swipe-nav body.app-screen .apk-sheet-handle{display:flex!important}
 }
 </style>
