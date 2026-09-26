@@ -1059,3 +1059,28 @@ if('serviceWorker' in navigator){
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindProductEdit,{once:true});else bindProductEdit();
 })();
+
+/* FINAL WEB SETTINGS ROUTING — settings must show accounts, never reports */
+(function(){
+  function bindFinalSettings(){
+    const nav=document.getElementById('navAkun');
+    if(!nav||nav.dataset.finalSettingsRoute==='1')return;
+    nav.dataset.finalSettingsRoute='1';
+    nav.addEventListener('click',function(e){
+      if(window.Capacitor)return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      const target=document.getElementById('tab-akun');
+      if(!target)return;
+      document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+      target.classList.add('active');
+      document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));
+      nav.classList.add('active');
+      try{history.replaceState(null,'','#akun')}catch(_){}
+      target.scrollTop=0;
+      try{updateAccountView();renderUsers();refreshReceiptPrinters();}catch(err){console.error('final settings route',err)}
+    },true);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindFinalSettings,{once:true});else bindFinalSettings();
+  window.addEventListener('load',bindFinalSettings);
+})();
