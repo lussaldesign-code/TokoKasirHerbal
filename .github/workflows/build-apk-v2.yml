@@ -91,6 +91,39 @@ jobs:
           done
           rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
           rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+          # APK splash: gunakan tema hijau TokoKasirLussal, bukan splash putih bawaan
+          mkdir -p android/app/src/main/res/values android/app/src/main/res/drawable
+          cat > android/app/src/main/res/values/colors.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+            <color name="tokokasir_splash_bg">#06140E</color>
+          </resources>
+          EOF
+          cat > android/app/src/main/res/drawable/tokokasir_splash_bg.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+            <item android:drawable="@color/tokokasir_splash_bg"/>
+            <item android:gravity="center" android:width="180dp" android:height="180dp">
+              <bitmap android:src="@mipmap/ic_launcher" android:gravity="fill"/>
+            </item>
+          </layer-list>
+          EOF
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("android/app/src/main/res/values/styles.xml")
+          s=p.read_text(encoding="utf-8")
+          if "tokokasir_splash_bg" not in s:
+              s=s.replace("</resources>", """<style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+                <item name="android:windowBackground">@drawable/tokokasir_splash_bg</item>
+                <item name="android:windowSplashScreenBackground">@color/tokokasir_splash_bg</item>
+                <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+                <item name="android:windowLightStatusBar">false</item>
+                <item name="android:statusBarColor">@color/tokokasir_splash_bg</item>
+              </style>
+            </resources>""")
+              p.write_text(s,encoding="utf-8")
+          PY
+          echo "TokoKasirLussal themed splash installed"
       - name: Sync
         run: ./node_modules/.bin/cap sync android
       - name: Build
