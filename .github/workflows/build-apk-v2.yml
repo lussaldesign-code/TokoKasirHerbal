@@ -78,7 +78,7 @@ jobs:
           a = list(map(int, v.split(".")))
           code = a[0] * 10000 + a[1] * 100 + a[2]
           s = re.sub(r"versionCode\s+\d+", f"versionCode {code}", s)
-          s = re.sub(r"versionName\s+['"][^'"]+['"]", f'versionName "{v}"', s)
+          s = re.sub(r"""versionName\s+['"][^'"]+['"]""", f'versionName "{v}"', s)
           open(p, "w", encoding="utf-8").write(s)
           PY
           for spec in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
