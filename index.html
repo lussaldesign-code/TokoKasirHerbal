@@ -391,17 +391,87 @@ body.login-screen #login *{pointer-events:auto!important}
 body.login-screen .side,body.login-screen .notify-wrap,body.login-screen .stock-toast,body.login-screen #notificationMenu,body.login-screen .mobile-sheet-backdrop{display:none!important;visibility:hidden!important;pointer-events:none!important}
 <style>.return-section{display:none;flex-direction:column;overflow:auto}.return-section.active{display:flex}.return-section .tablebox{overflow:auto}.return-section table{min-width:760px}</style></style>
 <style id="tokokasirlussal-web-layout-fix-v1">
-/* Web keeps the desktop sidebar layout even on narrow browser windows. APK-only navigation is enabled by html.apk-swipe-nav. */
+/* Web responsive layout: desktop keeps the left sidebar; narrow web screens use a clean top menu. APK is handled separately by apk-swipe-nav. */
 @media(max-width:800px){
-  html:not(.apk-swipe-nav) .app{display:flex!important;flex-direction:row!important;height:100vh!important;overflow:hidden!important}
-  html:not(.apk-swipe-nav) .side{position:relative!important;inset:auto!important;order:0!important;width:245px!important;min-width:245px!important;height:100vh!important;max-height:none!important;padding:24px 16px!important;display:flex!important;flex-direction:column!important;overflow-y:auto!important;overflow-x:hidden!important;border:0!important;border-radius:0!important;transform:none!important;box-shadow:none!important}
-  html:not(.apk-swipe-nav) .side .brand{display:flex!important}
-  html:not(.apk-swipe-nav) .side .nav{flex:0 0 47px!important;width:100%!important;min-width:0!important;height:47px!important;min-height:47px!important;padding:0 13px!important;flex-direction:row!important;justify-content:flex-start!important;font-size:13px!important;gap:12px!important}
-  html:not(.apk-swipe-nav) .side .nav span{width:25px!important;height:auto!important;font-size:19px!important}
-  html:not(.apk-swipe-nav) .main{order:1!important;width:auto!important;flex:1 1 auto!important;height:100vh!important;min-width:0!important;padding:24px!important;overflow:hidden!important}
-  html:not(.apk-swipe-nav) .tab{height:100%!important;min-height:0!important;overflow:hidden!important}
-  html:not(.apk-swipe-nav) .dashboard-tab{overflow:auto!important;padding:0!important}
-  html:not(.apk-swipe-nav) .mobile-sheet-handle,html:not(.apk-swipe-nav) .mobile-sheet-backdrop{display:none!important}
+  html:not(.apk-swipe-nav) .app{
+    display:flex!important;
+    flex-direction:column!important;
+    height:100dvh!important;
+    overflow:hidden!important;
+  }
+  html:not(.apk-swipe-nav) .side{
+    position:relative!important;
+    inset:auto!important;
+    order:0!important;
+    width:100%!important;
+    min-width:0!important;
+    height:70px!important;
+    max-height:70px!important;
+    flex:0 0 70px!important;
+    padding:7px 8px!important;
+    display:flex!important;
+    flex-direction:row!important;
+    align-items:center!important;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    gap:5px!important;
+    border:0!important;
+    border-bottom:1px solid #193128!important;
+    border-radius:0!important;
+    transform:none!important;
+    box-shadow:0 8px 25px rgba(0,0,0,.18)!important;
+    scrollbar-width:none!important;
+    -ms-overflow-style:none!important;
+  }
+  html:not(.apk-swipe-nav) .side::-webkit-scrollbar{display:none!important}
+  html:not(.apk-swipe-nav) .side .brand{display:none!important}
+  html:not(.apk-swipe-nav) .side .nav{
+    flex:0 0 78px!important;
+    width:78px!important;
+    min-width:78px!important;
+    max-width:78px!important;
+    height:54px!important;
+    min-height:54px!important;
+    padding:3px 4px!important;
+    flex-direction:column!important;
+    justify-content:center!important;
+    align-items:center!important;
+    gap:1px!important;
+    font-size:9px!important;
+    text-align:center!important;
+    border-radius:11px!important;
+  }
+  html:not(.apk-swipe-nav) .side .nav span{
+    width:25px!important;
+    height:21px!important;
+    font-size:18px!important;
+    line-height:1!important;
+  }
+  html:not(.apk-swipe-nav) .side .nav.logout{margin-top:0!important}
+  html:not(.apk-swipe-nav) .main{
+    order:1!important;
+    width:100%!important;
+    flex:1 1 auto!important;
+    min-width:0!important;
+    height:auto!important;
+    min-height:0!important;
+    padding:10px!important;
+    overflow:auto!important;
+  }
+  html:not(.apk-swipe-nav) .tab{
+    height:auto!important;
+    min-height:calc(100dvh - 90px)!important;
+    overflow:visible!important;
+  }
+  html:not(.apk-swipe-nav) .dashboard-tab{
+    overflow:auto!important;
+    padding:0!important;
+  }
+  html:not(.apk-swipe-nav) .mobile-sheet-handle,
+  html:not(.apk-swipe-nav) .mobile-sheet-backdrop,
+  html:not(.apk-swipe-nav) .apk-sheet-handle{
+    display:none!important;
+  }
 }
 </style>
 </head><body class="login-screen">
