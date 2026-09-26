@@ -46,8 +46,8 @@ async function loadProfileByUsername(username){const {data,error}=await sb.rpc('
 async function restoreLogin(){showLogin()}
 async function logout(){try{localStorage.removeItem('tokokasirlussal-username');if(sb)await sb.auth.signOut()}finally{location.reload()}}
 async function loadProfile(){if(!currentUser?.id)throw Error('Sesi login tidak valid.');const {data,error}=await sb.from('users').select('*').eq('auth_user_id',currentUser.id).maybeSingle();if(error)throw error;if(!data)throw Error('Profile pengguna belum dibuat di public.users.');profile=data}
-function showLogin(){$('app')?.classList.add('hidden');$('login')?.classList.remove('hidden')}
-function showApp(){$('login')?.classList.add('hidden');$('app')?.classList.remove('hidden');const admin=String(profile?.role||'').toLowerCase()==='admin';document.documentElement.dataset.userRole=admin?'admin':'cashier';document.body.dataset.userRole=admin?'admin':'cashier';if($('activeUser'))$('activeUser').textContent=(admin?'Admin':'Kasir')+' Aktif: '+(profile?.nama||profile?.username||'-');updateAccountView();showAppVersion();['navAgen','navPiutang','navPembelian','navLaporan','navAkun'].forEach(id=>{const el=$(id);if(el)el.style.setProperty('display',admin?'flex':'none','important')});if($('addProductBtn'))$('addProductBtn').style.setProperty('display',admin?'block':'none','important');if($('addAgentBtn'))$('addAgentBtn').style.setProperty('display',admin?'block':'none','important');if(!admin){document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));$('tab-dashboard')?.classList.add('active');document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));document.querySelector('.nav[onclick*="tab(\'dashboard\'"]')?.classList.add('active')}}
+function showLogin(){document.body.classList.add('login-screen');document.body.classList.remove('app-screen','mobile-sheet-open');$('app')?.classList.add('hidden');$('app')?.setAttribute('aria-hidden','true');$('login')?.classList.remove('hidden');$('login')?.removeAttribute('aria-hidden')}
+function showApp(){document.body.classList.remove('login-screen');document.body.classList.add('app-screen');$('login')?.classList.add('hidden');$('login')?.setAttribute('aria-hidden','true');$('app')?.classList.remove('hidden');$('app')?.removeAttribute('aria-hidden');const admin=String(profile?.role||'').toLowerCase()==='admin';document.documentElement.dataset.userRole=admin?'admin':'cashier';document.body.dataset.userRole=admin?'admin':'cashier';if($('activeUser'))$('activeUser').textContent=(admin?'Admin':'Kasir')+' Aktif: '+(profile?.nama||profile?.username||'-');updateAccountView();showAppVersion();['navAgen','navPiutang','navPembelian','navLaporan','navAkun'].forEach(id=>{const el=$(id);if(el)el.style.setProperty('display',admin?'flex':'none','important')});if($('addProductBtn'))$('addProductBtn').style.setProperty('display',admin?'block':'none','important');if($('addAgentBtn'))$('addAgentBtn').style.setProperty('display',admin?'block':'none','important');if(!admin){document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));$('tab-dashboard')?.classList.add('active');document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));document.querySelector('.nav[onclick*="tab(\'dashboard\'"]')?.classList.add('active')}}
 /* TOKOKASIRLUSSAL_MOBILE_SWIPE_V2 */
 const _originalTab=tab;
 tab=function(name,el){
@@ -264,17 +264,32 @@ function renderReports(){
  if($('reportDate'))$('reportDate').textContent=now.toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
  if($('reportReturnSummary'))$('reportReturnSummary').innerHTML='<div class="metric card"><span>Retur Penjualan Hari Ini</span><b>'+rp(returHari)+'</b><small class="note">'+retQtyHari+' Pcs dikembalikan</small></div><div class="metric card"><span>Retur Penjualan Bulan Ini</span><b>'+rp(returBulan)+'</b></div><div class="metric card"><span>Pembelian Bersih Hari Ini</span><b>'+rp(purNetHari)+'</b><small class="note">Bruto '+rp(purGrossHari)+' • Retur '+rp(purRetHariTotal)+'</small></div><div class="metric card"><span>Pembelian Bersih Bulan Ini</span><b>'+rp(purNetBulan)+'</b><small class="note">Bruto '+rp(purGrossBulan)+' • Retur '+rp(purRetBulanTotal)+'</small></div>';
 
+ const userMap=Object.fromEntries((Array.isArray(users)?users:[]).map(u=>[u.id,u]));
+ const productNameMap=Object.fromEntries((Array.isArray(products)?products:[]).map(p=>[p.id,p.nama]));
+ const saleItemsBySale={};
+ si.forEach(i=>{(saleItemsBySale[i.sale_id]||(saleItemsBySale[i.sale_id]=[])).push(i)});
+ const transactionProducts=s=>{
+   const rows=saleItemsBySale[s.id]||[];
+   if(!rows.length)return '—';
+   return rows.map(i=>{
+     const name=i.nama_produk||productNameMap[i.product_id]||'Produk tidak ditemukan';
+     const qty=Number(i.qty||0);
+     return esc(name)+(qty>0?' × '+qty:'');
+   }).join('<br>');
+ };
+ const transactionUser=s=>esc(userMap[s.kasir_id]?.nama||userMap[s.kasir_id]?.username||(s.kasir_id===profile?.id?(profile?.nama||profile?.username):'—'));
+
  const salesEl=$('sales');
  if(salesEl)salesEl.innerHTML=activeDaySales.map(s=>{
    const ag=agents.find(a=>a.id===s.agent_id);
    const total=Number(s.total||0),paid=paymentNet(s);
-   return '<tr><td>'+new Date(s.created_at).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})+'</td><td><b>'+esc(s.nomor_transaksi)+'</b></td><td>'+esc(ag?.nama||'Umum')+'</td><td>'+rp(total)+'</td><td>'+rp(paid)+'</td><td>'+rp(Math.max(0,total-paid))+'</td><td>'+esc(reportPaymentLabel(s))+'</td></tr>';
- }).join('')||'<tr><td colspan="7" class="note">Belum ada penjualan aktif hari ini.</td></tr>';
+   return '<tr><td>'+new Date(s.created_at).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})+'</td><td><b>'+esc(s.nomor_transaksi)+'</b></td><td>'+transactionProducts(s)+'</td><td>'+transactionUser(s)+'</td><td>'+esc(ag?.nama||'Umum')+'</td><td>'+rp(total)+'</td><td>'+rp(paid)+'</td><td>'+esc(reportPaymentLabel(s))+'</td></tr>';
+ }).join('')||'<tr><td colspan="8" class="note">Belum ada penjualan aktif hari ini.</td></tr>';
 
  if($('monthlySales'))$('monthlySales').innerHTML=activeMonthSales.map(s=>{
    const total=Number(s.total||0),paid=paymentNet(s);
-   return '<tr><td>'+new Date(s.created_at).toLocaleDateString('id-ID')+'</td><td>'+esc(s.nomor_transaksi)+'</td><td>'+rp(total)+'</td><td>'+rp(paid)+'</td><td>'+esc(reportPaymentLabel(s))+'</td></tr>';
- }).join('')||'<tr><td colspan="5" class="note">Belum ada penjualan aktif bulan ini.</td></tr>';
+   return '<tr><td>'+new Date(s.created_at).toLocaleDateString('id-ID')+'</td><td>'+esc(s.nomor_transaksi)+'</td><td>'+transactionProducts(s)+'</td><td>'+transactionUser(s)+'</td><td>'+rp(total)+'</td><td>'+rp(paid)+'</td><td>'+esc(reportPaymentLabel(s))+'</td></tr>';
+ }).join('')||'<tr><td colspan="7" class="note">Belum ada penjualan aktif bulan ini.</td></tr>';
 
  if($('soldProducts'))$('soldProducts').innerHTML=itemRows.map((x,i)=>'<tr><td>'+(i+1)+'</td><td>'+esc(x.nama)+'</td><td>'+x.qty+'</td><td>'+rp(x.total)+'</td></tr>').join('')||'<tr><td colspan="4" class="note">Belum ada produk terjual hari ini.</td></tr>';
 
@@ -452,8 +467,8 @@ function compressImage(file,max=900,quality=.76){return new Promise((resolve,rej
 async function saveProduct(){try{if(profile?.role!=='admin')return toast('Hanya admin yang dapat menyimpan produk.');const nama=$('pNama').value.trim();if(!nama)return toast('Nama produk wajib diisi.');const nums=['pEcer','pReseller','pAgen','pGrosir','pStok'].map(id=>Number($(id).value||0));if(nums.some(v=>!Number.isFinite(v)||v<0))return toast('Harga dan stok harus berupa angka nol atau lebih.');const [harga_ecer,harga_reseller,harga_agen,harga_grosir,stok]=nums;let gambar=$('pGambar').value.trim()||selectedProductImage;const fileInput=$('pGambarFile'),file=fileInput?.files?.[0];if(file){toast('Mengolah gambar...');gambar=await compressImage(file);if(gambar.length>900000)gambar=await compressImage(file,700,.65);if(gambar.length>1400000)throw Error('Gambar masih terlalu besar. Pilih gambar yang lebih kecil.')}const row={nama,harga_ecer,harga_reseller,harga_agen,harga_grosir,stok,kategori:$('pKategori').value||'Lainnya',gambar,aktif:true};const id=$('productId').value;let q=id?sb.from('products').update(row).eq('id',id):sb.from('products').insert(row);const {data,error}=await q.select().single();if(error)throw error;if(!data)throw Error('Produk tidak berhasil disimpan.');closeModal('productModal');selectedProductImage='';await loadAll();toast(id?'Produk berhasil diperbarui.':'Produk berhasil ditambahkan.')}catch(e){console.error('saveProduct',e);toast('Gagal menyimpan produk: '+(e.message||'periksa RLS Supabase'))}}
 async function deleteProduct(event){try{if(event)event.stopPropagation();if(profile?.role!=='admin')return toast('Hanya admin yang dapat menghapus produk.');const id=$('productId').value;if(!id)return toast('Produk belum dipilih.');const nama=$('pNama').value.trim()||'produk ini';if(!confirm('Hapus produk "'+nama+'"? Produk akan dihapus dari daftar penjualan.'))return;const {data,error}=await sb.from('products').update({aktif:false}).eq('id',id).select().single();if(error)throw error;if(!data)throw Error('Produk tidak berhasil dihapus.');closeModal('productModal');selectedProductImage='';await loadAll();toast('Produk berhasil dihapus.')}catch(e){console.error('deleteProduct',e);toast('Gagal menghapus produk: '+(e.message||'periksa RLS Supabase'))}}
 function openAgent(){if(profile?.role!=='admin')return toast('Hanya admin yang dapat menambah agen.');$('aNama').value=$('aHp').value=$('aAlamat').value='';openModal('agentModal')}
-function openModal(id){const m=$(id);if(!m)return;m.classList.add('show');document.body.classList.add('modal-open');setTimeout(()=>{const first=m.querySelector('input:not([type="hidden"]),select,button');first?.focus()},80)}
-function closeModal(id){const m=$(id);if(!m)return;m.classList.remove('show');if(!document.querySelector('.modal.show'))document.body.classList.remove('modal-open')}
+function openModal(id){const m=$(id);if(!m)return;const sheet=document.querySelector('.side');sheet?.classList.remove('sheet-half','sheet-expanded');document.body.classList.add('modal-open');document.body.classList.remove('mobile-sheet-open');document.getElementById('mobileSheetBackdrop')?.classList.remove('show');m.classList.add('show');m.setAttribute('aria-hidden','false');setTimeout(()=>{const first=m.querySelector('input:not([type="hidden"]),select,button');first?.focus()},80)}
+function closeModal(id){const m=$(id);if(!m)return;m.classList.remove('show');m.setAttribute('aria-hidden','true');if(!document.querySelector('.modal.show'))document.body.classList.remove('modal-open')}
 document.addEventListener('click',e=>{const m=e.target.closest('.modal');if(m&&e.target===m)closeModal(m.id)});
 document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;const m=document.querySelector('.modal.show');if(m)closeModal(m.id)});
 function buildPrintReportHtml(){
