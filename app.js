@@ -175,6 +175,34 @@ function setupMobileTabState(){
   }
 }
 
+function receiptPrinterName(){
+  const el=$('receiptPrinter');
+  return el?.value||localStorage.getItem('tokokasir_receipt_printer')||'';
+}
+function refreshReceiptPrinters(){
+  const el=$('receiptPrinter');
+  if(!el)return;
+  const saved=localStorage.getItem('tokokasir_receipt_printer')||'';
+  if(saved&&!el.value)el.value=saved;
+  if(el.dataset.printerBound!=='1'){
+    el.dataset.printerBound='1';
+    el.addEventListener('change',()=>localStorage.setItem('tokokasir_receipt_printer',el.value||''));
+  }
+}
+function forceSettingsTab(){
+  const target=$('tab-akun');
+  const nav=$('navAkun');
+  if(!target||!nav)return false;
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  target.classList.add('active');
+  document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));
+  nav.classList.add('active');
+  try{history.replaceState(null,'','#akun')}catch(_){}
+  target.scrollTop=0;
+  document.querySelector('.main')?.scrollTo({top:0,left:0,behavior:'smooth'});
+  try{updateAccountView();renderUsers();refreshReceiptPrinters()}catch(e){console.error('forceSettingsTab',e)}
+  return true;
+}
 function isAdminOnlyTab(name){return ['agen','piutang','pembelian','laporan','akun'].includes(name)}
 function tab(name,el){const target=$('tab-'+name);if(!target){console.warn('Tab tidak ditemukan:',name);toast('Menu '+name+' belum tersedia.');return false;}const role=String(profile?.role||'').trim().toLowerCase();if(isAdminOnlyTab(name)&&role!=='admin'){toast('Menu ini khusus Admin.');return false;}document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));target.classList.add('active');document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));const nav=el||[...document.querySelectorAll('.nav')].find(x=>(x.getAttribute('onclick')||'').includes("tab('"+name+"'"));nav?.classList.add('active');if(name==='retur'){try{renderReturns()}catch(e){console.error('renderReturns',e);toast('Retur gagal dimuat: '+(e.message||e))}}if(name==='laporan'){try{renderReports()}catch(e){console.error('renderReports',e);toast('Laporan gagal dimuat: '+(e.message||e))}}if(name==='akun'){try{updateAccountView();renderUsers();if(typeof refreshReceiptPrinters==='function')refreshReceiptPrinters()}catch(e){console.error('renderAccount',e);toast('Pengaturan gagal dimuat: '+(e.message||e))}}return true}
 function goDashboardAction(name){const target=$('tab-'+name);if(!target){toast('Menu belum tersedia: '+name);return;}const nav=[...document.querySelectorAll('.nav')].find(x=>(x.getAttribute('onclick')||'').includes("tab('"+name+"'"));tab(name,nav||null);target.scrollIntoView({behavior:'smooth',block:'start'});}
@@ -956,4 +984,21 @@ if('serviceWorker' in navigator){
     },true);
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();
+})();
+
+// WEB SETTINGS NAVIGATION FIX: ensure Pengaturan never leaves the Laporan tab visible.
+(function bindWebSettingsNavigation(){
+  function bind(){
+    const nav=document.getElementById('navAkun');
+    if(!nav||nav.dataset.webSettingsFix==='1')return;
+    nav.dataset.webSettingsFix='1';
+    nav.addEventListener('click',function(e){
+      if(window.Capacitor)return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      forceSettingsTab();
+    },true);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();
+  window.addEventListener('load',bind);
 })();
