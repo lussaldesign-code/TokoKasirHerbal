@@ -1,6 +1,6 @@
 {
   "name": "tokokasirlussal",
-  "version": "1.0.20",
+  "version": "1.0.21",
   "description": "Manajemen Toko Kasir - aplikasi kasir Windows, Android, dan PWA",
   "main": "electron/main.cjs",
   "author": "Lussal Design",
