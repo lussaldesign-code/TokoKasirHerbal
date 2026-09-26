@@ -538,7 +538,58 @@ async function saveUserEdit(){try{if(profile?.role!=='admin')return toast('Hanya
 function openProduct(id){if(profile?.role!=='admin')return toast('Hanya admin yang dapat mengelola produk.');const p=id?products.find(x=>x.id===id):null;const deleteBtn=$('deleteProductBtn');if(deleteBtn)deleteBtn.classList.toggle('hidden',!p);selectedProductImage=p?.gambar||'';$('productTitle').textContent=p?'Edit Produk':'Produk Baru';$('productId').value=p?.id||'';$('pNama').value=p?.nama||'';$('pEcer').value=p?.harga_ecer||0;$('pReseller').value=p?.harga_reseller||0;$('pAgen').value=p?.harga_agen||0;$('pGrosir').value=p?.harga_grosir||0;$('pStok').value=p?.stok||0;$('pKategori').value=p?.kategori||'Kapsul';$('pGambar').value=p?.gambar&&!p.gambar.startsWith('data:image/')?p.gambar:'';const fileInput=$('pGambarFile'),cameraInput=$('pGambarCamera');if(fileInput)fileInput.value='';if(cameraInput)cameraInput.value='';const preview=$('pGambarPreview');if(preview){if(p?.gambar){preview.src=p.gambar;preview.classList.remove('hidden')}else{preview.src='';preview.classList.add('hidden')}}openModal('productModal')}
 function previewProductImage(event){const file=event.target.files?.[0];if(!file)return;if(!file.type.startsWith('image/')){event.target.value='';return toast('File harus berupa gambar.')}if(file.size>8*1024*1024){event.target.value='';return toast('Ukuran gambar maksimal 8 MB.')}const reader=new FileReader();reader.onload=()=>{const preview=$('pGambarPreview');if(preview){preview.src=reader.result;preview.classList.remove('hidden')}};reader.onerror=()=>toast('Gagal membaca gambar.');reader.readAsDataURL(file)}
 function compressImage(file,max=900,quality=.76){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onerror=reject;reader.onload=()=>{const img=new Image();img.onerror=reject;img.onload=()=>{const scale=Math.min(1,max/Math.max(img.width,img.height)),w=Math.max(1,Math.round(img.width*scale)),h=Math.max(1,Math.round(img.height*scale)),c=document.createElement('canvas');c.width=w;c.height=h;const ctx=c.getContext('2d');ctx.drawImage(img,0,0,w,h);resolve(c.toDataURL('image/jpeg',quality))};img.src=reader.result};reader.readAsDataURL(file)})}
-async function saveProduct(){try{if(profile?.role!=='admin')return toast('Hanya admin yang dapat menyimpan produk.');const nama=$('pNama').value.trim();if(!nama)return toast('Nama produk wajib diisi.');const nums=['pEcer','pReseller','pAgen','pGrosir','pStok'].map(id=>Number($(id).value||0));if(nums.some(v=>!Number.isFinite(v)||v<0))return toast('Harga dan stok harus berupa angka nol atau lebih.');const [harga_ecer,harga_reseller,harga_agen,harga_grosir,stok]=nums;let gambar=selectedProductImage;const fileInput=$('pGambarFile'),cameraInput=$('pGambarCamera'),file=cameraInput?.files?.[0]||fileInput?.files?.[0];if(file){toast('Mengolah gambar...');gambar=await compressImage(file);if(gambar.length>900000)gambar=await compressImage(file,700,.65);if(gambar.length>1400000)throw Error('Gambar masih terlalu besar. Pilih gambar yang lebih kecil.')}const row={nama,harga_ecer,harga_reseller,harga_agen,harga_grosir,stok,kategori:$('pKategori').value||'Lainnya',gambar,aktif:true};const id=$('productId').value;let q=id?sb.from('products').update(row).eq('id',id):sb.from('products').insert(row);const {data,error}=await q.select().single();if(error)throw error;if(!data)throw Error('Produk tidak berhasil disimpan.');closeModal('productModal');selectedProductImage='';await loadAll();toast(id?'Produk berhasil diperbarui.':'Produk berhasil ditambahkan.')}catch(e){console.error('saveProduct',e);toast('Gagal menyimpan produk: '+(e.message||'periksa RLS Supabase'))}}
+async function saveProduct(){
+  try{
+    if(profile?.role!=='admin')return toast('Hanya admin yang dapat menyimpan produk.');
+    const nama=$('pNama').value.trim();
+    if(!nama)return toast('Nama produk wajib diisi.');
+    const nums=['pEcer','pReseller','pAgen','pGrosir','pStok'].map(id=>Number($(id).value||0));
+    if(nums.some(v=>!Number.isFinite(v)||v<0))return toast('Harga dan stok harus berupa angka nol atau lebih.');
+    const [harga_ecer,harga_reseller,harga_agen,harga_grosir,stok]=nums;
+    let gambar=selectedProductImage;
+    const fileInput=$('pGambarFile'),cameraInput=$('pGambarCamera'),file=cameraInput?.files?.[0]||fileInput?.files?.[0];
+    if(file){
+      toast('Mengolah gambar...');
+      gambar=await compressImage(file);
+      if(gambar.length>900000)gambar=await compressImage(file,700,.65);
+      if(gambar.length>1400000)throw Error('Gambar masih terlalu besar. Pilih gambar yang lebih kecil.');
+    }
+    const kategori=$('pKategori').value||'Lainnya';
+    const id=$('productId').value;
+    let data,error;
+    if(id){
+      const result=await sb.rpc('kiosk_update_product',{
+        p_product_id:id,
+        p_nama:nama,
+        p_harga_ecer:harga_ecer,
+        p_harga_reseller:harga_reseller,
+        p_harga_agen:harga_agen,
+        p_harga_grosir:harga_grosir,
+        p_stok:stok,
+        p_kategori:kategori,
+        p_gambar:gambar||null,
+        p_aktif:true
+      });
+      data=result.data;
+      error=result.error;
+    }else{
+      const result=await sb.from('products').insert({
+        nama,harga_ecer,harga_reseller,harga_agen,harga_grosir,stok,kategori,gambar,aktif:true
+      }).select().single();
+      data=result.data;
+      error=result.error;
+    }
+    if(error)throw error;
+    if(!data)throw Error('Produk tidak berhasil disimpan.');
+    closeModal('productModal');
+    selectedProductImage='';
+    await loadAll();
+    toast(id?'Produk berhasil diperbarui.':'Produk berhasil ditambahkan.');
+  }catch(e){
+    console.error('saveProduct',e);
+    toast('Gagal menyimpan produk: '+(e.message||'periksa koneksi/database'));
+  }
+}
 async function deleteProduct(event){try{if(event)event.stopPropagation();if(profile?.role!=='admin')return toast('Hanya admin yang dapat menghapus produk.');const id=$('productId').value;if(!id)return toast('Produk belum dipilih.');const nama=$('pNama').value.trim()||'produk ini';if(!confirm('Hapus produk "'+nama+'"? Produk akan dihapus dari daftar penjualan.'))return;const {data,error}=await sb.from('products').update({aktif:false}).eq('id',id).select().single();if(error)throw error;if(!data)throw Error('Produk tidak berhasil dihapus.');closeModal('productModal');selectedProductImage='';await loadAll();toast('Produk berhasil dihapus.')}catch(e){console.error('deleteProduct',e);toast('Gagal menghapus produk: '+(e.message||'periksa RLS Supabase'))}}
 function openAgent(){if(profile?.role!=='admin')return toast('Hanya admin yang dapat menambah agen.');$('aNama').value=$('aHp').value=$('aAlamat').value='';openModal('agentModal')}
 function openModal(id){const m=$(id);if(!m)return;const sheet=document.querySelector('.side');sheet?.classList.remove('sheet-half','sheet-expanded');document.body.classList.add('modal-open');document.body.classList.remove('mobile-sheet-open');document.getElementById('mobileSheetBackdrop')?.classList.remove('show');m.classList.add('show');m.setAttribute('aria-hidden','false');setTimeout(()=>{const first=m.querySelector('input:not([type="hidden"]),select,button');first?.focus()},80)}
