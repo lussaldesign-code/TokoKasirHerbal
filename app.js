@@ -179,15 +179,52 @@ function receiptPrinterName(){
   const el=$('receiptPrinter');
   return el?.value||localStorage.getItem('tokokasir_receipt_printer')||'';
 }
+function normalizeDetectedPrinters(raw){
+  const list=Array.isArray(raw)?raw:(Array.isArray(raw?.printers)?raw.printers:(Array.isArray(raw?.data)?raw.data:[]));
+  return list.map((p,i)=>{
+    if(typeof p==='string')return {name:p,type:'Printer sistem'};
+    const name=String(p?.name||p?.printerName||p?.displayName||p?.deviceName||'').trim();
+    if(!name)return null;
+    const text=(name+' '+String(p?.description||p?.status||p?.type||'')).toLowerCase();
+    const type=/thermal|pos|receipt|xprinter|panda|58mm|80mm/.test(text)?'Thermal':'Printer biasa';
+    return {name,type,raw:p};
+  }).filter(Boolean).filter((p,i,a)=>a.findIndex(x=>x.name===p.name)===i);
+}
+async function detectReceiptPrinters(showToast=false){
+  const el=$('receiptPrinter'),status=$('printerDetectStatus'),note=$('printerSelectedNote');
+  if(!el)return [];
+  const saved=localStorage.getItem('tokokasir_receipt_printer')||'';
+  el.disabled=true;
+  if(status)status.textContent='Mendeteksi printer yang tersambung...';
+  let printers=[];
+  try{
+    const api=window.electronPrinter;
+    const fn=api?.getPrinters||api?.listPrinters||api?.getAvailablePrinters;
+    if(typeof fn==='function') printers=normalizeDetectedPrinters(await fn.call(api));
+  }catch(e){console.warn('detect printers',e)}
+  el.innerHTML='<option value="">Pilih printer...</option>'+printers.map(p=>'<option value="'+escAttr(p.name)+'">'+esc(p.name)+' — '+esc(p.type)+'</option>').join('');
+  if(saved&&printers.some(p=>p.name===saved))el.value=saved;
+  else if(saved&&!printers.length){
+    const o=document.createElement('option');o.value=saved;o.textContent=saved+' — tersimpan';el.appendChild(o);el.value=saved;
+  }
+  el.disabled=false;
+  if(status)status.textContent=printers.length?printers.length+' printer terdeteksi':'Belum nhận diện được printer dari perangkat ini';
+  if(note)note.textContent=el.value?'Printer dipilih: '+el.value:'Belum ada printer dipilih.';
+  if(showToast)toast(printers.length?'Ditemukan '+printers.length+' printer.':'API daftar printer belum tersedia di perangkat ini.');
+  return printers;
+}
 function refreshReceiptPrinters(){
   const el=$('receiptPrinter');
   if(!el)return;
   const saved=localStorage.getItem('tokokasir_receipt_printer')||'';
-  if(saved&&!el.value)el.value=saved;
   if(el.dataset.printerBound!=='1'){
     el.dataset.printerBound='1';
-    el.addEventListener('change',()=>localStorage.setItem('tokokasir_receipt_printer',el.value||''));
+    el.addEventListener('change',()=>{
+      localStorage.setItem('tokokasir_receipt_printer',el.value||'');
+      const note=$('printerSelectedNote');if(note)note.textContent=el.value?'Printer dipilih: '+el.value:'Belum ada printer dipilih.';
+    });
   }
+  detectReceiptPrinters(false);
 }
 function forceSettingsTab(){
   const target=$('tab-akun');
