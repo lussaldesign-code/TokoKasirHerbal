@@ -24,7 +24,7 @@ jobs:
       - name: Make Supabase app the main page
         run: |
           cp index-supabase.html index.html
-          sed -i 's#config.js"#config.js?v=20260923"#g; s#app.js"#app.js?v=20260923"#g' index.html
+          sed -i 's#config.js"#config.js?v=20260923"#g; s#app.js"#app.js?v=20260926-navfix1"#g' index.html
 
       - name: Commit generated index
         run: |
