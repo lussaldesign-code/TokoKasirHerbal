@@ -38,7 +38,30 @@ document.addEventListener('pointerdown',e=>{
 },{passive:true});
 function toast(m){$('toast').textContent=m;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),3000)}
 function requireConfig(){if(!CONFIG.url||!CONFIG.key){toast('Isi config.js dengan Supabase URL dan publishable/anon key.');throw Error('Supabase config belum diisi')}}
-async function ensureSession(){requireConfig();if(!sb)sb=supabase.createClient(CONFIG.url,CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'tokokasirlussal-auth'}});let s=await sb.auth.getSession();if(s.error)throw s.error;const existing=s.data?.session;if(existing?.user?.is_anonymous===true)return existing;if(existing){await sb.auth.signOut({scope:'local'});}let r=await sb.auth.signInAnonymously();if(r.error)throw Error('Login otomatis Supabase gagal: '+r.error.message);if(!r.data?.session)throw Error('Supabase tidak mengembalikan sesi.');return r.data.session}
+async function ensureSession(){
+  requireConfig();
+  const STORAGE='tokokasirlussal-auth-v2';
+  const makeClient=()=>supabase.createClient(CONFIG.url,CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:STORAGE}});
+  if(!sb)sb=makeClient();
+  let s;
+  try{s=await sb.auth.getSession();}catch(e){
+    console.warn('[auth] session storage error, resetting local auth',e);
+    try{localStorage.removeItem(STORAGE)}catch(_){}
+    sb=makeClient();
+    s=await sb.auth.getSession();
+  }
+  if(s.error){
+    try{localStorage.removeItem(STORAGE)}catch(_){}
+    sb=makeClient();
+    s=await sb.auth.getSession();
+  }
+  const existing=s.data?.session;
+  if(existing?.user?.id)return existing;
+  const r=await sb.auth.signInAnonymously();
+  if(r.error)throw Error('Login otomatis Supabase gagal: '+r.error.message);
+  if(!r.data?.session)throw Error('Supabase tidak mengembalikan sesi.');
+  return r.data.session;
+}
 let loginMode='kasir';
 function setLoginMode(mode){loginMode=mode;const isAdmin=mode==='admin';$('loginKasirBtn')?.classList.toggle('primary',!isAdmin);$('loginKasirBtn')?.classList.toggle('secondary',isAdmin);$('loginAdminBtn')?.classList.toggle('primary',isAdmin);$('loginAdminBtn')?.classList.toggle('secondary',!isAdmin);$('usernameField')?.classList.remove('hidden');$('pinField')?.classList.toggle('hidden',!isAdmin);if($('usernameLabel'))$('usernameLabel').textContent=isAdmin?'Username Admin':'Username Kasir';if($('username'))$('username').placeholder=isAdmin?'Masukkan username admin':'Masukkan username kasir';if($('loginTitle'))$('loginTitle').textContent=isAdmin?'Login Admin':'Login Kasir';if($('loginHint'))$('loginHint').textContent=isAdmin?'Masukkan username admin dan PIN 4 angka.':'Masukkan username kasir untuk masuk.';if(isAdmin)$('pin')?.focus();else $('username')?.focus()}
 let loginBusy=false;
