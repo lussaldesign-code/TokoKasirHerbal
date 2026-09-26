@@ -62,3 +62,43 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 else bindApkSettingsObserver();
 window.addEventListener('load',bindApkSettingsObserver);
 })();
+
+
+/* APK SETTINGS FIX V2 — use the existing Settings DOM; never duplicate Web controls. */
+(function(){
+'use strict';
+function fixApkSettings(){
+  if(!document.documentElement.classList.contains('apk-nav-enabled'))return;
+  var tab=document.getElementById('tab-akun');
+  if(!tab)return;
+  var content=tab.querySelector('.account-content');
+  if(!content)return;
+
+  /* The Web source already contains the printer card. APK must reuse it. */
+  var printer=content.querySelector('#printerSettingsCard');
+  if(!printer){
+    printer=content.querySelector('.printer-settings');
+    if(printer)printer.id='printerSettingsCard';
+  }
+  if(printer){
+    printer.classList.add('apk-settings-printer');
+    var summary=content.querySelector('.account-summary');
+    if(summary && printer.parentElement===content && printer.previousElementSibling!==summary){
+      summary.insertAdjacentElement('afterend',printer);
+    }
+    try{if(typeof refreshReceiptPrinters==='function')refreshReceiptPrinters();}catch(e){console.warn('APK printer refresh',e)}
+  }
+
+  tab.classList.add('apk-settings-fixed');
+  content.classList.add('apk-settings-content-fixed');
+}
+function bind(){
+  fixApkSettings();
+  var tab=document.getElementById('tab-akun');
+  if(!tab || tab.dataset.apkSettingsFixV2==='1')return;
+  tab.dataset.apkSettingsFixV2='1';
+  new MutationObserver(function(){fixApkSettings()}).observe(tab,{childList:true,subtree:true});
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();
+window.addEventListener('load',bind);
+})();
