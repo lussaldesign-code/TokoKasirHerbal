@@ -577,7 +577,9 @@ function previewProductImage(event){const file=event.target.files?.[0];if(!file)
 function compressImage(file,max=900,quality=.76){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onerror=reject;reader.onload=()=>{const img=new Image();img.onerror=reject;img.onload=()=>{const scale=Math.min(1,max/Math.max(img.width,img.height)),w=Math.max(1,Math.round(img.width*scale)),h=Math.max(1,Math.round(img.height*scale)),c=document.createElement('canvas');c.width=w;c.height=h;const ctx=c.getContext('2d');ctx.drawImage(img,0,0,w,h);resolve(c.toDataURL('image/jpeg',quality))};img.src=reader.result};reader.readAsDataURL(file)})}
 async function saveProduct(){
   try{
-    if(profile?.role!=='admin')return toast('Hanya admin yang dapat menyimpan produk.');
+    const role=String(profile?.role||'').trim().toLowerCase();
+    if(role!=='admin')return toast('Hanya admin yang dapat menyimpan produk.');
+    if(!sb)throw Error('Sesi database belum siap. Silakan login kembali.');
     const nama=$('pNama').value.trim();
     if(!nama)return toast('Nama produk wajib diisi.');
     const nums=['pEcer','pReseller','pAgen','pGrosir','pStok'].map(id=>Number($(id).value||0));
@@ -595,20 +597,12 @@ async function saveProduct(){
     const id=$('productId').value;
     let data,error;
     if(id){
-      const result=await sb.rpc('kiosk_update_product',{
-        p_product_id:id,
-        p_nama:nama,
-        p_harga_ecer:harga_ecer,
-        p_harga_reseller:harga_reseller,
-        p_harga_agen:harga_agen,
-        p_harga_grosir:harga_grosir,
-        p_stok:stok,
-        p_kategori:kategori,
-        p_gambar:gambar||null,
-        p_aktif:true
-      });
-      data=result.data;
-      error=result.error;
+      const payload={p_product_id:id,p_nama:nama,p_harga_ecer:harga_ecer,p_harga_reseller:harga_reseller,p_harga_agen:harga_agen,p_harga_grosir:harga_grosir,p_stok:stok,p_kategori:kategori,p_gambar:gambar||null,p_aktif:true};
+      let result=await sb.rpc('kiosk_update_product',payload);
+      if(result.error && /JWT|session|expired|not authenticated/i.test(result.error.message||'')){
+        try{await ensureSession();result=await sb.rpc('kiosk_update_product',payload)}catch(retryErr){result={data:null,error:retryErr}}
+      }
+      data=result.data;error=result.error;
     }else{
       const result=await sb.from('products').insert({
         nama,harga_ecer,harga_reseller,harga_agen,harga_grosir,stok,kategori,gambar,aktif:true
