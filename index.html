@@ -399,6 +399,42 @@ body[data-user-role="cashier"] .side .nav.logout{display:flex!important}
 @media(prefers-reduced-motion:reduce){
   .side,.mobile-sheet-backdrop{transition:none!important}
 }
+</style><style id="tokokasirlussal-mobile-bottom-sheet-collapsed-v1">
+@media(max-width:800px){
+  .side:not(.sheet-half):not(.sheet-expanded){padding-top:34px!important}
+  .side:not(.sheet-half):not(.sheet-expanded) .nav{
+    display:none!important;
+  }
+  .side:not(.sheet-half):not(.sheet-expanded) .nav:nth-of-type(1),
+  .side:not(.sheet-half):not(.sheet-expanded) .nav:nth-of-type(2),
+  .side:not(.sheet-half):not(.sheet-expanded) .nav:nth-of-type(6),
+  .side:not(.sheet-half):not(.sheet-expanded) .nav:nth-of-type(8){
+    display:flex!important;
+    flex:1 1 0!important;
+    width:auto!important;
+    min-width:0!important;
+    height:44px!important;
+    min-height:44px!important;
+    padding:3px 5px!important;
+    justify-content:center!important;
+    flex-direction:column!important;
+    gap:1px!important;
+    font-size:9px!important;
+    text-align:center!important;
+  }
+  .side:not(.sheet-half):not(.sheet-expanded) .nav:nth-of-type(1) span,
+  .side:not(.sheet-half):not(.sheet-expanded) .nav:nth-of-type(2) span,
+  .side:not(.sheet-half):not(.sheet-expanded) .nav:nth-of-type(6) span,
+  .side:not(.sheet-half):not(.sheet-expanded) .nav:nth-of-type(8) span{
+    width:25px!important;height:20px!important;font-size:18px!important;
+  }
+  .side:not(.sheet-half):not(.sheet-expanded) .nav.logout{display:none!important}
+  .side:not(.sheet-half):not(.sheet-expanded){
+    flex-direction:row!important;
+    align-items:flex-end!important;
+    gap:4px!important;
+  }
+}
 </style></head><body>
 <div id="login" class="login"><div class="login-box card premium-login"><div class="login-brand"><div class="login-logo">🌿</div><div><b>TokoKasirLussal</b><small>Premium Point of Sale</small></div></div><div class="login-copy"><span class="eyebrow">SECURE ACCESS</span><h1 id="loginTitle">Login Admin</h1><p id="loginHint" class="note">Masukkan username kasir untuk masuk ke dashboard.</p></div><div class="login-switch"><button id="loginKasirBtn" class="btn primary" type="button" onclick="setLoginMode('kasir')">👤 Kasir</button><button id="loginAdminBtn" class="btn secondary" type="button" onclick="setLoginMode('admin')">🔐 Admin</button></div><div id="usernameField" class="field"><label id="usernameLabel">Username</label><input id="username" type="text" autocomplete="username" placeholder="Masukkan username kasir" onkeydown="if(event.key==='Enter')login()"></div><div id="pinField" class="pin-wrap hidden"><label>PIN LOGIN</label><div class="pin-dots"><input id="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="••••" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)" onkeydown="if(event.key==='Enter')login()"></div><small>4 angka</small></div><button class="btn primary login-submit" type="button" onclick="login()">Masuk ke Dashboard <span>→</span></button><button id="installBtn" class="btn secondary hidden" style="width:100%;margin-top:10px" onclick="installApp()">📲 Pasang di HP</button></div></div>
 <div id="app" class="app hidden"><nav class="side card"><div class="mobile-sheet-handle" id="mobileSheetHandle" aria-label="Tarik navigasi"><span></span></div><div class="brand"><div class="brand-icon">🌿</div><div><b>Manajemen Toko Kasir</b><small>Point of Sale</small></div></div><button class="nav active" onclick="tab('dashboard',this)"><span>⌂</span>Dashboard</button><button class="nav" onclick="tab('kasir',this)"><span>🛒</span>Kasir</button><button id="navAgen" class="nav" onclick="tab('agen',this)"><span>👥</span>Agen</button><button id="navPiutang" class="nav" onclick="tab('piutang',this)"><span>📒</span>Piutang</button><button id="navPembelian" class="nav" onclick="tab('pembelian',this)"><span>📦</span>Pembelian</button><button id="navBarangDibawa" class="nav" onclick="tab('barang-dibawa',this)"><span>🚚</span>Barang Dibawa</button><button id="navLaporan" class="nav" onclick="tab('laporan',this)"><span>📊</span>Laporan</button><button id="navAkun" class="nav" onclick="tab('akun',this)"><span>⚙️</span>Pengaturan</button><button class="nav logout" onclick="logout()"><span>🚪</span>Keluar</button></nav>
