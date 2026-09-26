@@ -90,7 +90,7 @@ tab=function(name,el){
  return ok;
 };
 /* TOKOKASIRLUSSAL_MOBILE_SWIPE_V1 */
-const MOBILE_TAB_ORDER=['dashboard','kasir','agen','piutang','pembelian','laporan','akun'];
+const MOBILE_TAB_ORDER=['dashboard','kasir','agen','piutang','pembelian','barang-dibawa','retur','laporan','akun'];
 let mobileSwipeStartX=0,mobileSwipeStartY=0,mobileSwipeTracking=false;
 function mobileVisibleTabs(){
   return MOBILE_TAB_ORDER.filter(name=>{
@@ -131,6 +131,41 @@ function setupMobileSwipe(){
     mobileGoBySwipe(dx<0?1:-1);
   },{passive:true});
 }
+/* APK NAV ORDER FIX: keep every visible feature in its real tab, including Pengaturan/Akun. */
+(function setupApkNavTargets(){
+  function bind(){
+    if(!window.Capacitor)return;
+    document.querySelectorAll('body.app-screen .side .nav').forEach(function(btn){
+      if(btn.dataset.apkTargetReady==='1')return;
+      const onclick=btn.getAttribute('onclick')||'';
+      const m=onclick.match(/tab\\(['"]([^'"]+)['"]/);
+      if(!m)return;
+      btn.dataset.apkTarget=m[1];
+      btn.dataset.apkTargetReady='1';
+      btn.addEventListener('click',function(){
+        const name=btn.dataset.apkTarget;
+        const target=document.getElementById('tab-'+name);
+        if(!target)return;
+        document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+        target.classList.add('active');
+        document.querySelectorAll('body.app-screen .side .nav').forEach(x=>x.classList.remove('active'));
+        btn.classList.add('active');
+        if(name==='akun'){
+          try{updateAccountView();renderUsers();refreshReceiptPrinters();}catch(e){console.error('renderAccount',e)}
+        }
+        if(name==='laporan'){
+          try{renderReports();}catch(e){console.error('renderReports',e)}
+        }
+        target.scrollTop=0;
+        document.querySelector('.main')?.scrollTo({top:0,left:0,behavior:'smooth'});
+        try{history.replaceState(null,'','#'+name)}catch(_){}
+      },{passive:true});
+    });
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);
+  else bind();
+  window.addEventListener('load',bind);
+})();
 function setupMobileTabState(){
   setupMobileSwipe();
   const hash=location.hash.replace('#','');
