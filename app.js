@@ -717,7 +717,7 @@ async function completeBarangDibawa(){
 }
 const _oldOpenBarangDibawaComplete=openBarangDibawaComplete;
 openBarangDibawaComplete=function(id){window.__carryCompleteId=id;return _oldOpenBarangDibawaComplete(id)};
-/* TOKOKASIRLUSSAL_MOBILE_BOTTOM_SHEET_V2 */
+/* TOKOKASIRLUSSAL_MOBILE_BOTTOM_SHEET_V3 */
 (function setupMobileBottomSheet(){
   let sheet,handle,dragging=false,currentState='collapsed',startY=0,startTranslate=0;
   function isMobile(){return window.innerWidth<=800}
@@ -726,6 +726,14 @@ openBarangDibawaComplete=function(id){window.__carryCompleteId=id;return _oldOpe
     if(!sheet)return 0;
     const h=sheet.getBoundingClientRect().height||76;
     return state==='collapsed'?Math.max(0,h-18):0;
+  }
+  function syncHandle(translate=stateTranslate(currentState)){
+    if(!sheet||!handle||!isMobile())return;
+    const h=sheet.getBoundingClientRect().height||76;
+    const top=Math.max(0,window.innerHeight-h+translate-15);
+    handle.style.top=top+'px';
+    handle.style.bottom='auto';
+    handle.style.transform='none';
   }
   function applyState(state,animate=true){
     sheet=getSheet();if(!sheet||!isMobile())return;
@@ -736,6 +744,7 @@ openBarangDibawaComplete=function(id){window.__carryCompleteId=id;return _oldOpe
     document.body.classList.toggle('mobile-sheet-open',state==='expanded');
     if(!animate)sheet.style.transform='translateY('+stateTranslate(state)+'px)';
     else sheet.style.removeProperty('transform');
+    requestAnimationFrame(()=>syncHandle());
   }
   function begin(e){
     if(!isMobile()||!sheet)return;
@@ -752,9 +761,7 @@ openBarangDibawaComplete=function(id){window.__carryCompleteId=id;return _oldOpe
     const max=Math.max(0,h-18);
     const next=Math.max(0,Math.min(max,startTranslate+e.clientY-startY));
     sheet.style.transform='translateY('+next+'px)';
-    if(handle){
-      handle.style.transform='translateY(-'+next+'px)';
-    }
+    syncHandle(next);
     e.preventDefault();
   }
   function end(e){
@@ -762,12 +769,12 @@ openBarangDibawaComplete=function(id){window.__carryCompleteId=id;return _oldOpe
     dragging=false;
     const h=sheet.getBoundingClientRect().height||76;
     const rect=sheet.getBoundingClientRect();
-    const current=rect.top-(window.innerHeight-h);
+    const current=Math.max(0,Math.min(h-18,rect.top-(window.innerHeight-h)));
     const elapsed=Math.max(16,performance.now()-(window.__sheetDragTime||performance.now()));
     const velocity=(e.clientY-startY)/elapsed;
     sheet.style.removeProperty('transform');
-    if(handle)handle.style.removeProperty('transform');
-    applyState(velocity<-0.35||current<h*.45?'expanded':'collapsed',true);
+    const target=velocity<-0.35||current<h*.45?'expanded':'collapsed';
+    applyState(target,true);
   }
   function init(){
     sheet=getSheet();
@@ -780,7 +787,12 @@ openBarangDibawaComplete=function(id){window.__carryCompleteId=id;return _oldOpe
     handle.addEventListener('pointercancel',end);
     window.addEventListener('resize',()=>{
       if(isMobile())applyState(currentState);
-      else{sheet.style.removeProperty('transform');document.body.classList.remove('mobile-sheet-open')}
+      else{
+        sheet.style.removeProperty('transform');
+        handle.style.removeProperty('top');
+        handle.style.removeProperty('bottom');
+        document.body.classList.remove('mobile-sheet-open');
+      }
     });
     applyState('collapsed');
   }
