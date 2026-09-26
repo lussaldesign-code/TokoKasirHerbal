@@ -41,19 +41,12 @@ function requireConfig(){if(!CONFIG.url||!CONFIG.key){toast('Isi config.js denga
 async function ensureSession(){requireConfig();if(!sb)sb=supabase.createClient(CONFIG.url,CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'tokokasirlussal-auth'}});let s=await sb.auth.getSession();if(s.error)throw s.error;const existing=s.data?.session;if(existing?.user?.is_anonymous===true)return existing;if(existing){await sb.auth.signOut({scope:'local'});}let r=await sb.auth.signInAnonymously();if(r.error)throw Error('Login otomatis Supabase gagal: '+r.error.message);if(!r.data?.session)throw Error('Supabase tidak mengembalikan sesi.');return r.data.session}
 let loginMode='kasir';
 function setLoginMode(mode){loginMode=mode;const isAdmin=mode==='admin';$('loginKasirBtn')?.classList.toggle('primary',!isAdmin);$('loginKasirBtn')?.classList.toggle('secondary',isAdmin);$('loginAdminBtn')?.classList.toggle('primary',isAdmin);$('loginAdminBtn')?.classList.toggle('secondary',!isAdmin);$('usernameField')?.classList.remove('hidden');$('pinField')?.classList.toggle('hidden',!isAdmin);if($('usernameLabel'))$('usernameLabel').textContent=isAdmin?'Username Admin':'Username Kasir';if($('username'))$('username').placeholder=isAdmin?'Masukkan username admin':'Masukkan username kasir';if($('loginTitle'))$('loginTitle').textContent=isAdmin?'Login Admin':'Login Kasir';if($('loginHint'))$('loginHint').textContent=isAdmin?'Masukkan username admin dan PIN 4 angka.':'Masukkan username kasir untuk masuk.';if(isAdmin)$('pin')?.focus();else $('username')?.focus()}
-let loginBusy=false;
-async function login(){
-  if(loginBusy)return;
-  loginBusy=true;
-  const submit=$('loginSubmit');
-  const oldText=submit?.innerHTML;
-  if(submit){submit.disabled=true;submit.setAttribute('aria-busy','true');submit.innerHTML='Memproses login... <span>⏳</span>';}
-  try{const pin=($('pin')?.value||'').trim(),username=($('username')?.value||'').trim().toLowerCase();if(!username)return toast(loginMode==='admin'?'Masukkan username admin terlebih dahulu.':'Masukkan username kasir terlebih dahulu.');if(loginMode==='admin'&&!/^[0-9]{4}$/.test(pin))return toast('PIN admin harus tepat 4 angka.');let session=await ensureSession();currentUser=session.user;let result=loginMode==='admin'?await sb.rpc('kiosk_login_pin',{p_username:username,p_pin:pin}):await sb.rpc('kiosk_login_cashier',{p_username:username});if(result.error&&/JWT|session|anonymous|not authenticated/i.test(result.error.message||'')){await sb.auth.signOut();session=await ensureSession();currentUser=session.user;result=loginMode==='admin'?await sb.rpc('kiosk_login_pin',{p_username:username,p_pin:pin}):await sb.rpc('kiosk_login_cashier',{p_username:username});}if(result.error)throw result.error;const data=result.data;if(!data?.length)throw Error('Akun tidak ditemukan atau tidak aktif.');const account=data[0];if(loginMode==='admin'&&account.role!=='admin')throw Error('Akun ini bukan akun admin.');if(loginMode==='kasir'&&account.role==='admin')throw Error('Gunakan tombol Login Admin.');const prof=await sb.rpc('kiosk_profile',{p_username:account.username});if(prof.error)throw prof.error;if(!prof.data?.length)throw Error('Profil akun belum tersedia.');profile=prof.data[0];profile.auth_user_id=currentUser.id;if(!profile.aktif)throw Error('Akun tidak aktif.');localStorage.setItem('tokokasirlussal-username',profile.username);showApp();try{await loadAll()}catch(loadErr){console.error('loadAll after login',loadErr);toast('Login berhasil, tetapi data belum dapat dimuat: '+(loadErr?.message||'periksa data Supabase'));}}catch(e){console.error('login',e);const m=String(e?.message||e);if(/anonymous|disabled|sign.?in/i.test(m))toast('Login otomatis Supabase gagal. Aktifkan Anonymous Sign-Ins di Supabase Authentication.');else toast(m||'Login gagal')}finally{loginBusy=false;if(submit){submit.disabled=false;submit.removeAttribute('aria-busy');submit.innerHTML=oldText||'Masuk ke Dashboard <span>→</span>';}}
-}async function loadProfileByUsername(username){const {data,error}=await sb.rpc('kiosk_profile',{p_username:username});if(error)throw error;if(!data?.length)throw Error('Profil akun belum tersedia.');profile=data[0]}
+async function login(){try{const pin=($('pin')?.value||'').trim(),username=($('username')?.value||'').trim().toLowerCase();if(!username)return toast(loginMode==='admin'?'Masukkan username admin terlebih dahulu.':'Masukkan username kasir terlebih dahulu.');if(loginMode==='admin'&&!/^[0-9]{4}$/.test(pin))return toast('PIN admin harus tepat 4 angka.');let session=await ensureSession();currentUser=session.user;let result=loginMode==='admin'?await sb.rpc('kiosk_login_pin',{p_username:username,p_pin:pin}):await sb.rpc('kiosk_login_cashier',{p_username:username});if(result.error&&/JWT|session|anonymous|not authenticated/i.test(result.error.message||'')){await sb.auth.signOut();session=await ensureSession();currentUser=session.user;result=loginMode==='admin'?await sb.rpc('kiosk_login_pin',{p_username:username,p_pin:pin}):await sb.rpc('kiosk_login_cashier',{p_username:username});}if(result.error)throw result.error;const data=result.data;if(!data?.length)throw Error('Akun tidak ditemukan atau tidak aktif.');const account=data[0];if(loginMode==='admin'&&account.role!=='admin')throw Error('Akun ini bukan akun admin.');if(loginMode==='kasir'&&account.role==='admin')throw Error('Gunakan tombol Login Admin.');const prof=await sb.rpc('kiosk_profile',{p_username:account.username});if(prof.error)throw prof.error;if(!prof.data?.length)throw Error('Profil akun belum tersedia.');profile=prof.data[0];profile.auth_user_id=currentUser.id;if(!profile.aktif)throw Error('Akun tidak aktif.');localStorage.setItem('tokokasirlussal-username',profile.username);showApp();try{await loadAll()}catch(loadErr){console.error('loadAll after login',loadErr);toast('Login berhasil, tetapi data belum dapat dimuat: '+(loadErr?.message||'periksa data Supabase'));}}catch(e){console.error('login',e);const m=String(e?.message||e);if(/anonymous|disabled|sign.?in/i.test(m))toast('Login otomatis Supabase gagal. Aktifkan Anonymous Sign-Ins di Supabase Authentication.');else toast(m||'Login gagal')}}
+async function loadProfileByUsername(username){const {data,error}=await sb.rpc('kiosk_profile',{p_username:username});if(error)throw error;if(!data?.length)throw Error('Profil akun belum tersedia.');profile=data[0]}
 async function restoreLogin(){showLogin()}
 async function logout(){try{localStorage.removeItem('tokokasirlussal-username');if(sb)await sb.auth.signOut()}finally{location.reload()}}
 async function loadProfile(){if(!currentUser?.id)throw Error('Sesi login tidak valid.');const {data,error}=await sb.from('users').select('*').eq('auth_user_id',currentUser.id).maybeSingle();if(error)throw error;if(!data)throw Error('Profile pengguna belum dibuat di public.users.');profile=data}
-function showLogin(){document.body.classList.add('login-screen');document.body.classList.remove('app-screen','mobile-sheet-open');document.querySelector('.side')?.style.removeProperty('transform');document.querySelector('.side')?.classList.remove('nav-gesture-dragging');$('app')?.classList.add('hidden');$('app')?.setAttribute('aria-hidden','true');$('login')?.classList.remove('hidden');$('login')?.removeAttribute('aria-hidden')}
+function showLogin(){document.body.classList.add('login-screen');document.body.classList.remove('app-screen','mobile-sheet-open');$('app')?.classList.add('hidden');$('app')?.setAttribute('aria-hidden','true');$('login')?.classList.remove('hidden');$('login')?.removeAttribute('aria-hidden')}
 function showApp(){document.body.classList.remove('login-screen');document.body.classList.add('app-screen');$('login')?.classList.add('hidden');$('login')?.setAttribute('aria-hidden','true');$('app')?.classList.remove('hidden');$('app')?.removeAttribute('aria-hidden');const admin=String(profile?.role||'').toLowerCase()==='admin';document.documentElement.dataset.userRole=admin?'admin':'cashier';document.body.dataset.userRole=admin?'admin':'cashier';if($('activeUser'))$('activeUser').textContent=(admin?'Admin':'Kasir')+' Aktif: '+(profile?.nama||profile?.username||'-');updateAccountView();showAppVersion();['navAgen','navPiutang','navPembelian','navLaporan','navAkun'].forEach(id=>{const el=$(id);if(el)el.style.setProperty('display',admin?'flex':'none','important')});if($('addProductBtn'))$('addProductBtn').style.setProperty('display',admin?'block':'none','important');if($('addAgentBtn'))$('addAgentBtn').style.setProperty('display',admin?'block':'none','important');if(!admin){document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));$('tab-dashboard')?.classList.add('active');document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));document.querySelector('.nav[onclick*="tab(\'dashboard\'"]')?.classList.add('active')}}
 /* TOKOKASIRLUSSAL_MOBILE_SWIPE_V2 */
 const _originalTab=tab;
@@ -214,13 +207,6 @@ function renderReceivables(){$('receivables').innerHTML=receivables.map(r=>`<tr>
 async function payDebt(id,sisa){const v=prompt('Nominal pembayaran',String(sisa));if(!v)return;const amount=Number(v);if(!Number.isFinite(amount)||amount<=0)return toast('Nominal pembayaran tidak valid.');try{const {error}=await sb.rpc('pay_receivable',{p_receivable_id:id,p_kasir_id:profile.id,p_jumlah:amount,p_keterangan:'Pembayaran piutang'});if(error)throw error;await loadAll();toast('Pembayaran piutang berhasil.')}catch(e){toast(e.message)}}
 function localDay(d=new Date()){const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')}
 function reportPaymentLabel(s){return s.metode_pembayaran==='piutang'?'Piutang / DP':'Lunas Tunai'}
-function switchReportView(view,button){
- const target=view==='month'?'reportViewMonth':'reportViewToday';
- document.querySelectorAll('.report-view').forEach(x=>x.classList.toggle('active',x.id===target));
- document.querySelectorAll('.report-switch-btn').forEach(x=>x.classList.toggle('active',x===button||x.dataset.reportView===view));
- const active=document.getElementById(target);
- if(active)active.scrollTop=0;
-}
 function renderReports(){
  const now=new Date(),day=localDay(now),month=day.slice(0,7);
  const ss=Array.isArray(sales)?sales:[],si=Array.isArray(saleItems)?saleItems:[];
@@ -300,8 +286,6 @@ function renderReports(){
    return '<tr><td>'+new Date(s.created_at).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})+'</td><td><b>'+esc(s.nomor_transaksi)+'</b></td><td>'+transactionProducts(s)+'</td><td>'+transactionUser(s)+'</td><td>'+esc(ag?.nama||'Umum')+'</td><td>'+rp(total)+'</td><td>'+rp(paid)+'</td><td>'+esc(reportPaymentLabel(s))+'</td></tr>';
  }).join('')||'<tr><td colspan="8" class="note">Belum ada penjualan aktif hari ini.</td></tr>';
 
- if($('todayReportCount'))$('todayReportCount').textContent=activeDaySales.length+' transaksi';
- if($('monthReportCount'))$('monthReportCount').textContent=activeMonthSales.length+' transaksi';
  if($('monthlySales'))$('monthlySales').innerHTML=activeMonthSales.map(s=>{
    const total=Number(s.total||0),paid=paymentNet(s);
    return '<tr><td>'+new Date(s.created_at).toLocaleDateString('id-ID')+'</td><td>'+esc(s.nomor_transaksi)+'</td><td>'+transactionProducts(s)+'</td><td>'+transactionUser(s)+'</td><td>'+rp(total)+'</td><td>'+rp(paid)+'</td><td>'+esc(reportPaymentLabel(s))+'</td></tr>';
@@ -477,10 +461,10 @@ function renderUsers(){if(profile?.role!=='admin'){$('users').innerHTML='';retur
 function setAccountRole(prefix,role){const select=$(prefix+'UserRole');if(!select)return;select.value=role;const wrap=$(prefix+'PinWrap'),input=$(prefix+'UserPassword');if(wrap)wrap.classList.toggle('hidden',role!=='admin');if(wrap)wrap.classList.toggle('pin-slide-in',role==='admin');if(input){input.value='';input.disabled=role!=='admin';input.placeholder=role==='admin'?'••••':'Kasir tidak menggunakan PIN';}const modal=$(prefix==='edit'?'userModal':'newUserModal');modal?.querySelectorAll('.role-choice').forEach(b=>b.classList.toggle('active',b.dataset.role===role));}function syncAccountPinField(mode,prefix){const isAdmin=mode==='admin';const wrap=$(prefix+'PinWrap'),input=$(prefix+'UserPassword');if(wrap)wrap.classList.toggle('hidden',!isAdmin);if(input){input.value='';input.placeholder=isAdmin?'••••':'Kasir tidak menggunakan PIN';input.disabled=!isAdmin;input.setAttribute('aria-hidden',String(!isAdmin));}if(wrap){wrap.classList.toggle('pin-slide-in',isAdmin);}}
 function openUserEditor(id){if(profile?.role!=='admin')return toast('Hanya admin yang dapat mengelola akun.');const u=users.find(x=>x.id===id);if(!u)return toast('Akun tidak ditemukan.');$('editUserId').value=u.id;$('editUserNama').value=u.nama||'';$('editUserUsername').value=u.username||'';$('editUserRole').value=u.role||'karyawan';$('editUserAktif').value=u.aktif?'true':'false';syncAccountPinField(u.role==='admin'?'admin':'karyawan','edit');openModal('userModal')}
 async function saveUserEdit(){try{if(profile?.role!=='admin')return toast('Hanya admin yang dapat mengelola akun.');const id=$('editUserId').value,nama=$('editUserNama').value.trim(),username=$('editUserUsername').value.trim().toLowerCase(),role=$('editUserRole').value,aktif=$('editUserAktif').value==='true',pin=$('editUserPassword').value.trim(),oldRole=users.find(u=>u.id===id)?.role;if(!id||!nama||!username)return toast('Nama dan username wajib diisi.');if(!/^[a-z0-9._-]{3,30}$/.test(username))return toast('Username 3-30 karakter: huruf, angka, titik, garis bawah atau strip.');if(id===profile.id&&(role!=='admin'||!aktif))return toast('Akun admin yang sedang digunakan tidak dapat diturunkan atau dinonaktifkan.');if(role==='admin'&&pin&&!/^[0-9]{4}$/.test(pin))return toast('PIN admin harus tepat 4 angka.');if(role==='karyawan'&&pin)return toast('Kasir tidak menggunakan PIN.');if(role==='admin'&&oldRole!=='admin'&&!pin)return toast('PIN wajib diisi saat akun kasir diubah menjadi admin.');const {data,error}=await sb.rpc('admin_update_user',{p_user_id:id,p_nama:nama,p_username:username,p_role:role,p_aktif:aktif,p_pin:pin||null});if(error)throw error;if(!data?.length)throw Error('Database tidak mengembalikan akun yang diperbarui.');if(id===profile.id){profile={...profile,...data[0]};localStorage.setItem('tokokasirlussal-username',profile.username);updateAccountView();if($('activeUser'))$('activeUser').textContent='Admin Aktif: '+(profile.nama||profile.username||'-')}closeModal('userModal');await loadAll();toast('Akun berhasil diperbarui.')}catch(e){console.error('saveUserEdit',e);toast('Gagal memperbarui akun: '+(e.message||'periksa database/RLS'))}}
-function openProduct(id){if(profile?.role!=='admin')return toast('Hanya admin yang dapat mengelola produk.');const p=id?products.find(x=>x.id===id):null;const deleteBtn=$('deleteProductBtn');if(deleteBtn)deleteBtn.classList.toggle('hidden',!p);selectedProductImage=p?.gambar||'';$('productTitle').textContent=p?'Edit Produk':'Produk Baru';$('productId').value=p?.id||'';$('pNama').value=p?.nama||'';$('pEcer').value=p?.harga_ecer||0;$('pReseller').value=p?.harga_reseller||0;$('pAgen').value=p?.harga_agen||0;$('pGrosir').value=p?.harga_grosir||0;$('pStok').value=p?.stok||0;$('pKategori').value=p?.kategori||'Kapsul';$('pGambar').value=p?.gambar&&!p.gambar.startsWith('data:image/')?p.gambar:'';const fileInput=$('pGambarFile'),cameraInput=$('pGambarCamera');if(fileInput)fileInput.value='';if(cameraInput)cameraInput.value='';const preview=$('pGambarPreview');if(preview){if(p?.gambar){preview.src=p.gambar;preview.classList.remove('hidden')}else{preview.src='';preview.classList.add('hidden')}}openModal('productModal')}
+function openProduct(id){if(profile?.role!=='admin')return toast('Hanya admin yang dapat mengelola produk.');const p=id?products.find(x=>x.id===id):null;const deleteBtn=$('deleteProductBtn');if(deleteBtn)deleteBtn.classList.toggle('hidden',!p);selectedProductImage=p?.gambar||'';$('productTitle').textContent=p?'Edit Produk':'Produk Baru';$('productId').value=p?.id||'';$('pNama').value=p?.nama||'';$('pEcer').value=p?.harga_ecer||0;$('pReseller').value=p?.harga_reseller||0;$('pAgen').value=p?.harga_agen||0;$('pGrosir').value=p?.harga_grosir||0;$('pStok').value=p?.stok||0;$('pKategori').value=p?.kategori||'Kapsul';$('pGambar').value=p?.gambar&&!p.gambar.startsWith('data:image/')?p.gambar:'';const fileInput=$('pGambarFile');if(fileInput)fileInput.value='';const preview=$('pGambarPreview');if(preview){if(p?.gambar){preview.src=p.gambar;preview.classList.remove('hidden')}else{preview.src='';preview.classList.add('hidden')}}openModal('productModal')}
 function previewProductImage(event){const file=event.target.files?.[0];if(!file)return;if(!file.type.startsWith('image/')){event.target.value='';return toast('File harus berupa gambar.')}if(file.size>8*1024*1024){event.target.value='';return toast('Ukuran gambar maksimal 8 MB.')}const reader=new FileReader();reader.onload=()=>{const preview=$('pGambarPreview');if(preview){preview.src=reader.result;preview.classList.remove('hidden')}};reader.onerror=()=>toast('Gagal membaca gambar.');reader.readAsDataURL(file)}
 function compressImage(file,max=900,quality=.76){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onerror=reject;reader.onload=()=>{const img=new Image();img.onerror=reject;img.onload=()=>{const scale=Math.min(1,max/Math.max(img.width,img.height)),w=Math.max(1,Math.round(img.width*scale)),h=Math.max(1,Math.round(img.height*scale)),c=document.createElement('canvas');c.width=w;c.height=h;const ctx=c.getContext('2d');ctx.drawImage(img,0,0,w,h);resolve(c.toDataURL('image/jpeg',quality))};img.src=reader.result};reader.readAsDataURL(file)})}
-async function saveProduct(){try{if(profile?.role!=='admin')return toast('Hanya admin yang dapat menyimpan produk.');const nama=$('pNama').value.trim();if(!nama)return toast('Nama produk wajib diisi.');const nums=['pEcer','pReseller','pAgen','pGrosir','pStok'].map(id=>Number($(id).value||0));if(nums.some(v=>!Number.isFinite(v)||v<0))return toast('Harga dan stok harus berupa angka nol atau lebih.');const [harga_ecer,harga_reseller,harga_agen,harga_grosir,stok]=nums;let gambar=selectedProductImage;const fileInput=$('pGambarFile'),cameraInput=$('pGambarCamera'),file=cameraInput?.files?.[0]||fileInput?.files?.[0];if(file){toast('Mengolah gambar...');gambar=await compressImage(file);if(gambar.length>900000)gambar=await compressImage(file,700,.65);if(gambar.length>1400000)throw Error('Gambar masih terlalu besar. Pilih gambar yang lebih kecil.')}const row={nama,harga_ecer,harga_reseller,harga_agen,harga_grosir,stok,kategori:$('pKategori').value||'Lainnya',gambar,aktif:true};const id=$('productId').value;let q=id?sb.from('products').update(row).eq('id',id):sb.from('products').insert(row);const {data,error}=await q.select().single();if(error)throw error;if(!data)throw Error('Produk tidak berhasil disimpan.');closeModal('productModal');selectedProductImage='';await loadAll();toast(id?'Produk berhasil diperbarui.':'Produk berhasil ditambahkan.')}catch(e){console.error('saveProduct',e);toast('Gagal menyimpan produk: '+(e.message||'periksa RLS Supabase'))}}
+async function saveProduct(){try{if(profile?.role!=='admin')return toast('Hanya admin yang dapat menyimpan produk.');const nama=$('pNama').value.trim();if(!nama)return toast('Nama produk wajib diisi.');const nums=['pEcer','pReseller','pAgen','pGrosir','pStok'].map(id=>Number($(id).value||0));if(nums.some(v=>!Number.isFinite(v)||v<0))return toast('Harga dan stok harus berupa angka nol atau lebih.');const [harga_ecer,harga_reseller,harga_agen,harga_grosir,stok]=nums;let gambar=$('pGambar').value.trim()||selectedProductImage;const fileInput=$('pGambarFile'),file=fileInput?.files?.[0];if(file){toast('Mengolah gambar...');gambar=await compressImage(file);if(gambar.length>900000)gambar=await compressImage(file,700,.65);if(gambar.length>1400000)throw Error('Gambar masih terlalu besar. Pilih gambar yang lebih kecil.')}const row={nama,harga_ecer,harga_reseller,harga_agen,harga_grosir,stok,kategori:$('pKategori').value||'Lainnya',gambar,aktif:true};const id=$('productId').value;let q=id?sb.from('products').update(row).eq('id',id):sb.from('products').insert(row);const {data,error}=await q.select().single();if(error)throw error;if(!data)throw Error('Produk tidak berhasil disimpan.');closeModal('productModal');selectedProductImage='';await loadAll();toast(id?'Produk berhasil diperbarui.':'Produk berhasil ditambahkan.')}catch(e){console.error('saveProduct',e);toast('Gagal menyimpan produk: '+(e.message||'periksa RLS Supabase'))}}
 async function deleteProduct(event){try{if(event)event.stopPropagation();if(profile?.role!=='admin')return toast('Hanya admin yang dapat menghapus produk.');const id=$('productId').value;if(!id)return toast('Produk belum dipilih.');const nama=$('pNama').value.trim()||'produk ini';if(!confirm('Hapus produk "'+nama+'"? Produk akan dihapus dari daftar penjualan.'))return;const {data,error}=await sb.from('products').update({aktif:false}).eq('id',id).select().single();if(error)throw error;if(!data)throw Error('Produk tidak berhasil dihapus.');closeModal('productModal');selectedProductImage='';await loadAll();toast('Produk berhasil dihapus.')}catch(e){console.error('deleteProduct',e);toast('Gagal menghapus produk: '+(e.message||'periksa RLS Supabase'))}}
 function openAgent(){if(profile?.role!=='admin')return toast('Hanya admin yang dapat menambah agen.');$('aNama').value=$('aHp').value=$('aAlamat').value='';openModal('agentModal')}
 function openModal(id){const m=$(id);if(!m)return;const sheet=document.querySelector('.side');sheet?.classList.remove('sheet-half','sheet-expanded');document.body.classList.add('modal-open');document.body.classList.remove('mobile-sheet-open');document.getElementById('mobileSheetBackdrop')?.classList.remove('show');m.classList.add('show');m.setAttribute('aria-hidden','false');setTimeout(()=>{const first=m.querySelector('input:not([type="hidden"]),select,button');first?.focus()},80)}
@@ -724,59 +708,72 @@ async function completeBarangDibawa(){
 }
 const _oldOpenBarangDibawaComplete=openBarangDibawaComplete;
 openBarangDibawaComplete=function(id){window.__carryCompleteId=id;return _oldOpenBarangDibawaComplete(id)};
-/* TOKOKASIRLUSSAL_MOBILE_NAV_V4 */
-(function setupMobileNavigationBar(){
-  let bar=null, dragging=false, startY=0, startX=0, startTranslate=0, verticalGesture=false;
-  const mobile=()=>window.innerWidth<=800;
-  const getBar=()=>document.querySelector('.side');
-  function maxTranslate(){ return Math.max(0,(bar?.getBoundingClientRect().height||67)-18); }
-  function apply(t,animate=true){
-    if(!bar||!mobile())return;
-    bar.classList.toggle('nav-gesture-dragging',!animate);
-    bar.style.transform='translateY('+Math.max(0,Math.min(maxTranslate(),t))+'px)';
+/* TOKOKASIRLUSSAL_MOBILE_BOTTOM_SHEET_V2 */
+(function setupMobileBottomSheet(){
+  let sheet,handle,dragging=false,currentState='collapsed',startY=0,startTranslate=0;
+  function isMobile(){return window.innerWidth<=800}
+  function getSheet(){return document.querySelector('.side')}
+  function stateTranslate(state){
+    if(!sheet)return 0;
+    const h=sheet.getBoundingClientRect().height||76;
+    return state==='collapsed'?Math.max(0,h-18):0;
+  }
+  function applyState(state,animate=true){
+    sheet=getSheet();if(!sheet||!isMobile())return;
+    currentState=state;
+    sheet.classList.toggle('sheet-collapsed',state==='collapsed');
+    sheet.classList.toggle('sheet-expanded',state==='expanded');
+    sheet.classList.toggle('sheet-dragging',!animate);
+    document.body.classList.toggle('mobile-sheet-open',state==='expanded');
+    if(!animate)sheet.style.transform='translateY('+stateTranslate(state)+'px)';
+    else sheet.style.removeProperty('transform');
   }
   function begin(e){
-    if(!mobile()||!bar)return;
-    startY=e.clientY;startX=e.clientX;startTranslate=bar.getBoundingClientRect().top-(window.innerHeight-bar.getBoundingClientRect().height);
-    verticalGesture=false;dragging=true;
-    bar.classList.add('nav-gesture-dragging');
+    if(!isMobile()||!sheet)return;
+    startY=e.clientY;
+    const rect=sheet.getBoundingClientRect();
+    startTranslate=rect.top-(window.innerHeight-rect.height);
+    dragging=true;
+    sheet.classList.add('sheet-dragging');
+    handle.setPointerCapture?.(e.pointerId);
   }
   function move(e){
-    if(!dragging||!bar)return;
-    const dx=e.clientX-startX,dy=e.clientY-startY;
-    if(!verticalGesture && Math.abs(dx)>Math.abs(dy)+8){
-      dragging=false;bar.classList.remove('nav-gesture-dragging');return;
-    }
-    if(Math.abs(dy)>=Math.abs(dx)+4)verticalGesture=true;
-    if(!verticalGesture)return;
-    const next=Math.max(0,Math.min(maxTranslate(),startTranslate+dy));
-    apply(next,false);e.preventDefault();
+    if(!dragging||!sheet)return;
+    const h=sheet.getBoundingClientRect().height||76;
+    const max=Math.max(0,h-18);
+    const next=Math.max(0,Math.min(max,startTranslate+e.clientY-startY));
+    sheet.style.transform='translateY('+next+'px)';
+    e.preventDefault();
   }
   function end(e){
-    if(!dragging||!bar)return;
-    dragging=false;bar.classList.remove('nav-gesture-dragging');
-    const h=bar.getBoundingClientRect().height||67;
-    const current=Math.max(0,Math.min(h-18,bar.getBoundingClientRect().top-(window.innerHeight-h)));
-    const dy=e.clientY-startY;
-    if(verticalGesture){
-      const target=(dy< -18 || current<h*.45)?0:h-18;
-      apply(target,true);
-    }else{
-      bar.style.removeProperty('transform');
-    }
+    if(!dragging||!sheet)return;
+    dragging=false;
+    const h=sheet.getBoundingClientRect().height||76;
+    const rect=sheet.getBoundingClientRect();
+    const current=rect.top-(window.innerHeight-h);
+    const elapsed=Math.max(16,performance.now()-(window.__sheetDragTime||performance.now()));
+    const velocity=(e.clientY-startY)/elapsed;
+    sheet.style.removeProperty('transform');
+    applyState(velocity<-0.35||current<h*.45?'expanded':'collapsed',true);
   }
   function init(){
-    bar=getBar();if(!bar||bar.dataset.mobileNavV4==='1')return;
-    bar.dataset.mobileNavV4='1';
-    bar.addEventListener('pointerdown',begin,{passive:true});
-    bar.addEventListener('pointermove',move,{passive:false});
-    bar.addEventListener('pointerup',end,{passive:true});
-    bar.addEventListener('pointercancel',end,{passive:true});
-    window.addEventListener('resize',()=>{if(!mobile()){bar.style.removeProperty('transform');bar.classList.remove('nav-gesture-dragging')}});
-    bar.style.transform='translateY('+(maxTranslate())+'px)';
+    sheet=getSheet();
+    handle=document.getElementById('mobileSheetHandle');
+    if(!sheet||!handle||sheet.dataset.bottomSheetReady==='1')return;
+    sheet.dataset.bottomSheetReady='1';
+    handle.addEventListener('pointerdown',e=>{window.__sheetDragTime=performance.now();begin(e)});
+    handle.addEventListener('pointermove',move);
+    handle.addEventListener('pointerup',end);
+    handle.addEventListener('pointercancel',end);
+    window.addEventListener('resize',()=>{
+      if(isMobile())applyState(currentState);
+      else{sheet.style.removeProperty('transform');document.body.classList.remove('mobile-sheet-open')}
+    });
+    applyState('collapsed');
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
-})();\nlet deferredInstallPrompt=null;
+})();
+let deferredInstallPrompt=null;
 window.addEventListener('beforeinstallprompt',e=>{
   e.preventDefault();
   deferredInstallPrompt=e;
@@ -804,25 +801,3 @@ async function installApp(){
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(e=>console.warn('PWA service worker',e)));
 }
-
-/* LOGIN CLICK FALLBACK: bind directly after the app script has loaded. */
-(function bindLoginControls(){
-  function bind(){
-    const submit=document.getElementById('loginSubmit');
-    if(submit && submit.dataset.bound!=='1'){
-      submit.dataset.bound='1';
-      submit.addEventListener('click',function(e){e.preventDefault();window.login();});
-    }
-    const kasir=document.getElementById('loginKasirBtn');
-    if(kasir && kasir.dataset.bound!=='1'){
-      kasir.dataset.bound='1';
-      kasir.addEventListener('click',function(e){e.preventDefault();setLoginMode('kasir');});
-    }
-    const admin=document.getElementById('loginAdminBtn');
-    if(admin && admin.dataset.bound!=='1'){
-      admin.dataset.bound='1';
-      admin.addEventListener('click',function(e){e.preventDefault();setLoginMode('admin');});
-    }
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();
-})();
