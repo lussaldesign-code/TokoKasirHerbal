@@ -799,7 +799,8 @@ openBarangDibawaComplete=function(id){window.__carryCompleteId=id;return _oldOpe
     bar.style.transform='translateY('+(maxTranslate())+'px)';
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
-})();\nlet deferredInstallPrompt=null;
+})();
+let deferredInstallPrompt=null;
 window.addEventListener('beforeinstallprompt',e=>{
   e.preventDefault();
   deferredInstallPrompt=e;
