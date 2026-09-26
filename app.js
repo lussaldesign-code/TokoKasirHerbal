@@ -708,37 +708,25 @@ async function completeBarangDibawa(){
 }
 const _oldOpenBarangDibawaComplete=openBarangDibawaComplete;
 openBarangDibawaComplete=function(id){window.__carryCompleteId=id;return _oldOpenBarangDibawaComplete(id)};
-/* TOKOKASIRLUSSAL_MOBILE_BOTTOM_SHEET_V1 */
+/* TOKOKASIRLUSSAL_MOBILE_BOTTOM_SHEET_V2 */
 (function setupMobileBottomSheet(){
-  let sheet,handle,backdrop,startY,startTranslate,dragging=false,currentState='collapsed';
-  const states={collapsed:0,half:46,expanded:100};
+  let sheet,handle,dragging=false,currentState='collapsed',startY=0,startTranslate=0;
   function isMobile(){return window.innerWidth<=800}
   function getSheet(){return document.querySelector('.side')}
   function stateTranslate(state){
-    const h=sheet?.getBoundingClientRect().height||1;
-    if(state==='collapsed')return Math.max(0,h-82);
-    if(state==='half')return h*.46;
-    return 0;
+    if(!sheet)return 0;
+    const h=sheet.getBoundingClientRect().height||76;
+    return state==='collapsed'?Math.max(0,h-18):0;
   }
   function applyState(state,animate=true){
     sheet=getSheet();if(!sheet||!isMobile())return;
     currentState=state;
-    sheet.classList.toggle('sheet-half',state==='half');
+    sheet.classList.toggle('sheet-collapsed',state==='collapsed');
     sheet.classList.toggle('sheet-expanded',state==='expanded');
     sheet.classList.toggle('sheet-dragging',!animate);
     document.body.classList.toggle('mobile-sheet-open',state==='expanded');
-    backdrop?.classList.toggle('show',state!=='collapsed');
-    if(!animate) sheet.style.transform='translateY('+stateTranslate(state)+'px)';
+    if(!animate)sheet.style.transform='translateY('+stateTranslate(state)+'px)';
     else sheet.style.removeProperty('transform');
-  }
-  function nearestState(y,velocity=0){
-    const h=sheet?.getBoundingClientRect().height||1;
-    const collapsed=Math.max(0,h-82),half=h*.46,expanded=0;
-    if(velocity<-0.45)return 'expanded';
-    if(velocity>0.45)return 'collapsed';
-    const values=[['expanded',expanded],['half',half],['collapsed',collapsed]];
-    values.sort((a,b)=>Math.abs(a[1]-y)-Math.abs(b[1]-y));
-    return values[0][0];
   }
   function begin(e){
     if(!isMobile()||!sheet)return;
@@ -751,35 +739,36 @@ openBarangDibawaComplete=function(id){window.__carryCompleteId=id;return _oldOpe
   }
   function move(e){
     if(!dragging||!sheet)return;
-    const h=sheet.getBoundingClientRect().height||1;
-    const max=Math.max(0,h-82), next=Math.max(0,Math.min(max,startTranslate+e.clientY-startY));
+    const h=sheet.getBoundingClientRect().height||76;
+    const max=Math.max(0,h-18);
+    const next=Math.max(0,Math.min(max,startTranslate+e.clientY-startY));
     sheet.style.transform='translateY('+next+'px)';
     e.preventDefault();
   }
   function end(e){
     if(!dragging||!sheet)return;
     dragging=false;
-    const h=sheet.getBoundingClientRect().height||1;
+    const h=sheet.getBoundingClientRect().height||76;
     const rect=sheet.getBoundingClientRect();
     const current=rect.top-(window.innerHeight-h);
-    const velocity=(e.clientY-startY)/Math.max(16,(performance.now()-(window.__sheetDragTime||performance.now())));
+    const elapsed=Math.max(16,performance.now()-(window.__sheetDragTime||performance.now()));
+    const velocity=(e.clientY-startY)/elapsed;
     sheet.style.removeProperty('transform');
-    applyState(nearestState(current,velocity),true);
+    applyState(velocity<-0.35||current<h*.45?'expanded':'collapsed',true);
   }
   function init(){
-    sheet=getSheet();handle=document.getElementById('mobileSheetHandle');backdrop=document.getElementById('mobileSheetBackdrop');
+    sheet=getSheet();
+    handle=document.getElementById('mobileSheetHandle');
     if(!sheet||!handle||sheet.dataset.bottomSheetReady==='1')return;
     sheet.dataset.bottomSheetReady='1';
     handle.addEventListener('pointerdown',e=>{window.__sheetDragTime=performance.now();begin(e)});
     handle.addEventListener('pointermove',move);
     handle.addEventListener('pointerup',end);
     handle.addEventListener('pointercancel',end);
-    backdrop?.addEventListener('click',()=>applyState('collapsed'));
-    sheet.addEventListener('click',e=>{
-      if(!isMobile()||currentState!=='collapsed')return;
-      if(e.target.closest('.nav'))applyState('collapsed');
+    window.addEventListener('resize',()=>{
+      if(isMobile())applyState(currentState);
+      else{sheet.style.removeProperty('transform');document.body.classList.remove('mobile-sheet-open')}
     });
-    window.addEventListener('resize',()=>{if(isMobile())applyState(currentState);else{sheet.style.removeProperty('transform');document.body.classList.remove('mobile-sheet-open');backdrop?.classList.remove('show')}});
     applyState('collapsed');
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
