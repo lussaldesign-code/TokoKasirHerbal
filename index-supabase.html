@@ -392,6 +392,20 @@ body[data-user-role="cashier"] .side .nav.logout{display:flex!important}
 }
 @media(min-width:801px){.mobile-sheet-handle,.mobile-sheet-backdrop{display:none!important}}
 @media(prefers-reduced-motion:reduce){.side{transition:none!important}}
+</style><style id="login-navigation-isolation">
+/* APK navigation is app-only: never render the bottom-sheet navigation on login */
+body.login-screen .side,
+body.login-screen .mobile-sheet-handle,
+body.login-screen .mobile-sheet-backdrop{
+  display:none!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
+body.app-screen .side{
+  display:flex;
+  visibility:visible;
+  pointer-events:auto;
+}
 </style><style id="login-notification-isolation">
 /* Login-only UI isolation: notifications are available only after authentication */
 body.login-screen .notify-wrap,
