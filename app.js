@@ -887,3 +887,22 @@ if('serviceWorker' in navigator){
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();
 })();
+
+/* PRODUCT EDIT CLICK FIX — delegated so dynamically rendered product cards always work. */
+(function bindProductEditClick(){
+  function bind(){
+    if(window.__productEditClickFix)return;
+    window.__productEditClickFix=true;
+    document.addEventListener('click',function(e){
+      const btn=e.target.closest?.('[data-edit-id]');
+      if(!btn)return;
+      e.preventDefault();
+      e.stopPropagation();
+      const id=btn.getAttribute('data-edit-id');
+      if(!id)return;
+      if(typeof openProduct==='function')openProduct(id);
+      else if(typeof window.openProduct==='function')window.openProduct(id);
+    },true);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();
+})();
