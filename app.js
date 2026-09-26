@@ -208,22 +208,16 @@ function tab(name,el){const target=$('tab-'+name);if(!target){console.warn('Tab 
 function goDashboardAction(name){const target=$('tab-'+name);if(!target){toast('Menu belum tersedia: '+name);return;}const nav=[...document.querySelectorAll('.nav')].find(x=>(x.getAttribute('onclick')||'').includes("tab('"+name+"'"));tab(name,nav||null);target.scrollIntoView({behavior:'smooth',block:'start'});}
 async function loadAll(){
  const required=[
- ['products',sb.from('products').select('*').eq('aktif',true).order('nama')],
- ['agents',sb.from('agents').select('*').eq('aktif',true).order('nama')],
- ['receivables',sb.from('receivables').select('*').order('created_at',{ascending:false})],
- ['barang_dibawa',sb.from('barang_dibawa').select('*').order('created_at',{ascending:false})],
- ['barang_dibawa_items',sb.from('barang_dibawa_items').select('*').order('created_at',{ascending:false})]
+  sb.from('products').select('*').eq('aktif',true).order('nama'),
+  sb.from('agents').select('*').eq('aktif',true).order('nama'),
+  sb.from('receivables').select('*, agents(nama), sales(nomor_transaksi,created_at)').order('created_at',{ascending:false}),
+  sb.from('barang_dibawa').select('*').order('created_at',{ascending:false}),
+  sb.from('barang_dibawa_items').select('*').order('created_at',{ascending:false})
  ];
- const requiredResults=await Promise.all(required.map(async([name,q])=>{
-  try{const x=await q;if(x.error)throw x.error;return {name,data:x.data||[],error:null}}
-  catch(e){console.warn('loadAll '+name,e);return {name,data:[],error:e}}
- }));
- const byName=Object.fromEntries(requiredResults.map(x=>[x.name,x]));
- products=byName.products.data;
- agents=byName.agents.data;
- receivables=byName.receivables.data;
- barangDibawa=byName.barang_dibawa.data;
- barangDibawaItems=byName.barang_dibawa_items.data;
+ const results=await Promise.all(required);
+ for(const x of results)if(x.error)throw x.error;
+ const [p,a,r,bd,bdi]=results;
+ products=p.data||[];agents=a.data||[];receivables=r.data||[];barangDibawa=bd.data||[];barangDibawaItems=bdi.data||[];
  await loadDashboardCatalog();
  sales=[];saleItems=[];receivablePayments=[];purchases=[];purchaseItems=[];
  saleReturns=[];saleReturnItems=[];purchaseReturns=[];purchaseReturnItems=[];users=[];
@@ -253,12 +247,6 @@ async function loadAll(){
  sales=get('sales');saleItems=get('sale_items');saleReturns=get('sale_returns');saleReturnItems=get('sale_return_items');
  receivablePayments=get('receivable_payments');purchases=get('purchases');purchaseItems=get('purchase_items');
  purchaseReturns=get('purchase_returns');purchaseReturnItems=get('purchase_return_items');users=get('users');
- const agentById=Object.fromEntries(agents.map(a=>[a.id,a]));
- const saleById=Object.fromEntries(sales.map(s=>[s.id,s]));
- receivables=receivables.map(r=>({...r,agents:r.agents||agentById[r.agen_id]||agentById[r.agent_id]||null,sales:r.sales||saleById[r.sale_id]||null}));
- const agentById=Object.fromEntries(agents.map(a=>[a.id,a]));
- const saleById=Object.fromEntries(sales.map(s=>[s.id,s]));
- receivables=receivables.map(r=>({...r,agents:r.agents||agentById[r.agen_id]||agentById[r.agent_id]||null,sales:r.sales||saleById[r.sale_id]||null}));
  renderAll();
 }
 
@@ -580,9 +568,7 @@ function previewProductImage(event){const file=event.target.files?.[0];if(!file)
 function compressImage(file,max=900,quality=.76){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onerror=reject;reader.onload=()=>{const img=new Image();img.onerror=reject;img.onload=()=>{const scale=Math.min(1,max/Math.max(img.width,img.height)),w=Math.max(1,Math.round(img.width*scale)),h=Math.max(1,Math.round(img.height*scale)),c=document.createElement('canvas');c.width=w;c.height=h;const ctx=c.getContext('2d');ctx.drawImage(img,0,0,w,h);resolve(c.toDataURL('image/jpeg',quality))};img.src=reader.result};reader.readAsDataURL(file)})}
 async function saveProduct(){
   try{
-    const role=String(profile?.role||'').trim().toLowerCase();
-    if(role!=='admin')return toast('Hanya admin yang dapat menyimpan produk.');
-    if(!sb)throw Error('Sesi database belum siap. Silakan login kembali.');
+    if(profile?.role!=='admin')return toast('Hanya admin yang dapat menyimpan produk.');
     const nama=$('pNama').value.trim();
     if(!nama)return toast('Nama produk wajib diisi.');
     const nums=['pEcer','pReseller','pAgen','pGrosir','pStok'].map(id=>Number($(id).value||0));
@@ -600,12 +586,20 @@ async function saveProduct(){
     const id=$('productId').value;
     let data,error;
     if(id){
-      const payload={p_product_id:id,p_nama:nama,p_harga_ecer:harga_ecer,p_harga_reseller:harga_reseller,p_harga_agen:harga_agen,p_harga_grosir:harga_grosir,p_stok:stok,p_kategori:kategori,p_gambar:gambar||null,p_aktif:true};
-      let result=await sb.rpc('kiosk_update_product',payload);
-      if(result.error && /JWT|session|expired|not authenticated/i.test(result.error.message||'')){
-        try{await ensureSession();result=await sb.rpc('kiosk_update_product',payload)}catch(retryErr){result={data:null,error:retryErr}}
-      }
-      data=result.data;error=result.error;
+      const result=await sb.rpc('kiosk_update_product',{
+        p_product_id:id,
+        p_nama:nama,
+        p_harga_ecer:harga_ecer,
+        p_harga_reseller:harga_reseller,
+        p_harga_agen:harga_agen,
+        p_harga_grosir:harga_grosir,
+        p_stok:stok,
+        p_kategori:kategori,
+        p_gambar:gambar||null,
+        p_aktif:true
+      });
+      data=result.data;
+      error=result.error;
     }else{
       const result=await sb.from('products').insert({
         nama,harga_ecer,harga_reseller,harga_agen,harga_grosir,stok,kategori,gambar,aktif:true
