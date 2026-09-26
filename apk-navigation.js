@@ -23,47 +23,6 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 window.addEventListener('load',init);
 })();
 
-/* APK-ONLY SETTINGS MIRROR — keep Web/Windows source untouched. */
-(function(){
-'use strict';
-function ensureApkSettings(){
-  if(!document.documentElement.classList.contains('apk-nav-enabled'))return;
-  var tab=document.getElementById('tab-akun');
-  if(!tab || tab.dataset.apkSettingsV1==='1')return;
-  tab.dataset.apkSettingsV1='1';
-
-  var content=tab.querySelector('.account-content');
-  if(!content)return;
-
-  var card=document.createElement('div');
-  card.className='apk-printer-settings card';
-  card.id='printerSettingsCard';
-  card.innerHTML='<div class="apk-printer-head"><div class="apk-printer-icon">🖨️</div><div><b>Pilih Printer</b><small id="printerDetectStatus">Deteksi printer yang tersambung</small></div><button type="button" class="btn secondary apk-printer-refresh" onclick="detectReceiptPrinters(true)" title="Deteksi ulang printer">🔄</button></div>'+
-    '<div class="apk-printer-row"><select id="receiptPrinter"><option value="">Pilih printer...</option></select><button type="button" class="btn primary" onclick="testReceiptPrinter()">🖨️ Tes</button></div>'+
-    '<div class="apk-printer-types"><span>🧾 Thermal</span><span>🖨️ Printer biasa</span><span>💻 Printer sistem</span></div>'+
-    '<div class="note" id="printerSelectedNote">Belum ada printer dipilih.</div>';
-  content.appendChild(card);
-
-  setTimeout(function(){
-    try{
-      if(typeof refreshReceiptPrinters==='function')refreshReceiptPrinters();
-    }catch(e){console.warn('APK settings printer',e)}
-  },50);
-}
-
-function bindApkSettingsObserver(){
-  ensureApkSettings();
-  var target=document.getElementById('tab-akun');
-  if(!target || target.dataset.apkSettingsObserver==='1')return;
-  target.dataset.apkSettingsObserver='1';
-  new MutationObserver(ensureApkSettings).observe(target,{childList:true,subtree:true});
-}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindApkSettingsObserver,{once:true});
-else bindApkSettingsObserver();
-window.addEventListener('load',bindApkSettingsObserver);
-})();
-
-
 /* APK SETTINGS FIX V2 — use the existing Settings DOM; never duplicate Web controls. */
 (function(){
 'use strict';
