@@ -16,7 +16,7 @@ on:
       - 'icon-192.svg'
       - 'icon-512.svg'
       - 'apk-navigation.css'
-      - 'apk-navigation.js'
+      - 'apk-navigation.js'\n      - 'apk-version.txt'
       - '.github/workflows/build-apk.yml'
       - '!TokoKasirLussal-latest.apk'
       - '!update.json'
@@ -58,7 +58,7 @@ jobs:
       - name: Prepare web files
         run: |
           set -e
-          VERSION="$(node -p "require('./package.json').version")"
+          VERSION="$(tr -d '[:space:]' < apk-version.txt)"
           rm -rf mobile
           mkdir -p mobile/www
           cp index-supabase.html mobile/www/index.html
@@ -101,7 +101,7 @@ jobs:
       - name: Set Android version
         shell: bash
         run: |
-          VERSION="$(node -p "require('./package.json').version")"
+          VERSION="$(tr -d '[:space:]' < apk-version.txt)"
           VERSION_CODE="$(node -e "const v=require('./package.json').version.split('.').map(Number); console.log(v[0]*10000+v[1]*100+v[2])")"
           export VERSION VERSION_CODE
           python3 - <<'PY'
