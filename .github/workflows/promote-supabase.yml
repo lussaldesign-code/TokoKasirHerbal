@@ -1,46 +1,24 @@
-name: Publish Supabase POS
+name: Keep Web source isolated
 
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - index.html
+  workflow_dispatch:
 
-concurrency:
-  group: publish-supabase-index
-  cancel-in-progress: true
+# Web and APK sources are intentionally separated.
+# This workflow is manual-only and never copies index-supabase.html
+# over the Web entry point index.html.
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  publish:
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Make Supabase app the main page
+      - name: Verify separated sources
         run: |
-          cp index-supabase.html index.html
-          sed -i 's#config.js"#config.js?v=20260923"#g; s#app.js"#app.js?v=20260926-navfix1"#g' index.html
-
-      - name: Commit generated index
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html
-          if git diff --cached --quiet; then
-            echo "index.html sudah sama, tidak ada commit."
-            exit 0
-          fi
-          git commit -m "Publish Supabase POS as main page"
-
-      - name: Rebase generated commit onto latest main
-        run: |
-          git fetch origin main
-          git rebase origin/main
-
-      - name: Push generated index
-        run: git push origin HEAD:main
+          test -f index.html
+          test -f index-supabase.html
+          echo "Web source: index.html"
+          echo "APK source: index-supabase.html"
+          echo "No Web files are generated or committed."
