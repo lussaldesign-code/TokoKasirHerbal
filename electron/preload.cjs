@@ -38,3 +38,5 @@ contextBridge.exposeInMainWorld('electronPrinter', {
   printReport: (html, printerName) => ipcRenderer.invoke('print-report', { html, printerName }),
   printReceipt: (html, printerName) => ipcRenderer.invoke('print-receipt', { html, printerName })
 });
+
+contextBridge.exposeInMainWorld('softwareAuth',{login:(payload)=>ipcRenderer.invoke('software-login',payload)});
