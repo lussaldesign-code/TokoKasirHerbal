@@ -181,3 +181,16 @@
   html.apk-nav-enabled body.app-screen .report-section.active{display:flex!important;visibility:visible!important;position:relative!important;width:auto!important;height:auto!important;overflow:auto!important;pointer-events:auto!important;}
   html.apk-nav-enabled body.app-screen #tab-akun{z-index:1!important;}
 }
+
+/* APK TAB VISIBILITY FIX — prevent inactive account/settings panel from appearing behind bottom navigation. */
+@media(max-width:800px){
+  html.apk-nav-enabled body.app-screen .main > .tab:not(.active){
+    display:none!important;
+    visibility:hidden!important;
+    pointer-events:none!important;
+  }
+  html.apk-nav-enabled body.app-screen .main > .tab.active{
+    visibility:visible!important;
+    pointer-events:auto!important;
+  }
+}
