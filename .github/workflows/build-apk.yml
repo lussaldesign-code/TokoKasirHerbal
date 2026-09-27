@@ -9,7 +9,6 @@ on:
       - 'index-supabase.html'
       - 'app.js'
       - 'config.js'
-      - 'package.json'
       - 'capacitor.config.js'
       - 'sw.js'
       - 'manifest.webmanifest'
@@ -25,7 +24,8 @@ on:
       - '!update.json'
 
 concurrency:
-  group: tokokasirlussal-android-build
+  # Android and Windows both write generated files to main; serialize publication only.
+  group: tokokasirlussal-platform-publication
   cancel-in-progress: false
 
 permissions:
