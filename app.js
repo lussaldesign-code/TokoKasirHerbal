@@ -558,7 +558,9 @@ async function checkForUpdate(){
       return;
     }
 
-    const info=await fetchUpdateManifest(UPDATE_MANIFEST_URL,UPDATE_MANIFEST_FALLBACK);
+    // APK: selalu gunakan manifest APK resmi dari main branch.
+    // Jangan membaca update.json dari server Web/PWA karena bisa tertinggal.
+    const info=await fetchUpdateManifest(UPDATE_MANIFEST_FALLBACK,'');
     const latest=String(info?.version||'').trim();
     const url=String(info?.apk||'');
     if(!latest)throw Error('Versi update tidak valid atau manifest belum tersedia.');
