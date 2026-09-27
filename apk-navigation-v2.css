@@ -41,3 +41,19 @@ html.apk-v2 .apk-sheet-handle i{background:#16803b!important;box-shadow:none!imp
  html.apk-v2 body.app-screen .main .report-section .report-table table{min-width:920px}
  html.apk-v2 body.app-screen .main .report-section .report-table tbody tr{min-height:42px}
 }
+
+
+/* APK UPDATE DIALOG — APK ONLY */
+@media(max-width:800px){
+ #apkUpdateDialog{position:fixed!important;inset:0!important;z-index:2147483647!important;display:grid!important;place-items:center!important;padding:22px!important;background:rgba(2,12,8,.62)!important;backdrop-filter:blur(7px)!important}
+ #apkUpdateDialog .apk-update-card{width:min(100%,390px)!important;padding:24px!important;border-radius:24px!important;background:#fff!important;color:#17211b!important;box-shadow:0 24px 70px rgba(0,0,0,.28)!important;text-align:center!important}
+ #apkUpdateDialog .apk-update-icon{width:58px!important;height:58px!important;margin:0 auto 12px!important;display:grid!important;place-items:center!important;border-radius:18px!important;background:#eaf8ee!important;font-size:28px!important}
+ #apkUpdateDialog h3{margin:0 0 8px!important;font-size:21px!important}
+ #apkUpdateDialog p{margin:7px 0!important;line-height:1.5!important}
+ #apkUpdateDialog .apk-update-note{font-size:12px!important;color:#64736b!important}
+ #apkUpdateDialog .apk-update-actions{display:grid!important;grid-template-columns:1fr 1fr!important;gap:9px!important;margin-top:18px!important}
+ #apkUpdateDialog button{min-height:46px!important;border:0!important;border-radius:13px!important;font-weight:800!important;font-size:14px!important}
+ #apkUpdateLater{background:#eef2ef!important;color:#526057!important}
+ #apkUpdateNow{background:#16803b!important;color:#fff!important}
+ #apkUpdateNow:disabled{opacity:.65!important}
+}
