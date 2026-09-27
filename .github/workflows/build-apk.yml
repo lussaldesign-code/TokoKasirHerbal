@@ -1,164 +1,251 @@
-name: Build TokoKasirLussal APK
-# APK build pipeline with versioned Android builds and in-app update manifest
-
+name: Build Fresh TokoKasirLussal APK V2
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
-      - 'index-supabase.html'
-      - 'app.js'
-      - 'config.js'
-      - 'package.json'
-      - 'capacitor.config.js'
-      - 'sw.js'
-      - 'manifest.webmanifest'
-      - 'icon-192.svg'
-      - 'icon-512.svg'
-      - 'apk-navigation.css'
-      - 'apk-navigation.js'
-      - '.github/workflows/build-apk.yml'
-      - '!TokoKasirLussal-latest.apk'
-      - '!update.json'
-
-concurrency:
-  group: tokokasirlussal-android-build
-  cancel-in-progress: false
-
+      - 'apk-version.txt'
+      - 'apk-navigation-v2.js'
+      - 'apk-navigation-v2.css'
+      - 'apk-icon.svg'
+      - 'apk-update.json'
+      - '.github/workflows/build-apk-v2.yml'
 permissions:
   contents: write
-
+concurrency:
+  group: tokokasirlussal-fresh-apk
+  cancel-in-progress: false
 jobs:
   apk:
-    name: Build Android APK
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup Node 24
-        uses: actions/setup-node@v7
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '24'
           package-manager-cache: false
-
-      - name: Setup Java 21
-        uses: actions/setup-java@v5
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v4
+      - uses: android-actions/setup-android@v3
         with:
-          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
-
-      - name: Prepare web files
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - name: Install image tools
+        run: sudo apt-get update && sudo apt-get install -y imagemagick
+      - name: Prepare fresh APK bundle
+        shell: bash
         run: |
           set -e
-          VERSION="$(node -p "require('./package.json').version")"
+          VERSION="$(tr -d '[:space:]' < apk-version.txt)"
+          export VERSION
           rm -rf mobile
           mkdir -p mobile/www
           cp index-supabase.html mobile/www/index.html
-          cp app.js config.js manifest.webmanifest icon-192.svg icon-512.svg sw.js mobile/www/
-          # APK-only navigation overlay. Web/PWA and Windows source files remain untouched.
-          cp apk-navigation.css apk-navigation.js mobile/www/
-          sed -i "s#config.js#config.js?v=$VERSION#g" mobile/www/index.html
-          sed -i "s#app.js#app.js?v=$VERSION#g" mobile/www/index.html
-          sed -i "s#tokokasirlussal-v[0-9.]*#tokokasirlussal-v$VERSION#g" mobile/www/sw.js
-          python3 - <<PY
+          cp app.js config.js sw.js mobile/www/
+          cp apk-navigation-v2.css apk-navigation-v2.js apk-icon.svg apk-update.json mobile/www/
+          python3 - <<'PY'
           from pathlib import Path
-          p=Path('mobile/www/index.html')
-          s=p.read_text(encoding='utf-8')
-          s=s.replace('</head>', '<link rel="stylesheet" href="apk-navigation.css?v=$VERSION"></head>', 1)
-          s=s.replace('</body>', '<script src="apk-navigation.js?v=$VERSION"></script></body>', 1)
-          p.write_text(s, encoding='utf-8')
+          import re, os
+          p = Path("mobile/www/index.html")
+          s = p.read_text(encoding="utf-8")
+          for ident in ["tokokasirlussal-mobile-nav-v4", "tokokasirlussal-apk-swipe-nav-script"]:
+              style_pat = r"""<style[^>]*id=["']""" + re.escape(ident) + r"""["'][^>]*>.*?</style>"""
+              script_pat = r"""<script[^>]*id=["']""" + re.escape(ident) + r"""["'][^>]*>.*?</script>"""
+              s = re.sub(style_pat, "", s, flags=re.S | re.I)
+              s = re.sub(script_pat, "", s, flags=re.S | re.I)
+          s = s.replace("apk-navigation.css", "apk-navigation-v2.css")
+          s = s.replace("apk-navigation.js", "apk-navigation-v2.js")
+          s = s.replace("icon-192.svg", "apk-icon.svg")
+          s = s.replace("icon-512.svg", "apk-icon.svg")
+          s = re.sub(r"""config\.js\?v=[^"']+""", "config.js?v=" + os.environ["VERSION"], s)
+          s = re.sub(r"""app\.js\?v=[^"']+""", "app.js?v=" + os.environ["VERSION"], s)
+          p.write_text(s, encoding="utf-8")
           PY
-          test -s mobile/www/index.html
-          test -s mobile/www/app.js
-          test -s mobile/www/config.js
-          test -s mobile/www/apk-navigation.css
-          test -s mobile/www/apk-navigation.js
-
-      - name: Install npm packages
+          sed -i "s#tokokasirlussal-v[0-9.]*#tokokasirlussal-v$VERSION#g" mobile/www/sw.js
+          sed -i "s#__APK_VERSION__#$VERSION#g" mobile/www/apk-navigation-v2.js
+          echo "Prepared APK bundle version $VERSION"
+      - name: Install packages
         run: npm install --legacy-peer-deps --no-audit --no-fund
-
-      - name: Generate Android project
-        run: |
-          rm -rf android
-          ./node_modules/.bin/cap add android
-
-      - name: Set Android version
+      - name: Generate Android
+        run: rm -rf android && ./node_modules/.bin/cap add android
+      - name: Set version and icon
         shell: bash
         run: |
-          VERSION="$(node -p "require('./package.json').version")"
-          VERSION_CODE="$(node -e "const v=require('./package.json').version.split('.').map(Number); console.log(v[0]*10000+v[1]*100+v[2])")"
-          export VERSION VERSION_CODE
+          set -e
+          VERSION="$(tr -d '[:space:]' < apk-version.txt)"
           python3 - <<'PY'
-          import os,re
-          p='android/app/build.gradle'
-          s=open(p).read()
-          version=os.environ['VERSION']
-          code=os.environ['VERSION_CODE']
-          s=re.sub(r'versionCode\s+\d+', f'versionCode {code}', s)
-          s=re.sub(r'versionName\s+["\'][^"\']+["\']', f'versionName "{version}"', s)
-          open(p,'w').write(s)
+          import re
+          p = "android/app/build.gradle"
+          s = open(p, encoding="utf-8").read()
+          v = open("apk-version.txt", encoding="utf-8").read().strip()
+          a = list(map(int, v.split(".")))
+          code = a[0] * 10000 + a[1] * 100 + a[2]
+          s = re.sub(r"versionCode\s+\d+", f"versionCode {code}", s)
+          s = re.sub(r"""versionName\s+['"][^'"]+['"]""", f'versionName "{v}"', s)
+          open(p, "w", encoding="utf-8").write(s)
           PY
-          echo "Android version: $VERSION"
-          echo "Android versionCode: $VERSION_CODE"
+          for spec in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+            density="${spec%%:*}"
+            size="${spec##*:}"
+            d="android/app/src/main/res/mipmap-$density"
+            mkdir -p "$d"
+            convert mobile/www/apk-icon.svg -resize "${size}x${size}" "$d/ic_launcher.png"
+            cp "$d/ic_launcher.png" "$d/ic_launcher_round.png"
+          done
+          rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+          # APK splash: gunakan tema hijau TokoKasirLussal, bukan splash putih bawaan
+          mkdir -p android/app/src/main/res/values android/app/src/main/res/drawable
+          cat > android/app/src/main/res/values/colors.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+            <color name="tokokasir_splash_bg">#06140E</color>
+          </resources>
+          EOF
+          cat > android/app/src/main/res/drawable/tokokasir_splash_bg.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+            <item android:drawable="@color/tokokasir_splash_bg"/>
+            <item android:gravity="center" android:width="180dp" android:height="180dp">
+              <bitmap android:src="@mipmap/ic_launcher" android:gravity="fill"/>
+            </item>
+          </layer-list>
+          EOF
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("android/app/src/main/res/values/styles.xml")
+          s=p.read_text(encoding="utf-8")
+          if "tokokasir_splash_bg" not in s:
+              s=s.replace("</resources>", """<style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+                <item name="android:windowBackground">@drawable/tokokasir_splash_bg</item>
+                <item name="android:windowSplashScreenBackground">@color/tokokasir_splash_bg</item>
+                <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+                <item name="android:windowLightStatusBar">false</item>
+                <item name="android:statusBarColor">@color/tokokasir_splash_bg</item>
+              </style>
+            </resources>""")
+              p.write_text(s,encoding="utf-8")
+          PY
+          echo "TokoKasirLussal themed splash installed"
+      - name: Install native APK updater bridge
+        shell: bash
+        run: |
+          set -e
+          mkdir -p android/app/src/main/java/com/lussaldesign/tokokasirlussal
+          cat > android/app/src/main/java/com/lussaldesign/tokokasirlussal/MainActivity.java <<'EOF'
+          package com.lussaldesign.tokokasirlussal;
 
-      - name: Sync Android
+          import android.content.Intent;
+          import android.net.Uri;
+          import android.os.Build;
+          import android.os.Bundle;
+          import android.os.Environment;
+          import android.provider.Settings;
+          import android.webkit.JavascriptInterface;
+          import android.widget.Toast;
+          import androidx.core.content.FileProvider;
+          import com.getcapacitor.BridgeActivity;
+          import java.io.File;
+          import java.io.FileOutputStream;
+          import java.io.InputStream;
+          import java.net.HttpURLConnection;
+          import java.net.URL;
+
+          public class MainActivity extends BridgeActivity {
+            @Override
+            public void onCreate(Bundle savedInstanceState) {
+              super.onCreate(savedInstanceState);
+              getBridge().getWebView().addJavascriptInterface(new ApkUpdater(this), "AndroidUpdater");
+            }
+            static class ApkUpdater {
+              private final MainActivity activity;
+              ApkUpdater(MainActivity activity) { this.activity = activity; }
+              @JavascriptInterface public void downloadAndInstall(final String url) {
+                if (url == null || !url.startsWith("https://")) { activity.toast("Link update APK tidak aman."); return; }
+                new Thread(() -> {
+                  try {
+                    URL u = new URL(url);
+                    HttpURLConnection c = (HttpURLConnection)u.openConnection();
+                    c.setConnectTimeout(20000); c.setReadTimeout(120000); c.setInstanceFollowRedirects(true); c.connect();
+                    if (c.getResponseCode() < 200 || c.getResponseCode() >= 400) throw new Exception("HTTP " + c.getResponseCode());
+                    File dir = activity.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+                    if (dir == null) throw new Exception("Penyimpanan tidak tersedia");
+                    if (!dir.exists() && !dir.mkdirs()) throw new Exception("Folder download gagal dibuat");
+                    File out = new File(dir, "TokoKasirLussal-update.apk");
+                    try (InputStream in = c.getInputStream(); FileOutputStream fos = new FileOutputStream(out)) {
+                      byte[] buf = new byte[8192]; int n; while ((n=in.read(buf))!=-1) fos.write(buf,0,n);
+                    } finally { c.disconnect(); }
+                    activity.runOnUiThread(() -> activity.installApk(out));
+                  } catch(Exception e) { activity.toast("Gagal mengunduh update: " + e.getMessage()); }
+                }).start();
+              }
+            }
+            void toast(String message) { runOnUiThread(() -> Toast.makeText(this,message,Toast.LENGTH_LONG).show()); }
+            void installApk(File apk) {
+              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !getPackageManager().canRequestPackageInstalls()) {
+                try {
+                  Intent s=new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES);
+                  s.setData(Uri.parse("package:"+getPackageName())); startActivity(s);
+                } catch(Exception ignored) {}
+                Toast.makeText(this,"Izinkan pemasangan aplikasi dari sumber ini, lalu tekan Update lagi.",Toast.LENGTH_LONG).show();
+                return;
+              }
+              Uri uri=FileProvider.getUriForFile(this,getPackageName()+".fileprovider",apk);
+              Intent i=new Intent(Intent.ACTION_VIEW);
+              i.setDataAndType(uri,"application/vnd.android.package-archive");
+              i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_GRANT_READ_URI_PERMISSION);
+              startActivity(i);
+            }
+          }
+          EOF
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("android/app/src/main/AndroidManifest.xml")
+          s=p.read_text(encoding="utf-8")
+          provider='''    <provider
+                android:name="androidx.core.content.FileProvider"
+                android:authorities="com.lussaldesign.tokokasirlussal.fileprovider"
+                android:exported="false"
+                android:grantUriPermissions="true">
+                <meta-data
+                    android:name="android.support.FILE_PROVIDER_PATHS"
+                    android:resource="@xml/apk_file_paths" />
+            </provider>
+          '''
+          if 'androidx.core.content.FileProvider' not in s: s=s.replace('</application>',provider+'</application>')
+          p.write_text(s,encoding="utf-8")
+          PY
+          mkdir -p android/app/src/main/res/xml
+          cat > android/app/src/main/res/xml/apk_file_paths.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <paths xmlns:android="http://schemas.android.com/apk/res/android">
+              <external-files-path name="apk_downloads" path="Download/" />
+          </paths>
+          EOF
+      - name: Sync
         run: ./node_modules/.bin/cap sync android
-
-      - name: Build Debug APK
+      - name: Read APK version
+        id: apk_version
+        shell: bash
+        run: echo "version=$(tr -d '[:space:]' < apk-version.txt)" >> "$GITHUB_OUTPUT"
+      - name: Build
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon --no-parallel --stacktrace -Dorg.gradle.jvmargs="-Xmx4g"
-
-      - name: Check APK
-        run: |
-          APK="$(find android/app/build/outputs/apk/debug -type f -name '*.apk' | head -n 1)"
-          test -n "$APK"
-          echo "APK=$APK"
-          ls -lh "$APK"
-          sha256sum "$APK"
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v7
+      - name: Publish APK release asset
+        uses: softprops/action-gh-release@v3
         with:
-          name: TokoKasirLussal-Android-APK
+          tag_name: v${{ steps.apk_version.outputs.version }}
+          name: TokoKasirLussal v${{ steps.apk_version.outputs.version }}
+          files: android/app/build/outputs/apk/debug/*.apk
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: TokoKasirLussal-Fresh-Android-APK
           path: android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 90
-
-      - name: Publish APK for in-app updates
-        run: |
-          set -e
-          VERSION="$(node -p "require('./package.json').version")"
-          APK="$(find android/app/build/outputs/apk/debug -type f -name '*.apk' | head -n 1)"
-
-          # Sync the branch BEFORE generating the files that must be published.
-          # The previous order generated update.json first and then reset --hard,
-          # which silently discarded the new manifest and made the updater stay old.
-          git fetch origin main
-          git reset --hard origin/main
-
-          cp "$APK" "TokoKasirLussal-latest.apk"
-          SHA256="$(sha256sum "TokoKasirLussal-latest.apk" | awk '{print $1}')"
-          cat > update.json <<EOF
-          {
-            "version": "$VERSION",
-            "apk": "https://raw.githubusercontent.com/$GITHUB_REPOSITORY/main/TokoKasirLussal-latest.apk",
-            "sha256": "$SHA256"
-          }
-          EOF
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add TokoKasirLussal-latest.apk update.json
-          if git diff --cached --quiet; then
-            echo "Tidak ada perubahan file update."
-            exit 0
-          fi
-          git commit -m "chore: publish Android APK v$VERSION"
-          git push origin HEAD:main
+# Build trigger verification for APK 1.0.31
