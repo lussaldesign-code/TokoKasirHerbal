@@ -65,6 +65,14 @@ jobs:
           cp app.js config.js manifest.webmanifest icon-192.svg icon-512.svg sw.js mobile/www/
           # APK-only navigation overlay. Web/PWA and Windows source files remain untouched.
           cp apk-navigation.css apk-navigation.js mobile/www/
+          python3 - <<PY
+          from pathlib import Path
+          import re
+          p=Path('mobile/www/app.js')
+          s=p.read_text(encoding='utf-8')
+          s=re.sub(r"const APP_VERSION='[^']*';", "const APP_VERSION='$VERSION';", s, count=1)
+          p.write_text(s, encoding='utf-8')
+          PY
           sed -i "s#config.js#config.js?v=$VERSION#g" mobile/www/index.html
           sed -i "s#app.js#app.js?v=$VERSION#g" mobile/www/index.html
           sed -i "s#tokokasirlussal-v[0-9.]*#tokokasirlussal-v$VERSION#g" mobile/www/sw.js
