@@ -185,3 +185,13 @@ jobs:
           git fetch origin main
           git rebase origin/main
           git push origin HEAD:main
+
+          # Publish the APK as a GitHub Release. The Android in-app updater
+          # reads the latest Release and downloads its APK asset.
+          RELEASE_APK="TokoKasirLussal-v$VERSION.apk"
+          cp "$APK" "$RELEASE_APK"
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            gh release upload "v$VERSION" "$RELEASE_APK" --clobber
+          else
+            gh release create "v$VERSION" "$RELEASE_APK#TokoKasirLussal APK v$VERSION"               --title "TokoKasirLussal Android v$VERSION"               --notes "Android APK v$VERSION"               --target main
+          fi
