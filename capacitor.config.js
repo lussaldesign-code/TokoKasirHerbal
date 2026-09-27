@@ -8,7 +8,8 @@ module.exports = {
   // loading an older cached web application instead of the current source.
   plugins: {
     CapacitorHttp: { enabled: true }
-  },\n  android: {
+  },
+  android: {
     allowMixedContent: false
   }
 };
