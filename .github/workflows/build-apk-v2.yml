@@ -161,7 +161,7 @@ public class UpdateBridge {
         this.context=context.getApplicationContext();
         this.manager=(DownloadManager)context.getSystemService(Context.DOWNLOAD_SERVICE);
     }
-    @JavascriptInterface public String downloadApk(String url) {
+    @JavascriptInterface public String downloadApk(String url, String version) {
         try {
             DownloadManager.Request request=new DownloadManager.Request(Uri.parse(url));
             request.setTitle("TokoKasirLussal update");
@@ -170,7 +170,7 @@ public class UpdateBridge {
             request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
             request.setAllowedOverMetered(true);
             request.setAllowedOverRoaming(false);
-            request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS,"TokoKasirLussal-update.apk");
+            request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS,"TokoKasirLussal-update-v"+(version==null||version.isEmpty()?"latest":version)+".apk");
             return String.valueOf(manager.enqueue(request));
         } catch(Exception e) { return "0"; }
     }
