@@ -47,3 +47,51 @@ function boot(){addCameraShortcut();const m=document.getElementById('productModa
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 window.addEventListener('load',boot);
 })();
+
+
+/* APK-ONLY UPDATE SYSTEM
+   The APK has its own updater so web/PWA and Windows updater logic are untouched. */
+(function(){
+'use strict';
+const APK_BUILD_VERSION='__APK_VERSION__';
+const APK_UPDATE_MANIFEST='apk-update.json';
+const nativeUpdater=()=>window.AndroidUpdater&&typeof window.AndroidUpdater.downloadAndInstall==='function';
+function parts(v){return String(v||'0').replace(/^v/i,'').split('.').map(x=>parseInt(x,10)||0)}
+function newer(a,b){const x=parts(a),y=parts(b);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)>(y[i]||0)}return false}
+function toast(msg){if(typeof window.toast==='function')window.toast(msg);else if(typeof window.showToast==='function')window.showToast(msg);else alert(msg)}
+function showUpdateDialog(info){
+ let m=document.getElementById('apkUpdateDialog');
+ if(m)m.remove();
+ m=document.createElement('div');m.id='apkUpdateDialog';
+ m.innerHTML='<div class="apk-update-card"><div class="apk-update-icon">⬆️</div><h3>Update APK tersedia</h3><p>Versi saat ini <b>v'+APK_BUILD_VERSION+'</b><br>Versi baru <b>v'+info.version+'</b></p><p class="apk-update-note">Tekan Update untuk mengunduh dan memasang perubahan APK. Data akun dan transaksi tidak dihapus.</p><div class="apk-update-actions"><button type="button" id="apkUpdateLater">Nanti</button><button type="button" id="apkUpdateNow">Update</button></div></div>';
+ document.body.appendChild(m);
+ document.getElementById('apkUpdateLater').onclick=()=>m.remove();
+ document.getElementById('apkUpdateNow').onclick=()=>{
+   const b=document.getElementById('apkUpdateNow');b.disabled=true;b.textContent='Mengunduh...';
+   if(nativeUpdater()){window.AndroidUpdater.downloadAndInstall(String(info.apk));}
+   else if(info.apk){window.open(String(info.apk),'_blank');toast('APK dibuka untuk diunduh. Setelah selesai, Android akan meminta konfirmasi pemasangan.')}
+   else {toast('Link APK update tidak tersedia.');m.remove()}
+ };
+}
+async function checkApkUpdate(){
+ const btn=document.getElementById('checkUpdateBtn');
+ if(btn){btn.disabled=true;btn.textContent='⏳ Mengecek...'}
+ try{
+   const res=await fetch(APK_UPDATE_MANIFEST+'?t='+Date.now(),{cache:'no-store',headers:{'Cache-Control':'no-cache','Pragma':'no-cache'}});
+   if(!res.ok)throw new Error('HTTP '+res.status);
+   const info=await res.json();
+   if(!info?.version||!info?.apk)throw new Error('Manifest APK tidak valid');
+   if(newer(info.version,APK_BUILD_VERSION))showUpdateDialog(info);
+   else toast('APK sudah versi terbaru (v'+APK_BUILD_VERSION+').');
+ }catch(e){console.error('[apk-updater]',e);toast('Gagal mengecek update APK. Periksa koneksi internet.')}
+ finally{if(btn){btn.disabled=false;btn.textContent='🔄 Update'}}
+}
+function bind(){
+ if(!window.Capacitor)return;
+ document.documentElement.classList.add('apk-v2');
+ const btn=document.getElementById('checkUpdateBtn');
+ if(btn&&!btn.dataset.apkUpdaterBound){btn.dataset.apkUpdaterBound='1';btn.onclick=checkApkUpdate}
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();
+window.addEventListener('load',bind);
+})();
