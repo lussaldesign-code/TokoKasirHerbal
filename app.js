@@ -550,13 +550,19 @@ async function checkForUpdate(){
     let info=null;
     try{info=await fetchUpdateManifest(primary,fallback);}
     catch(manifestError){
-      console.warn('[updater] manifest fetch failed, trying GitHub Releases API',manifestError);
+      // APK updater uses update.json as its single source of truth.
+      // Do not fall back to GitHub Releases for APK because Releases Latest
+      // can belong to an older Windows release.
+      if(!IS_ELECTRON){
+        throw Error('Manifest APK update tidak dapat diakses. Server update: '+(manifestError?.message||'tidak diketahui')+'.');
+      }
+      console.warn('[updater] Windows manifest fetch failed, trying GitHub Releases API',manifestError);
       const api='https://api.github.com/repos/lussaldesign-code/TokoKasirHerbal/releases/latest?t='+Date.now();
       const rr=await fetch(api,{cache:'no-store',headers:{Accept:'application/vnd.github+json'}});
       if(!rr.ok)throw Error('Server update tidak dapat dihubungi (HTTP '+rr.status+').');
       const rel=await rr.json();const latestRel=String(rel.tag_name||'').replace(/^v/i,'');const assets=Array.isArray(rel.assets)?rel.assets:[];
-      const asset=assets.find(x=>IS_ELECTRON?/Setup-[0-9].*\.exe$/i.test(x.name):/\.apk$/i.test(x.name));
-      info={version:latestRel,installer:asset?.browser_download_url||'',apk:asset?.browser_download_url||''};
+      const asset=assets.find(x=>/Setup-[0-9].*\.exe$/i.test(x.name));
+      info={version:latestRel,installer:asset?.browser_download_url||''};
     }
     const latest=String(info?.version||'').trim();const url=String(IS_ELECTRON?(info?.installer||''):(info?.apk||''));
     if(!latest)throw Error('Versi update tidak valid atau server update belum tersedia.');
