@@ -563,10 +563,15 @@ async function checkForUpdate(){
     // native HttpURLConnection tidak bergantung pada CORS WebView.
     let info;
     if(IS_APK&&window.AndroidUpdater?.getUpdateManifest){
-      const raw=window.AndroidUpdater.getUpdateManifest(UPDATE_MANIFEST_FALLBACK);
-      const parsed=JSON.parse(raw||'{}');
-      if(parsed?.error)throw Error(parsed.error);
-      info=parsed;
+      try{
+        const raw=window.AndroidUpdater.getUpdateManifest(UPDATE_MANIFEST_FALLBACK);
+        const parsed=JSON.parse(raw||'{}');
+        if(parsed?.error)throw Error(parsed.error);
+        info=parsed;
+      }catch(nativeBridgeError){
+        console.warn('[apk-update] native bridge failed, falling back to Capacitor native fetch',nativeBridgeError);
+        info=await fetchUpdateManifest(UPDATE_MANIFEST_FALLBACK,'');
+      }
     }else{
       info=await fetchUpdateManifest(UPDATE_MANIFEST_FALLBACK,'');
     }
