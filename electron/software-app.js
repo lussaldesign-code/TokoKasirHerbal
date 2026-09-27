@@ -1,4 +1,4 @@
-const APP_VERSION='1.0.28';
+const APP_VERSION='1.0.29';
 const UPDATE_MANIFEST_URL=new URL('update.json',location.href).href;
 const WINDOWS_UPDATE_MANIFEST_URL=new URL('windows-update.json',location.href).href;
 const UPDATE_MANIFEST_FALLBACK='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/update.json';
@@ -61,7 +61,8 @@ async function login(){
   currentUser=sessionResult.data?.session?.user||result.session.user;
   profile=result.profile;
   localStorage.setItem('tokokasirlussal-username',profile.username);
-  showApp();
+  $('login')?.classList.add('hidden');
+  $('app')?.classList.remove('hidden');
   try{await loadAll();toast('Login berhasil. Selamat datang, '+(profile.nama||profile.username)+'.');}
   catch(loadErr){console.error('loadAll after login',loadErr);toast('Login berhasil, tetapi data belum dapat dimuat: '+(loadErr?.message||'periksa data Supabase'));}
  }catch(e){
