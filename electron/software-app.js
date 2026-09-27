@@ -53,8 +53,8 @@ async function login(){
   const result=await window.softwareAuth.login({mode:loginMode,username,pin});
   if(!result?.ok||!result.session?.access_token||!result.profile)throw Error('Login gagal: sesi software tidak lengkap.');
   if(!sb){
-    requireConfig();
-    sb=supabase.createClient(CONFIG.url,CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'tokokasirlussal-auth'}});
+   requireConfig();
+   sb=supabase.createClient(CONFIG.url,CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'tokokasirlussal-auth'}});
   }
   const sessionResult=await sb.auth.setSession({access_token:result.session.access_token,refresh_token:result.session.refresh_token||''});
   if(sessionResult.error)throw sessionResult.error;
@@ -63,11 +63,11 @@ async function login(){
   localStorage.setItem('tokokasirlussal-username',profile.username);
   showApp();
   try{
-    await loadAll();
-    toast('Login berhasil. Selamat datang, '+(profile.nama||profile.username)+'.');
+   await loadAll();
+   toast('Login berhasil. Selamat datang, '+(profile.nama||profile.username)+'.');
   }catch(loadErr){
-    console.error('loadAll after login',loadErr);
-    toast('Login berhasil, tetapi data belum dapat dimuat: '+(loadErr?.message||'periksa data Supabase'));
+   console.error('loadAll after login',loadErr);
+   toast('Login berhasil, tetapi data belum dapat dimuat: '+(loadErr?.message||'periksa data Supabase'));
   }
  }catch(e){
   console.error('software login',e);
