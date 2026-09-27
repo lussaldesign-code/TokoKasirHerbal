@@ -1,121 +1,244 @@
-/* APK-ONLY RELEASE UPDATE FLOW
- * APK update source = GitHub Releases.
- * Web/Windows updater is untouched.
+/* TokoKasirLussal — APK updater
+ * APK-only: the Android app checks the newest GitHub Release that contains an APK.
+ * Web and Windows update systems are not used here.
  */
-(function(){
+(function () {
   'use strict';
-  var native=window.AndroidUpdater;
-  var pollTimer=null,downloadedId=0;
-  var RELEASE_API='https://api.github.com/repos/lussaldesign-code/TokoKasirHerbal/releases/latest';
-  var CURRENT_APK_VERSION='__APK_VERSION__';
 
-  function nativeJson(url){
-    if(!native||typeof native.getUpdateManifest!=='function')return null;
-    try{
-      var raw=native.getUpdateManifest(url);
-      var parsed=JSON.parse(raw||'{}');
-      if(parsed&&parsed.error)throw Error(parsed.error);
-      return parsed;
-    }catch(e){console.warn('[apk-release-update] native request failed',e);return null}
-  }
-  async function getRelease(){
-    var data=nativeJson(RELEASE_API);
-    if(data&&data.tag_name)return data;
-    var res=await fetch(RELEASE_API+'?t='+Date.now(),{cache:'no-store',headers:{'Accept':'application/vnd.github+json','Cache-Control':'no-cache'}});
-    if(!res.ok)throw Error('GitHub Release HTTP '+res.status);
-    return await res.json();
-  }
-  function releaseVersion(release){
-    return String(release?.tag_name||release?.name||'').replace(/^v/i,'').trim();
-  }
-  function newer(a,b){
-    var A=String(a||'0').split('.').map(x=>parseInt(x,10)||0),B=String(b||'0').split('.').map(x=>parseInt(x,10)||0);
-    for(var i=0;i<3;i++){if((A[i]||0)>(B[i]||0))return true;if((A[i]||0)<(B[i]||0))return false}
+  const RELEASES_API = 'https://api.github.com/repos/lussaldesign-code/TokoKasirHerbal/releases?per_page=20';
+  const CURRENT_VERSION = '__APK_VERSION__';
+  const native = window.AndroidUpdater;
+  let downloadId = 0;
+  let statusTimer = null;
+
+  function versionIsNewer(latest, current) {
+    const a = String(latest || '0').replace(/^v/i, '').split('.').map(Number);
+    const b = String(current || '0').replace(/^v/i, '').split('.').map(Number);
+    for (let i = 0; i < 3; i++) {
+      const av = Number.isFinite(a[i]) ? a[i] : 0;
+      const bv = Number.isFinite(b[i]) ? b[i] : 0;
+      if (av !== bv) return av > bv;
+    }
     return false;
   }
-  function findApk(release){
-    var assets=Array.isArray(release?.assets)?release.assets:[];
-    var apk=assets.find(function(a){return /\.apk$/i.test(String(a?.name||''))});
-    return apk?.browser_download_url||'';
-  }
-  function installNow(){
-    if(!downloadedId)return toast('File update belum siap.');
-    try{
-      var r=native&&native.installApk?native.installApk(String(downloadedId)):'';
-      if(r==='permission')toast('Izinkan TokoKasirLussal memasang aplikasi dari sumber ini, lalu tekan Install Update lagi.');
-      else if(r!=='ok')toast('Tidak dapat membuka installer: '+(r||'error'));
-    }catch(e){toast('Gagal membuka installer: '+(e.message||e))}
+
+  function getReleaseVersion(release) {
+    return String(release?.tag_name || '').replace(/^v/i, '').trim();
   }
 
-  window.startUpdateDownload=function(){
-    var info=window.__latestUpdateInfo;
-    if(!info||!info.url)return toast('Link update Release tidak tersedia.');
-    var accept=document.getElementById('updateAcceptBtn');
-    if(accept){accept.disabled=true;accept.textContent='Mengunduh...'}
-    setUpdateModal('downloading',info);
-    updateProgress(0,'Menyiapkan download...','Menghubungkan ke GitHub Release...');
-    if(!native||typeof native.downloadApk!=='function'){
-      closeUpdateModal();toast('Komponen download APK belum tersedia. Silakan gunakan APK terbaru.');return;
-    }
-    try{
-      downloadedId=Number(native.downloadApk(info.url,info.version||'latest'));
-      if(!downloadedId)throw Error('Android DownloadManager tidak mengembalikan ID download.');
-    }catch(e){closeUpdateModal();toast('Gagal memulai download: '+(e.message||e));return}
-    clearInterval(pollTimer);
-    pollTimer=setInterval(function(){
-      var s={};
-      try{s=JSON.parse(native.getStatus(String(downloadedId))||'{}')}catch(e){s={status:'error',message:e.message||String(e)}}
-      if(s.total>0)updateProgress((s.received/s.total)*100,'Mengunduh update...',((s.received/1048576).toFixed(1)+' / '+(s.total/1048576).toFixed(1)+' MB'));
-      else updateProgress(5,'Mengunduh update...','Menunggu data dari GitHub...');
-      if(s.status==='success'){
-        clearInterval(pollTimer);pollTimer=null;
-        updateProgress(100,'Download selesai','File APK dari Release sudah tersimpan di perangkat.');
-        setUpdateModal('done',info);
-        var b=document.getElementById('updateAcceptBtn');
-        if(b){b.disabled=false;b.textContent='Install Update';b.onclick=installNow}
-        var m=document.getElementById('updateMessage');
-        if(m)m.textContent='Download selesai. Tekan Install Update untuk memasang versi terbaru.';
-      }else if(s.status==='failed'||s.status==='error'){
-        clearInterval(pollTimer);pollTimer=null;closeUpdateModal();
-        toast('Gagal mengunduh update: '+(s.message||'periksa koneksi internet.'));
-      }
-    },500);
-  };
+  function getApkAsset(release) {
+    const assets = Array.isArray(release?.assets) ? release.assets : [];
+    return assets.find(asset => /.apk$/i.test(String(asset?.name || '')));
+  }
 
-  async function checkReleaseUpdate(e){
-    if(e){e.preventDefault();e.stopImmediatePropagation()}
-    var btn=document.getElementById('checkUpdateBtn');
-    if(btn){btn.disabled=true;btn.textContent='⏳ Mengecek...'}
-    try{
-      var release=await getRelease();
-      var latest=releaseVersion(release);
-      var url=findApk(release);
-      if(!latest)throw Error('Versi GitHub Release tidak valid.');
-      if(!url)throw Error('Release terbaru tidak memiliki file APK.');
-      if(newer(latest,CURRENT_APK_VERSION)){
-        var info={version:latest,url:url,releaseUrl:release.html_url||'',name:release.name||('v'+latest)};
-        window.__latestUpdateInfo=info;
-        setUpdateModal('available',info);
-      }else{
-        toast('APK sudah versi terbaru (v'+CURRENT_APK_VERSION+'). Release: v'+latest+'.');
-      }
-    }catch(err){
-      console.error('[apk-release-update]',err);
-      toast('Gagal mengecek Release APK: '+(err.message||'periksa koneksi internet.'));
-    }finally{
-      if(btn){btn.disabled=false;btn.textContent='🔄 Update'}
+  function nativeRequest(url) {
+    if (!native || typeof native.getUpdateManifest !== 'function') return null;
+    try {
+      const raw = native.getUpdateManifest(url);
+      const data = JSON.parse(raw || 'null');
+      return data && !data.error ? data : null;
+    } catch (error) {
+      console.warn('[apk-updater] native request failed', error);
+      return null;
     }
   }
 
-  function bind(){
-    if(!window.Capacitor)return;
-    var btn=document.getElementById('checkUpdateBtn');
-    if(!btn||btn.dataset.releaseUpdaterBound==='1')return;
-    btn.dataset.releaseUpdaterBound='1';
-    btn.addEventListener('click',checkReleaseUpdate,true);
-    btn.setAttribute('onclick','return false;');
+  async function getLatestAndroidRelease() {
+    const nativeData = nativeRequest(RELEASES_API);
+    if (Array.isArray(nativeData)) {
+      const found = nativeData.find(release => getApkAsset(release));
+      if (found) return found;
+    }
+
+    const response = await fetch(RELEASES_API + '&t=' + Date.now(), {
+      cache: 'no-store',
+      headers: {
+        Accept: 'application/vnd.github+json',
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('GitHub Release HTTP ' + response.status);
+    }
+
+    const releases = await response.json();
+    if (!Array.isArray(releases)) {
+      throw new Error('Data GitHub Release tidak valid.');
+    }
+
+    const release = releases.find(item => getApkAsset(item));
+    if (!release) {
+      throw new Error('Belum ada GitHub Release yang memiliki file APK.');
+    }
+    return release;
   }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();
-  window.addEventListener('load',bind);
-  window.addEventListener('beforeunload',function(){if(pollTimer)clearInterval(pollTimer)});
+
+  function showUpdate(info) {
+    window.__latestUpdateInfo = info;
+    setUpdateModal('available', info);
+  }
+
+  async function checkReleaseUpdate(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }
+
+    const button = document.getElementById('checkUpdateBtn');
+    if (button) {
+      button.disabled = true;
+      button.textContent = '⏳ Mengecek...';
+    }
+
+    try {
+      const release = await getLatestAndroidRelease();
+      const latest = getReleaseVersion(release);
+      const asset = getApkAsset(release);
+
+      if (!latest) throw new Error('Versi Release APK tidak valid.');
+      if (!asset?.browser_download_url) throw new Error('File APK Release tidak tersedia.');
+
+      if (versionIsNewer(latest, CURRENT_VERSION)) {
+        showUpdate({
+          version: latest,
+          url: asset.browser_download_url,
+          releaseUrl: release.html_url || '',
+          name: release.name || ('v' + latest)
+        });
+      } else {
+        toast('APK sudah versi terbaru (v' + CURRENT_VERSION + '). Release APK: v' + latest + '.');
+      }
+    } catch (error) {
+      console.error('[apk-updater]', error);
+      toast('Gagal mengecek update APK: ' + (error?.message || 'periksa koneksi internet.'));
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.textContent = '🔄 Update';
+      }
+    }
+  }
+
+  function installDownloadedApk() {
+    if (!downloadId) {
+      toast('File update belum siap.');
+      return;
+    }
+
+    try {
+      const result = native?.installApk
+        ? native.installApk(String(downloadId))
+        : 'error: komponen installer tidak tersedia';
+
+      if (result === 'permission') {
+        toast('Izinkan pemasangan aplikasi dari sumber ini, lalu tekan Install Update lagi.');
+      } else if (result !== 'ok') {
+        toast('Tidak dapat membuka installer: ' + result);
+      }
+    } catch (error) {
+      toast('Gagal membuka installer: ' + (error?.message || error));
+    }
+  }
+
+  function monitorDownload(info) {
+    clearInterval(statusTimer);
+
+    statusTimer = setInterval(() => {
+      let status;
+      try {
+        status = JSON.parse(native.getStatus(String(downloadId)) || '{}');
+      } catch (error) {
+        status = { status: 'error', message: error?.message || String(error) };
+      }
+
+      if (status.total > 0) {
+        const percent = (status.received / status.total) * 100;
+        const received = (status.received / 1048576).toFixed(1);
+        const total = (status.total / 1048576).toFixed(1);
+        updateProgress(percent, 'Mengunduh update...', received + ' / ' + total + ' MB');
+      } else {
+        updateProgress(5, 'Mengunduh update...', 'Menunggu data dari GitHub Release...');
+      }
+
+      if (status.status === 'success') {
+        clearInterval(statusTimer);
+        statusTimer = null;
+        updateProgress(100, 'Download selesai', 'File APK sudah tersimpan di perangkat.');
+        setUpdateModal('done', info);
+
+        const button = document.getElementById('updateAcceptBtn');
+        if (button) {
+          button.disabled = false;
+          button.textContent = 'Install Update';
+          button.onclick = installDownloadedApk;
+        }
+
+        const message = document.getElementById('updateMessage');
+        if (message) {
+          message.textContent = 'Download selesai. Tekan Install Update untuk memasang versi terbaru.';
+        }
+      }
+
+      if (status.status === 'failed' || status.status === 'error') {
+        clearInterval(statusTimer);
+        statusTimer = null;
+        closeUpdateModal();
+        toast('Gagal mengunduh update: ' + (status.message || 'periksa koneksi internet.'));
+      }
+    }, 500);
+  }
+
+  function startReleaseDownload() {
+    const info = window.__latestUpdateInfo;
+    if (!info?.url) {
+      toast('Link APK Release tidak tersedia.');
+      return;
+    }
+
+    if (!native || typeof native.downloadApk !== 'function' || typeof native.getStatus !== 'function') {
+      toast('Komponen updater Android belum tersedia pada APK ini.');
+      return;
+    }
+
+    const button = document.getElementById('updateAcceptBtn');
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Mengunduh...';
+    }
+
+    setUpdateModal('downloading', info);
+    updateProgress(0, 'Menyiapkan download...', 'Menghubungkan ke GitHub Release...');
+
+    try {
+      downloadId = Number(native.downloadApk(info.url, info.version));
+      if (!downloadId) throw new Error('DownloadManager tidak dapat memulai download.');
+      monitorDownload(info);
+    } catch (error) {
+      closeUpdateModal();
+      toast('Gagal memulai download: ' + (error?.message || error));
+    }
+  }
+
+  function bind() {
+    if (!window.Capacitor) return;
+
+    const button = document.getElementById('checkUpdateBtn');
+    if (!button || button.dataset.apkUpdaterBound === '1') return;
+
+    button.dataset.apkUpdaterBound = '1';
+    button.addEventListener('click', checkReleaseUpdate, true);
+  }
+
+  window.startUpdateDownload = startReleaseDownload;
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bind, { once: true });
+  } else {
+    bind();
+  }
+
+  window.addEventListener('load', bind);
+  window.addEventListener('beforeunload', () => clearInterval(statusTimer));
 })();
