@@ -102,7 +102,7 @@ jobs:
         shell: bash
         run: |
           VERSION="$(tr -d '[:space:]' < apk-version.txt)"
-          VERSION_CODE="$(node -e "const v=require('./package.json').version.split('.').map(Number); console.log(v[0]*10000+v[1]*100+v[2])")"
+          VERSION_CODE="$(node -e "const v=process.env.VERSION.split('.').map(Number); console.log(v[0]*10000+v[1]*100+v[2])")"
           export VERSION VERSION_CODE
           python3 - <<'PY'
           import os,re
@@ -143,7 +143,7 @@ jobs:
       - name: Publish APK for in-app updates
         run: |
           set -e
-          VERSION="$(node -p "require('./package.json').version")"
+          VERSION="$(tr -d '[:space:]' < apk-version.txt)"
           APK="$(find android/app/build/outputs/apk/debug -type f -name '*.apk' | head -n 1)"
 
           # Sync the branch BEFORE generating the files that must be published.
