@@ -10,6 +10,7 @@
   const native = window.AndroidUpdater;
   let downloadId = 0;
   let statusTimer = null;
+  let pendingInstallAfterPermission = false;
 
   function versionIsNewer(latest, current) {
     const a = String(latest || '0').replace(/^v/i, '').split('.').map(Number);
@@ -133,7 +134,8 @@
         : 'error: komponen installer tidak tersedia';
 
       if (result === 'permission') {
-        toast('Izinkan pemasangan aplikasi dari sumber ini, lalu tekan Install Update lagi.');
+        pendingInstallAfterPermission = true;
+        toast('Izinkan pemasangan aplikasi dari sumber ini. Setelah kembali ke aplikasi, instalasi akan dilanjutkan otomatis.');
       } else if (result !== 'ok') {
         toast('Tidak dapat membuka installer: ' + result);
       }
@@ -232,6 +234,28 @@
   }
 
   window.startUpdateDownload = startReleaseDownload;
+
+  function retryPendingInstall() {
+    if (!pendingInstallAfterPermission || !downloadId) return;
+    pendingInstallAfterPermission = false;
+    setTimeout(() => {
+      try {
+        const result = native?.installApk
+          ? native.installApk(String(downloadId))
+          : 'error: komponen installer tidak tersedia';
+        if (result !== 'ok' && result !== 'permission') {
+          toast('Tidak dapat membuka installer: ' + result);
+        }
+      } catch (error) {
+        toast('Gagal melanjutkan installer: ' + (error?.message || error));
+      }
+    }, 350);
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') retryPendingInstall();
+  });
+  window.addEventListener('focus', retryPendingInstall);
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', bind, { once: true });
