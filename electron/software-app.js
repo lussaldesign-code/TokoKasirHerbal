@@ -4,6 +4,8 @@ const WINDOWS_UPDATE_MANIFEST_URL=new URL('windows-update.json',location.href).h
 const UPDATE_MANIFEST_FALLBACK='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/update.json';
 const WINDOWS_UPDATE_MANIFEST_FALLBACK='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/windows-update.json';
 const IS_ELECTRON=!!(navigator.userAgent&&/Electron/i.test(navigator.userAgent));
+const IS_APK=false;
+const IS_WEB=false;
 const WEB_VERSION_URL=new URL('web-version.json',location.href).href;
 const CONFIG=window.APP_CONFIG||{url:'',key:''};
 let sb=null,currentUser=null,profile=null,products=[],agents=[],receivables=[],sales=[],saleItems=[],saleReturnItems=[],receivablePayments=[],users=[],purchases=[],purchaseItems=[],purchaseReturnItems=[],saleReturns=[],purchaseReturns=[],cart=[],purchaseCart=[],priceProduct=null,selectedProductImage='';
@@ -454,30 +456,24 @@ async function checkForUpdate(){
   const btn=$('checkUpdateBtn');
   if(btn){btn.disabled=true;btn.textContent='⏳ Mengecek...'}
   try{
-    const primary=IS_ELECTRON?WINDOWS_UPDATE_MANIFEST_URL:UPDATE_MANIFEST_URL;
-    const fallback=IS_ELECTRON?WINDOWS_UPDATE_MANIFEST_FALLBACK:UPDATE_MANIFEST_FALLBACK;
-    let info=null;
-    try{info=await fetchUpdateManifest(primary,fallback);}
-    catch(manifestError){
-      console.warn('[updater] manifest fetch failed, trying GitHub Releases API',manifestError);
-      const api='https://api.github.com/repos/lussaldesign-code/TokoKasirHerbal/releases/latest?t='+Date.now();
-      const rr=await fetch(api,{cache:'no-store',headers:{Accept:'application/vnd.github+json'}});
-      if(!rr.ok)throw Error('Server update tidak dapat dihubungi (HTTP '+rr.status+').');
-      const rel=await rr.json();const latestRel=String(rel.tag_name||'').replace(/^v/i,'');const assets=Array.isArray(rel.assets)?rel.assets:[];
-      const asset=assets.find(x=>IS_ELECTRON?/Setup-[0-9].*\.exe$/i.test(x.name):/\.apk$/i.test(x.name));
-      info={version:latestRel,installer:asset?.browser_download_url||'',apk:asset?.browser_download_url||''};
-    }
-    const latest=String(info?.version||'').trim();const url=String(IS_ELECTRON?(info?.installer||''):(info?.apk||''));
-    if(!latest)throw Error('Versi update tidak valid atau server update belum tersedia.');
+    const info=await fetchUpdateManifest(WINDOWS_UPDATE_MANIFEST_URL,WINDOWS_UPDATE_MANIFEST_FALLBACK);
+    const latest=String(info?.version||'').trim();
+    const url=String(info?.installer||'');
+    if(!latest)throw Error('Versi software update tidak valid.');
     if(isNewerVersion(latest,APP_VERSION)){
-      const finalInfo={...info,version:latest,url:url||'https://github.com/lussaldesign-code/TokoKasirLussal/releases/latest'};
+      const finalInfo={...info,version:latest,url};
+      if(!finalInfo.url)throw Error('Installer Windows tidak tersedia di windows-update.json.');
       window.__latestUpdateInfo=finalInfo;
       setUpdateModal('available',finalInfo);
       return;
     }
-    toast('Aplikasi sudah versi terbaru (v'+APP_VERSION+'). Server mendeteksi v'+latest+'.');
-  }catch(e){console.error('checkForUpdate',e);toast('Gagal mengecek update: '+(e.message||'periksa koneksi internet.'))}
-  finally{if(btn){btn.disabled=false;btn.textContent='🔄 Cek Update'}}
+    toast('Software Windows sudah versi terbaru (v'+APP_VERSION+'). Server mendeteksi v'+latest+'.');
+  }catch(e){
+    console.error('checkForUpdate',e);
+    toast('Gagal mengecek update software: '+(e.message||'periksa windows-update.json.'));
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='🔄 Cek Update'}
+  }
 }
 async function checkRemoteWebUpdate(){
   try{
