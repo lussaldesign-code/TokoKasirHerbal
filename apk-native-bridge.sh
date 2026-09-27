@@ -22,6 +22,36 @@ public class UpdateBridge {
         this.context=context.getApplicationContext();
         this.manager=(DownloadManager)context.getSystemService(Context.DOWNLOAD_SERVICE);
     }
+    @JavascriptInterface public String getUpdateManifest(String url) {
+        java.net.HttpURLConnection connection=null;
+        java.io.BufferedReader reader=null;
+        try {
+            String separator=url.contains("?")?"&":"?";
+            java.net.URL endpoint=new java.net.URL(url+separator+"t="+System.currentTimeMillis());
+            connection=(java.net.HttpURLConnection)endpoint.openConnection();
+            connection.setRequestMethod("GET");
+            connection.setConnectTimeout(15000);
+            connection.setReadTimeout(15000);
+            connection.setUseCaches(false);
+            connection.setRequestProperty("Cache-Control","no-cache");
+            connection.setRequestProperty("Pragma","no-cache");
+            connection.setRequestProperty("User-Agent","TokoKasirLussal-Android-Updater");
+            int code=connection.getResponseCode();
+            java.io.InputStream stream=code>=200&&code<300?connection.getInputStream():connection.getErrorStream();
+            if(stream==null)return "{\"error\":\"HTTP "+code+"\"}";
+            reader=new java.io.BufferedReader(new java.io.InputStreamReader(stream,"UTF-8"));
+            StringBuilder body=new StringBuilder();
+            String line;
+            while((line=reader.readLine())!=null)body.append(line);
+            if(code<200||code>=300)return "{\"error\":\"HTTP "+code+"\"}";
+            return body.toString();
+        } catch(Exception e) {
+            return "{\"error\":\""+escape(e.getMessage())+"\"}";
+        } finally {
+            try { if(reader!=null) reader.close(); } catch(Exception ignored) {}
+            if(connection!=null) connection.disconnect();
+        }
+    }
     @JavascriptInterface public String downloadApk(String url, String version) {
         try {
             DownloadManager.Request request=new DownloadManager.Request(Uri.parse(url));
