@@ -169,7 +169,7 @@ function createWindow() {
   // Keep Web/APK untouched. Electron gets a small renderer-side guard so the
   // login controls remain clickable even if a packaged overlay/style blocks them.
   mainWindow.webContents.on('did-finish-load', () => {
-    mainWindow.webContents.executeJavaScript(\`(() => {
+    mainWindow.webContents.executeJavaScript(`(() => {
       try {
         const styleId = 'tokokasirlussal-electron-login-fix';
         if (!document.getElementById(styleId)) {
@@ -212,7 +212,7 @@ function createWindow() {
       } catch (error) {
         console.error('[electron-login-fix]', error);
       }
-    })()\`, true).catch(error => console.error('[electron-login-fix] injection failed:', error));
+    })()`, true).catch(error => console.error('[electron-login-fix] injection failed:', error));
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
