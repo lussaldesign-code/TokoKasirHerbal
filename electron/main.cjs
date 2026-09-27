@@ -165,6 +165,56 @@ function createWindow() {
     mainWindow.loadURL(REMOTE_APP_URL).catch(remoteError => console.error('[web-shell] remote load failed:', remoteError));
   });
 
+  // SOFTWARE-ONLY LOGIN CLICK REPAIR:
+  // Keep Web/APK untouched. Electron gets a small renderer-side guard so the
+  // login controls remain clickable even if a packaged overlay/style blocks them.
+  mainWindow.webContents.on('did-finish-load', () => {
+    mainWindow.webContents.executeJavaScript(\`(() => {
+      try {
+        const styleId = 'tokokasirlussal-electron-login-fix';
+        if (!document.getElementById(styleId)) {
+          const style = document.createElement('style');
+          style.id = styleId;
+          style.textContent = '#login,#login .login-box,#login .login-switch,#login #loginSubmit,#login #loginKasirBtn,#login #loginAdminBtn,#login #username,#login #pin{pointer-events:auto!important;} #login{z-index:9999!important;}';
+          document.head.appendChild(style);
+        }
+        const bind = () => {
+          const submit = document.getElementById('loginSubmit');
+          if (submit && submit.dataset.electronLoginFix !== '1') {
+            submit.dataset.electronLoginFix = '1';
+            submit.addEventListener('click', (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              if (typeof window.login === 'function') window.login();
+            }, true);
+          }
+          const kasir = document.getElementById('loginKasirBtn');
+          if (kasir && kasir.dataset.electronLoginFix !== '1') {
+            kasir.dataset.electronLoginFix = '1';
+            kasir.addEventListener('click', (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              if (typeof window.setLoginMode === 'function') window.setLoginMode('kasir');
+            }, true);
+          }
+          const admin = document.getElementById('loginAdminBtn');
+          if (admin && admin.dataset.electronLoginFix !== '1') {
+            admin.dataset.electronLoginFix = '1';
+            admin.addEventListener('click', (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              if (typeof window.setLoginMode === 'function') window.setLoginMode('admin');
+            }, true);
+          }
+        };
+        bind();
+        new MutationObserver(bind).observe(document.documentElement, {childList:true, subtree:true});
+      } catch (error) {
+        console.error('[electron-login-fix]', error);
+      }
+    })()\`, true).catch(error => console.error('[electron-login-fix] injection failed:', error));
+  });
+
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:/i.test(url)) shell.openExternal(url);
     return { action: 'deny' };
