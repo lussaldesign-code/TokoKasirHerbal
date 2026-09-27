@@ -32,3 +32,12 @@ html.apk-v2 .apk-camera-main{width:100%!important;margin:8px 0 10px!important;pa
 html.apk-v2 .apk-camera-main span{font-size:14px!important}.apk-camera-main small{display:block!important;margin-left:auto!important;color:#6b7b70!important;font-weight:600!important}
 html.apk-v2 .apk-sheet-handle i{background:#16803b!important;box-shadow:none!important}.apk-sheet-handle span{color:#5d7568!important}
 }
+
+/* APK REPORT SCROLL FIX — APK ONLY */
+@media(max-width:800px){
+ html.apk-v2 body.app-screen .main .report-section{overflow-y:auto!important;overflow-x:hidden!important;-webkit-overflow-scrolling:touch!important;touch-action:pan-y!important;overscroll-behavior-y:contain!important}
+ html.apk-v2 body.app-screen .main .report-section .report-view.active{overflow:hidden!important;min-height:0!important}
+ html.apk-v2 body.app-screen .main .report-section .report-table{overflow-x:auto!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch!important;touch-action:pan-x pan-y!important;overscroll-behavior:contain!important;max-height:none!important}
+ html.apk-v2 body.app-screen .main .report-section .report-table table{min-width:920px}
+ html.apk-v2 body.app-screen .main .report-section .report-table tbody tr{min-height:42px}
+}
