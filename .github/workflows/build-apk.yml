@@ -1,5 +1,5 @@
 name: Build TokoKasirLussal APK
-# APK build pipeline with versioned Android builds and in-app update manifest
+# APK build pipeline with versioned Android builds and GitHub Release updater
 
 on:
   workflow_dispatch:
