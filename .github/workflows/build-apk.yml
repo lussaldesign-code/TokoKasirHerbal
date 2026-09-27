@@ -28,7 +28,6 @@ concurrency:
   # Windows has its own workflow/concurrency and can build independently.
   group: tokokasirlussal-apk-build
   cancel-in-progress: false
-  queue: max
 
 permissions:
   contents: write
