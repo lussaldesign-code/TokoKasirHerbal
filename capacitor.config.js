@@ -6,7 +6,7 @@ module.exports = {
   // Android must use the bundled web files produced by build-apk.yml.
   // Do not point Capacitor at GitHub Pages, otherwise APK builds can keep
   // loading an older cached web application instead of the current source.
-  android: {
+  plugins: {\n    CapacitorHttp: { enabled: true }\n  },\n  android: {
     allowMixedContent: false
   }
 };
