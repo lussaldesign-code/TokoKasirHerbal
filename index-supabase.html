@@ -550,7 +550,28 @@ body.login-screen .side,body.login-screen .notify-wrap,body.login-screen .stock-
   else initApkSwipeNav();
   window.addEventListener('load',initApkSwipeNav);
 })();
-</script></body></html>
+</script><div id="updateModal" class="modal" aria-hidden="true">
+  <div class="modalbox" style="max-width:460px;text-align:center">
+    <div id="updateIcon" style="font-size:42px;margin-bottom:8px">↻</div>
+    <h3 id="updateTitle">Update tersedia</h3>
+    <p id="updateMessage" class="note">Versi baru TokoKasirLussal tersedia.</p>
+    <div style="display:flex;justify-content:center;gap:12px;margin:14px 0">
+      <span class="note">Saat ini: <b id="updateCurrentVersion">-</b></span>
+      <span class="note">Terbaru: <b id="updateLatestVersion">-</b></span>
+    </div>
+    <div id="updateProgressWrap" class="hidden" style="margin:12px 0">
+      <div style="height:8px;border-radius:999px;background:#e5e7eb;overflow:hidden"><div id="updateProgressBar" style="height:100%;width:0%;transition:width .2s"></div></div>
+      <div id="updateProgressPercent" style="font-weight:700;margin-top:6px">0%</div>
+      <div id="updateProgressLabel" class="note">Menyiapkan download...</div>
+      <div id="updateProgressDetail" class="note">Mohon tunggu, jangan tutup aplikasi.</div>
+    </div>
+    <div id="updateActions" style="display:flex;gap:8px;justify-content:center;margin-top:16px">
+      <button id="updateLaterBtn" class="btn secondary" onclick="closeUpdateModal()">Nanti</button>
+      <button id="updateAcceptBtn" class="btn primary" onclick="startUpdateDownload()">Setuju &amp; Download</button>
+    </div>
+  </div>
+</div>
+</body></html>
 <style id="tokokasirlussal-mobile-nav-v4">
 /* Login must own the entire screen: mobile navigation is app-only. */
 body.login-screen #app,body.login-screen #app .side,body.login-screen .side{display:none!important;visibility:hidden!important;pointer-events:none!important}
