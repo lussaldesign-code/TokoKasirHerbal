@@ -1,12 +1,7 @@
 const APP_VERSION='1.0.30';
-const UPDATE_MANIFEST_URL=new URL('update.json',location.href).href;
 const WINDOWS_UPDATE_MANIFEST_URL=new URL('windows-update.json',location.href).href;
-const UPDATE_MANIFEST_FALLBACK='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/update.json';
 const WINDOWS_UPDATE_MANIFEST_FALLBACK='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/windows-update.json';
 const IS_ELECTRON=!!(navigator.userAgent&&/Electron/i.test(navigator.userAgent));
-const IS_APK=false;
-const IS_WEB=false;
-const WEB_VERSION_URL=new URL('web-version.json',location.href).href;
 const CONFIG=window.APP_CONFIG||{url:'',key:''};
 let sb=null,currentUser=null,profile=null,products=[],agents=[],receivables=[],sales=[],saleItems=[],saleReturnItems=[],receivablePayments=[],users=[],purchases=[],purchaseItems=[],purchaseReturnItems=[],saleReturns=[],purchaseReturns=[],cart=[],purchaseCart=[],priceProduct=null,selectedProductImage='';
 let catalogRacks=[];
@@ -476,23 +471,7 @@ async function checkForUpdate(){
   }
 }
 async function checkRemoteWebUpdate(){
-  try{
-    const res=await fetch(WEB_VERSION_URL+'?t='+Date.now(),{cache:'no-store',headers:{'Cache-Control':'no-cache','Pragma':'no-cache'}});
-    if(!res.ok)return;
-    const info=await res.json();
-    const remote=String(info?.commit||info?.version||'').trim();
-    if(!remote)return;
-    const key='tokokasirlussal-web-build';
-    const local=localStorage.getItem(key);
-    if(!local){localStorage.setItem(key,remote);return;}
-    if(local===remote)return;
-    localStorage.setItem(key,remote);
-    if('serviceWorker' in navigator){
-      try{const reg=await navigator.serviceWorker.getRegistration();if(reg)await reg.update();}catch(e){console.warn('service worker update',e)}
-    }
-    toast('🔄 Versi web terbaru tersedia. Aplikasi diperbarui otomatis...');
-    setTimeout(()=>location.reload(),900);
-  }catch(e){console.warn('remote web update check',e)}
+  // Windows software has its own updater; it never reads Web/APK version data.
 }
 function showAppVersion(){const el=$('appVersion');if(el)el.textContent='Versi '+APP_VERSION}
 function updateAccountView(){const w=$('accountWelcome'),em=$('accountEmail'),ei=$('accountEmailInput');if(w)w.textContent=(profile?.nama||'Akun')+' (@'+(profile?.username||'-')+')';if(em)em.textContent='Login: '+(profile?.username||'-');if(ei)ei.value='Username: '+(profile?.username||'-')}
