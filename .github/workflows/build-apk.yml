@@ -18,6 +18,7 @@ on:
       - 'apk-navigation.css'
       - 'apk-navigation.js'
       - 'apk-update.js'
+      - 'apk-native-bridge.sh'
       - 'apk-version.txt'
       - '.github/workflows/build-apk.yml'
       - '!TokoKasirLussal-latest.apk'
