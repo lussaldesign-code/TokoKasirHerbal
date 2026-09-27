@@ -1,5 +1,6 @@
 name: Build TokoKasirLussal Windows Installer
 # Rebuild trigger for current application version
+# Rebuild Windows installer with the current Web application sources.
 
 on:
   workflow_dispatch:
