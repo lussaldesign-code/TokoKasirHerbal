@@ -24,8 +24,9 @@ on:
       - '!update.json'
 
 concurrency:
-  # Android and Windows both write generated files to main; serialize publication only.
-  group: tokokasirlussal-platform-publication
+  # APK builds must not wait behind Windows builds. Only APK runs share this queue.
+  # Windows has its own workflow/concurrency and can build independently.
+  group: tokokasirlussal-apk-build
   cancel-in-progress: false
   queue: max
 
@@ -177,4 +178,10 @@ jobs:
             exit 0
           fi
           git commit -m "chore: publish Android APK v$VERSION"
+
+          # Windows may publish its own files while this APK build is running.
+          # Rebase the small publication commit so a concurrent Windows publication
+          # does not cause a non-fast-forward failure.
+          git fetch origin main
+          git rebase origin/main
           git push origin HEAD:main
