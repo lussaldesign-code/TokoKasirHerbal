@@ -131,17 +131,52 @@ jobs:
       - name: Add native APK updater bridge
         run: bash apk-native-bridge.sh
 
+      - name: Configure permanent release signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -e
+          test -n "$ANDROID_KEYSTORE_BASE64" || { echo "::error::Missing GitHub Actions secret ANDROID_KEYSTORE_BASE64"; exit 1; }
+          test -n "$ANDROID_KEYSTORE_PASSWORD" || { echo "::error::Missing GitHub Actions secret ANDROID_KEYSTORE_PASSWORD"; exit 1; }
+          test -n "$ANDROID_KEY_ALIAS" || { echo "::error::Missing GitHub Actions secret ANDROID_KEY_ALIAS"; exit 1; }
+          test -n "$ANDROID_KEY_PASSWORD" || { echo "::error::Missing GitHub Actions secret ANDROID_KEY_PASSWORD"; exit 1; }
+
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/tokokasirlussal-release.jks
+          test -s android/tokokasirlussal-release.jks
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('android/app/build.gradle')
+          s=p.read_text(encoding='utf-8')
+          marker='android {'
+          signing='''\n    signingConfigs {\n        release {\n            storeFile file("../tokokasirlussal-release.jks")\n            storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")\n            keyAlias System.getenv("ANDROID_KEY_ALIAS")\n            keyPassword System.getenv("ANDROID_KEY_PASSWORD")\n        }\n    }\n'''
+          if 'signingConfigs {' not in s:
+              s=s.replace(marker, marker+signing, 1)
+          if 'signingConfig signingConfigs.release' not in s:
+              s=s.replace('buildTypes {', 'buildTypes {\n        release {\n            signingConfig signingConfigs.release\n        }', 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+
       - name: Sync Android
         run: ./node_modules/.bin/cap sync android
 
-      - name: Build Debug APK
+      - name: Build signed Release APK
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon --no-parallel --stacktrace -Dorg.gradle.jvmargs="-Xmx4g"
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease --no-daemon --no-parallel --stacktrace -Dorg.gradle.jvmargs="-Xmx4g"
 
       - name: Check APK
         run: |
-          APK="$(find android/app/build/outputs/apk/debug -type f -name '*.apk' | head -n 1)"
+          APK="$(find android/app/build/outputs/apk/release -type f -name '*.apk' | head -n 1)"
           test -n "$APK"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          "$APKSIGNER" verify --verbose "$APK"
           echo "APK=$APK"
           ls -lh "$APK"
           sha256sum "$APK"
@@ -150,7 +185,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: TokoKasirLussal-Android-APK
-          path: android/app/build/outputs/apk/debug/*.apk
+          path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
           retention-days: 90
 
@@ -160,7 +195,7 @@ jobs:
         run: |
           set -e
           VERSION="$(tr -d '[:space:]' < apk-version.txt)"
-          APK="$(find android/app/build/outputs/apk/debug -type f -name '*.apk' | head -n 1)"
+          APK="$(find android/app/build/outputs/apk/release -type f -name '*.apk' | head -n 1)"
           RELEASE_APK="TokoKasirLussal-v$VERSION.apk"
 
           git fetch origin main
