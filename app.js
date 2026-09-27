@@ -637,13 +637,13 @@ async function saveProduct(){
         p_harga_grosir:harga_grosir,
         p_stok:stok,
         p_kategori:kategori,
-        p_gambar:(gambar || (window.Capacitor ? 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==' : null)),
+        p_gambar:gambar || '',
         p_aktif:true
       });
       data=result.data;
       error=result.error;
     }else{
-      const result=await sb.rpc('kiosk_insert_product',{p_nama:nama,p_harga_ecer:harga_ecer,p_harga_reseller:harga_reseller,p_harga_agen:harga_agen,p_harga_grosir:harga_grosir,p_stok:stok,p_kategori:kategori,p_gambar:(gambar || (window.Capacitor ? 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==' : null)),p_aktif:true});
+      const result=await sb.rpc('kiosk_insert_product',{p_nama:nama,p_harga_ecer:harga_ecer,p_harga_reseller:harga_reseller,p_harga_agen:harga_agen,p_harga_grosir:harga_grosir,p_stok:stok,p_kategori:kategori,p_gambar:gambar || '',p_aktif:true});
       data=result.data;
       error=result.error;
     }
