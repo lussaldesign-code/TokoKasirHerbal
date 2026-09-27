@@ -1,14 +1,12 @@
 name: Restore TokoKasirLussal APK 1.0.20
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/restore-apk-1.0.20.yml'
+  # Historical recovery workflow: manual artifact build only.
+  # It can never replace the current APK/update manifest.
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: tokokasirlussal-restore-1-0-20
@@ -104,21 +102,7 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-      - name: Publish 1.0.20 as latest APK
+      - name: Do not publish historical APK
         run: |
-          set -e
-          APK="$(find android/app/build/outputs/apk/debug -type f -name '*.apk' | head -n 1)"
-          cp "$APK" TokoKasirLussal-latest.apk
-          SHA256="$(sha256sum TokoKasirLussal-latest.apk | awk '{print $1}')"
-          cat > update.json <<EOF
-          {
-            "version": "1.0.20",
-            "apk": "https://raw.githubusercontent.com/$GITHUB_REPOSITORY/main/TokoKasirLussal-latest.apk",
-            "sha256": "$SHA256"
-          }
-          EOF
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add TokoKasirLussal-latest.apk update.json
-          git commit -m "chore: restore Android APK v1.0.20"
-          git push origin HEAD:main
+          echo "Historical 1.0.20 build is artifact-only."
+          echo "Current APK version remains controlled exclusively by apk-version.txt."
