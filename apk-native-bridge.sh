@@ -137,8 +137,8 @@ python3 - <<'PY'
 from pathlib import Path
 p=Path("android/app/src/main/AndroidManifest.xml")
 s=p.read_text(encoding="utf-8")
-perm='<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>\n'
-if 'android.permission.REQUEST_INSTALL_PACKAGES' not in s:
+perm='<uses-permission android:name="android.permission.INTERNET"/>\n<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>\n'
+if 'android.permission.INTERNET' not in s:
     start=s.find("<manifest")
     idx=s.find(">", start)
     if start < 0 or idx < 0: raise SystemExit("Manifest root tag not found")
