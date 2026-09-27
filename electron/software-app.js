@@ -1231,3 +1231,20 @@ setInterval(repairSoftwareLogin,1000);
   window.addEventListener('load',bindLoginControls);
   new MutationObserver(bindLoginControls).observe(document.documentElement,{childList:true,subtree:true});
 })();
+
+/* SOFTWARE AUTH BRIDGE — adopt the authenticated session supplied by Electron main. */
+window.__softwareCompleteLogin = async function(result){
+  if(!result?.session?.access_token) throw new Error('Sesi software tidak valid.');
+  if(!window.supabase?.createClient) throw new Error('Supabase SDK belum termuat.');
+  const makeClient=()=>supabase.createClient(CONFIG.url,CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'tokokasirlussal-auth-v2'}});
+  if(!sb) sb=makeClient();
+  const adopted=await sb.auth.setSession({access_token:result.session.access_token,refresh_token:result.session.refresh_token||''});
+  if(adopted.error) throw adopted.error;
+  currentUser=adopted.data.session?.user||result.session.user;
+  profile=result.profile;
+  profile.auth_user_id=currentUser?.id||profile.auth_user_id;
+  localStorage.setItem('tokokasirlussal-username',profile.username);
+  showApp();
+  try{await loadAll()}catch(loadErr){console.error('[software-auth] loadAll after login',loadErr);toast('Login berhasil, tetapi data belum dapat dimuat: '+(loadErr?.message||'periksa koneksi Supabase'));}
+  return true;
+};
