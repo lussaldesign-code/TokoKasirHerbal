@@ -8,6 +8,7 @@ on:
       - 'apk-navigation-v2.js'
       - 'apk-navigation-v2.css'
       - 'apk-icon.svg'
+      - 'apk-update.js'
       - '.github/workflows/build-apk-v2.yml'
 concurrency:
   group: tokokasirlussal-fresh-apk
