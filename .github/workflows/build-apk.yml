@@ -115,17 +115,15 @@ jobs:
           EOF
           python3 - <<'PY'
           from pathlib import Path
+          import re
           p=Path("android/app/src/main/res/values/styles.xml")
           s=p.read_text(encoding="utf-8")
           if "tokokasir_splash_bg" not in s:
-              s=s.replace("</resources>", """<style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
-                <item name="android:windowBackground">@drawable/tokokasir_splash_bg</item>
-                <item name="android:windowSplashScreenBackground">@color/tokokasir_splash_bg</item>
-                <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
-                <item name="android:windowLightStatusBar">false</item>
-                <item name="android:statusBarColor">@color/tokokasir_splash_bg</item>
-              </style>
-            </resources>""")
+              m=re.search(r'(<style[^>]*name="AppTheme"[^>]*>)(.*?)(</style>)', s, re.S)
+              if not m:
+                  raise SystemExit("AppTheme not found in generated styles.xml")
+              additions='''\n                <item name="android:windowBackground">@drawable/tokokasir_splash_bg</item>\n                <item name="android:windowSplashScreenBackground">@color/tokokasir_splash_bg</item>\n                <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>\n                <item name="android:windowLightStatusBar">false</item>\n                <item name="android:statusBarColor">@color/tokokasir_splash_bg</item>'''
+              s=s[:m.end(2)]+additions+s[m.start(3):]
               p.write_text(s,encoding="utf-8")
           PY
           echo "TokoKasirLussal themed splash installed"
