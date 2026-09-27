@@ -1,8 +1,6 @@
 const APP_VERSION='1.0.30';
 const UPDATE_MANIFEST_URL=new URL('update.json',location.href).href;
-const WINDOWS_UPDATE_MANIFEST_URL=new URL('windows-update.json',location.href).href;
 const UPDATE_MANIFEST_FALLBACK='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/update.json';
-const WINDOWS_UPDATE_MANIFEST_FALLBACK='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/windows-update.json';
 const IS_ELECTRON=!!(navigator.userAgent&&/Electron/i.test(navigator.userAgent));
 const IS_APK=!!window.Capacitor;
 const IS_WEB=!IS_ELECTRON&&!IS_APK;
@@ -560,11 +558,9 @@ async function checkForUpdate(){
       return;
     }
 
-    const primary=IS_ELECTRON?WINDOWS_UPDATE_MANIFEST_URL:UPDATE_MANIFEST_URL;
-    const fallback=IS_ELECTRON?WINDOWS_UPDATE_MANIFEST_FALLBACK:UPDATE_MANIFEST_FALLBACK;
-    const info=await fetchUpdateManifest(primary,fallback);
+    const info=await fetchUpdateManifest(UPDATE_MANIFEST_URL,UPDATE_MANIFEST_FALLBACK);
     const latest=String(info?.version||'').trim();
-    const url=String(IS_ELECTRON?(info?.installer||''):(info?.apk||''));
+    const url=String(info?.apk||'');
     if(!latest)throw Error('Versi update tidak valid atau manifest belum tersedia.');
     if(isNewerVersion(latest,APP_VERSION)){
       if(!url)throw Error('File update tidak tersedia pada manifest platform ini.');
@@ -577,7 +573,7 @@ async function checkForUpdate(){
     toast(label+' sudah versi terbaru (v'+APP_VERSION+'). Server mendeteksi v'+latest+'.');
   }catch(e){
     console.error('checkForUpdate',e);
-    const label=IS_ELECTRON?'software Windows':IS_APK?'APK Android':'web';
+    const label=IS_APK?'APK Android':'web';
     toast('Gagal mengecek update '+label+': '+(e.message||'periksa manifest versi.'));
   }finally{
     if(btn){btn.disabled=false;btn.textContent='🔄 Cek Update'}
