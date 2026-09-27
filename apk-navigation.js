@@ -61,3 +61,38 @@ function bind(){
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();
 window.addEventListener('load',bind);
 })();
+
+
+/* APK SETTINGS / REPORT ROUTE FIX — Settings always opens Settings, never Reports. */
+(function(){
+'use strict';
+function openSettings(){
+  if(!document.documentElement.classList.contains('apk-nav-enabled'))return;
+  var nav=document.getElementById('navAkun'), target=document.getElementById('tab-akun');
+  if(!nav||!target)return;
+  document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('active');});
+  document.querySelectorAll('.nav').forEach(function(x){x.classList.remove('active');});
+  document.querySelectorAll('.report-section').forEach(function(x){x.classList.remove('active');});
+  target.classList.add('active'); nav.classList.add('active');
+  target.style.setProperty('display','flex','important');
+  target.style.setProperty('visibility','visible','important');
+  target.style.setProperty('position','relative','important');
+  target.style.setProperty('z-index','1','important');
+  try{history.replaceState(null,'','#akun');}catch(e){}
+  try{if(typeof updateAccountView==='function')updateAccountView();if(typeof renderUsers==='function')renderUsers();if(typeof refreshReceiptPrinters==='function')refreshReceiptPrinters();}catch(e){console.warn('APK settings route',e)}
+}
+function bindSettings(){
+  var nav=document.getElementById('navAkun');
+  if(!nav||nav.dataset.apkSettingsRoute==='1')return;
+  nav.dataset.apkSettingsRoute='1';
+  nav.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();openSettings();},true);
+}
+function enforceActive(){
+  if(!document.documentElement.classList.contains('apk-nav-enabled'))return;
+  var active=document.querySelector('.tab.active');
+  if(active && active.id==='tab-akun')document.querySelectorAll('.report-section').forEach(function(x){x.classList.remove('active');});
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindSettings,{once:true});else bindSettings();
+window.addEventListener('load',bindSettings);
+setInterval(enforceActive,500);
+})();
