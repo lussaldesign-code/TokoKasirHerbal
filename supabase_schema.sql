@@ -641,15 +641,29 @@ grant execute on function public.kiosk_update_product(uuid,text,numeric,numeric,
 
 
 -- Secure product creation for kiosk sessions (Web + APK)
+-- Authorization follows kiosk_sessions.user_id -> users.id, because kiosk
+-- authentication uses the anonymous auth session as auth.uid().
 create or replace function public.kiosk_insert_product(p_nama text,p_harga_ecer numeric,p_harga_reseller numeric,p_harga_agen numeric,p_harga_grosir numeric,p_stok integer,p_kategori text,p_gambar text default null,p_aktif boolean default true)
 returns public.products language plpgsql security definer set search_path='' as $$
-declare v_role text; v_row public.products;
+declare
+  v_user public.users%rowtype;
+  v_row public.products%rowtype;
 begin
-  select lower(trim(u.role)) into v_role from public.users u join public.kiosk_sessions ks on ks.auth_user_id=u.auth_user_id where ks.auth_user_id=auth.uid() and u.aktif=true limit 1;
-  if v_role is distinct from 'admin' then raise exception 'Hanya admin yang dapat menambah produk'; end if;
+  select u.* into v_user
+  from public.users u
+  join public.kiosk_sessions ks on ks.user_id=u.id
+  where ks.auth_user_id=(select auth.uid())
+    and u.aktif=true
+  limit 1;
+
+  if v_user.id is null or lower(coalesce(v_user.role,'')) <> 'admin' then
+    raise exception 'Hanya admin yang dapat menambah produk';
+  end if;
   if coalesce(trim(p_nama),'')='' then raise exception 'Nama produk wajib diisi'; end if;
-  if p_harga_ecer<0 or p_harga_reseller<0 or p_harga_agen<0 or p_harga_grosir<0 or p_stok<0 then raise exception 'Harga dan stok tidak boleh negatif'; end if;
-  insert into public.products(nama,harga_ecer,harga_reseller,harga_agen,harga_grosir,stok,kategori,gambar,aktif) values(trim(p_nama),p_harga_ecer,p_harga_reseller,p_harga_agen,p_harga_grosir,p_stok,coalesce(nullif(trim(p_kategori),''),'Lainnya'),p_gambar,p_aktif) returning * into v_row;
+  if coalesce(p_harga_ecer,0)<0 or coalesce(p_harga_reseller,0)<0 or coalesce(p_harga_agen,0)<0 or coalesce(p_harga_grosir,0)<0 or coalesce(p_stok,0)<0 then raise exception 'Harga dan stok tidak boleh negatif'; end if;
+  insert into public.products(nama,harga_ecer,harga_reseller,harga_agen,harga_grosir,stok,kategori,gambar,aktif)
+  values(trim(p_nama),coalesce(p_harga_ecer,0),coalesce(p_harga_reseller,0),coalesce(p_harga_agen,0),coalesce(p_harga_grosir,0),coalesce(p_stok,0),coalesce(nullif(trim(p_kategori),''),'Lainnya'),p_gambar,coalesce(p_aktif,true))
+  returning * into v_row;
   return v_row;
 end; $$;
 revoke all on function public.kiosk_insert_product(text,numeric,numeric,numeric,numeric,integer,text,text,boolean) from public, anon;
