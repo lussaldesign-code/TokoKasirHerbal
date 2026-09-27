@@ -1169,3 +1169,65 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 window.addEventListener('load',repairSoftwareLogin);
 setInterval(repairSoftwareLogin,1000);
 })();
+
+
+/* WINDOWS SOFTWARE LOGIN — HARD INTERACTION ISOLATION
+   Only this Electron renderer gets this fix. Web/APK files are untouched. */
+(function(){
+  'use strict';
+  const STYLE_ID='tokokasir-software-login-hard-fix';
+  function installLoginIsolation(){
+    if(document.getElementById(STYLE_ID)) return;
+    const style=document.createElement('style');
+    style.id=STYLE_ID;
+    style.textContent=[
+      'html,body{width:100%;height:100%;overflow:hidden!important}',
+      'body.login-screen{position:relative!important;isolation:isolate!important;overflow:hidden!important}',
+      'body.login-screen>*:not(#login){pointer-events:none!important;visibility:hidden!important}',
+      'body.login-screen #login{display:grid!important;position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;min-height:100vh!important;margin:0!important;z-index:2147483647!important;pointer-events:auto!important;visibility:visible!important;opacity:1!important}',
+      'body.login-screen #login:before,body.login-screen #login:after{pointer-events:none!important;z-index:0!important}',
+      'body.login-screen #login .login-box{position:relative!important;z-index:2147483647!important;pointer-events:auto!important;visibility:visible!important}',
+      'body.login-screen #login button,body.login-screen #login input{position:relative!important;z-index:2147483647!important;pointer-events:auto!important;touch-action:manipulation!important}',
+      'body.login-screen #login .login-switch{position:relative!important;z-index:2147483647!important;pointer-events:auto!important}',
+      'body.login-screen #loginSubmit,body.login-screen #loginKasirBtn,body.login-screen #loginAdminBtn{cursor:pointer!important;-webkit-app-region:no-drag!important}',
+      'body.login-screen #app{pointer-events:none!important;visibility:hidden!important}'
+    ].join('');
+    (document.head||document.documentElement).appendChild(style);
+  }
+
+  function bindLoginControls(){
+    installLoginIsolation();
+    const submit=document.getElementById('loginSubmit');
+    const kasir=document.getElementById('loginKasirBtn');
+    const admin=document.getElementById('loginAdminBtn');
+    if(submit && submit.dataset.softwareHardBound!=='1'){
+      submit.dataset.softwareHardBound='1';
+      submit.onclick=null;
+      submit.addEventListener('pointerup',function(e){
+        e.preventDefault(); e.stopPropagation();
+        if(typeof window.login==='function') window.login();
+      },false);
+    }
+    if(kasir && kasir.dataset.softwareHardBound!=='1'){
+      kasir.dataset.softwareHardBound='1';
+      kasir.onclick=null;
+      kasir.addEventListener('pointerup',function(e){
+        e.preventDefault(); e.stopPropagation();
+        if(typeof window.setLoginMode==='function') window.setLoginMode('kasir');
+      },false);
+    }
+    if(admin && admin.dataset.softwareHardBound!=='1'){
+      admin.dataset.softwareHardBound='1';
+      admin.addEventListener('pointerup',function(e){
+        e.preventDefault(); e.stopPropagation();
+        if(typeof window.setLoginMode==='function') window.setLoginMode('admin');
+      },false);
+    }
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',bindLoginControls,{once:true});
+  }else bindLoginControls();
+  window.addEventListener('load',bindLoginControls);
+  new MutationObserver(bindLoginControls).observe(document.documentElement,{childList:true,subtree:true});
+})();
