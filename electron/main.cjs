@@ -160,59 +160,14 @@ function createWindow() {
 
   const REMOTE_APP_URL = 'https://lussaldesign-code.github.io/TokoKasirHerbal/';
   // Prefer the bundled app so the Windows POS keeps working even when GitHub Pages is unavailable.
-  mainWindow.loadFile(path.join(__dirname, '..', 'index.html')).catch(error => {
+  mainWindow.loadFile(path.join(__dirname, 'software-index.html')).catch(error => {
     console.error('[web-shell] local load failed:', error);
     mainWindow.loadURL(REMOTE_APP_URL).catch(remoteError => console.error('[web-shell] remote load failed:', remoteError));
   });
 
-  // SOFTWARE-ONLY LOGIN CLICK REPAIR:
-  // Keep Web/APK untouched. Electron gets a small renderer-side guard so the
-  // login controls remain clickable even if a packaged overlay/style blocks them.
+  // Windows uses isolated renderer files under electron/. Web/APK are not loaded.
   mainWindow.webContents.on('did-finish-load', () => {
-    mainWindow.webContents.executeJavaScript(`(() => {
-      try {
-        const styleId = 'tokokasirlussal-electron-login-fix';
-        if (!document.getElementById(styleId)) {
-          const style = document.createElement('style');
-          style.id = styleId;
-          style.textContent = '#login,#login .login-box,#login .login-switch,#login #loginSubmit,#login #loginKasirBtn,#login #loginAdminBtn,#login #username,#login #pin{pointer-events:auto!important;} #login{z-index:9999!important;}';
-          document.head.appendChild(style);
-        }
-        const bind = () => {
-          const submit = document.getElementById('loginSubmit');
-          if (submit && submit.dataset.electronLoginFix !== '1') {
-            submit.dataset.electronLoginFix = '1';
-            submit.addEventListener('click', (event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              if (typeof window.login === 'function') window.login();
-            }, true);
-          }
-          const kasir = document.getElementById('loginKasirBtn');
-          if (kasir && kasir.dataset.electronLoginFix !== '1') {
-            kasir.dataset.electronLoginFix = '1';
-            kasir.addEventListener('click', (event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              if (typeof window.setLoginMode === 'function') window.setLoginMode('kasir');
-            }, true);
-          }
-          const admin = document.getElementById('loginAdminBtn');
-          if (admin && admin.dataset.electronLoginFix !== '1') {
-            admin.dataset.electronLoginFix = '1';
-            admin.addEventListener('click', (event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              if (typeof window.setLoginMode === 'function') window.setLoginMode('admin');
-            }, true);
-          }
-        };
-        bind();
-        new MutationObserver(bind).observe(document.documentElement, {childList:true, subtree:true});
-      } catch (error) {
-        console.error('[electron-login-fix]', error);
-      }
-    })()`, true).catch(error => console.error('[electron-login-fix] injection failed:', error));
+    console.log('[software-shell] isolated renderer loaded');
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
