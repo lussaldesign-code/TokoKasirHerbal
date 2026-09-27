@@ -248,3 +248,4 @@ jobs:
           path: android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 90
+# Build trigger verification for APK 1.0.31
