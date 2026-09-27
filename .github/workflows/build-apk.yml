@@ -149,49 +149,25 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-      - name: Publish APK for in-app updates
+      - name: Publish APK to GitHub Release
         run: |
           set -e
           VERSION="$(tr -d '[:space:]' < apk-version.txt)"
           APK="$(find android/app/build/outputs/apk/debug -type f -name '*.apk' | head -n 1)"
+          RELEASE_APK="TokoKasirLussal-v$VERSION.apk"
 
-          # Sync the branch BEFORE generating the files that must be published.
-          # The previous order generated update.json first and then reset --hard,
-          # which silently discarded the new manifest and made the updater stay old.
           git fetch origin main
           git reset --hard origin/main
 
-          cp "$APK" "TokoKasirLussal-latest.apk"
-          SHA256="$(sha256sum "TokoKasirLussal-latest.apk" | awk '{print $1}')"
-          cat > update.json <<EOF
-          {
-            "version": "$VERSION",
-            "apk": "https://raw.githubusercontent.com/$GITHUB_REPOSITORY/main/TokoKasirLussal-latest.apk",
-            "sha256": "$SHA256"
-          }
-          EOF
+          cp "$APK" "$RELEASE_APK"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add TokoKasirLussal-latest.apk update.json
-          if git diff --cached --quiet; then
-            echo "Tidak ada perubahan file update."
-            exit 0
-          fi
-          git commit -m "chore: publish Android APK v$VERSION"
 
-          # Windows may publish its own files while this APK build is running.
-          # Rebase the small publication commit so a concurrent Windows publication
-          # does not cause a non-fast-forward failure.
-          git fetch origin main
-          git rebase origin/main
-          git push origin HEAD:main
-
-          # Publish the APK as a GitHub Release. The Android in-app updater
-          # reads the latest Release and downloads its APK asset.
-          RELEASE_APK="TokoKasirLussal-v$VERSION.apk"
-          cp "$APK" "$RELEASE_APK"
           if gh release view "v$VERSION" >/dev/null 2>&1; then
             gh release upload "v$VERSION" "$RELEASE_APK" --clobber
           else
-            gh release create "v$VERSION" "$RELEASE_APK#TokoKasirLussal APK v$VERSION"               --title "TokoKasirLussal Android v$VERSION"               --notes "Android APK v$VERSION"               --target main
+            gh release create "v$VERSION" "$RELEASE_APK#TokoKasirLussal APK v$VERSION" \
+              --title "TokoKasirLussal Android v$VERSION" \
+              --notes "Android APK v$VERSION" \
+              --target main
           fi
