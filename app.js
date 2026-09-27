@@ -1084,3 +1084,38 @@ if('serviceWorker' in navigator){
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindFinalSettings,{once:true});else bindFinalSettings();
   window.addEventListener('load',bindFinalSettings);
 })();
+
+
+/* FINAL WEB SETTINGS HARD ROUTE V2 — never let Pengaturan land on Laporan */
+(function(){
+  function openWebSettings(e){
+    if(window.Capacitor)return;
+    const nav=document.getElementById('navAkun');
+    if(!nav)return;
+    if(e && e.target && !e.target.closest('#navAkun'))return;
+    const target=document.getElementById('tab-akun');
+    if(!target)return;
+    const role=String(window.profile?.role||profile?.role||'').trim().toLowerCase();
+    if(role && role!=='admin')return;
+    if(e){e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();}
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));
+    target.classList.add('active');
+    nav.classList.add('active');
+    target.style.setProperty('display','flex','important');
+    target.style.setProperty('visibility','visible','important');
+    document.querySelectorAll('.report-section').forEach(x=>x.classList.remove('active'));
+    try{history.replaceState(null,'','#akun')}catch(_){}
+    target.scrollTop=0;
+    document.querySelector('.main')?.scrollTo({top:0,left:0,behavior:'auto'});
+    try{updateAccountView();renderUsers();if(typeof refreshReceiptPrinters==='function')refreshReceiptPrinters();}catch(err){console.error('web settings hard route',err)}
+  }
+  function bind(){
+    const nav=document.getElementById('navAkun');
+    if(!nav || nav.dataset.settingsHardRouteV2==='1')return;
+    nav.dataset.settingsHardRouteV2='1';
+    nav.addEventListener('click',openWebSettings,true);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();
+  window.addEventListener('load',bind);
+})();
