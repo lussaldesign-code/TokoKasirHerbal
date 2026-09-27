@@ -77,6 +77,12 @@ jobs:
           s=p.read_text(encoding='utf-8')
           s=re.sub(r"const APP_VERSION='[^']*';", "const APP_VERSION='$VERSION';", s, count=1)
           p.write_text(s, encoding='utf-8')
+
+          p=Path('mobile/www/apk-update.js')
+          s=p.read_text(encoding='utf-8')
+          s=re.sub(r"const CURRENT_VERSION='[^']*';", "const CURRENT_VERSION='$VERSION';", s, count=1)
+          s=s.replace("const CURRENT_VERSION = '__APK_VERSION__';", "const CURRENT_VERSION = '$VERSION';", 1)
+          p.write_text(s, encoding='utf-8')
           PY
           sed -i "s#config.js#config.js?v=$VERSION#g" mobile/www/index.html
           sed -i "s#app.js#app.js?v=$VERSION#g" mobile/www/index.html
