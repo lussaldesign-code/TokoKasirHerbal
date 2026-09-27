@@ -1,0 +1,125 @@
+name: Restore TokoKasirLussal APK 1.0.20
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/restore-apk-1.0.20.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tokokasirlussal-restore-1-0-20
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+
+      - name: Prepare exact 1.0.20 APK sources
+        run: |
+          set -e
+          LEGACY=d2ee60f615f310c4031d506ebcc82b0b75adc1d1
+          rm -rf mobile
+          mkdir -p mobile/www
+          git show "$LEGACY:index-supabase.html" > mobile/www/index.html
+          git show "$LEGACY:app.js" > mobile/www/app.js
+          git show "$LEGACY:apk-navigation.css" > mobile/www/apk-navigation.css
+          git show "$LEGACY:apk-navigation.js" > mobile/www/apk-navigation.js
+          cp config.js manifest.webmanifest icon-192.svg icon-512.svg sw.js mobile/www/
+          sed -i 's#config.js#config.js?v=1.0.20#g' mobile/www/index.html
+          sed -i 's#app.js#app.js?v=1.0.20#g' mobile/www/index.html
+          sed -i 's#tokokasirlussal-v[0-9.]*#tokokasirlussal-v1.0.20#g' mobile/www/sw.js
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('mobile/www/index.html')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace('</head>', '<link rel="stylesheet" href="apk-navigation.css?v=1.0.20"></head>', 1)
+          s=s.replace('</body>', '<script src="apk-navigation.js?v=1.0.20"></script></body>', 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+          test -s mobile/www/app.js
+          test -s mobile/www/index.html
+
+      - name: Install npm packages
+        run: npm install --legacy-peer-deps --no-audit --no-fund
+
+      - name: Generate Android project
+        run: |
+          rm -rf android
+          ./node_modules/.bin/cap add android
+
+      - name: Set Android version 1.0.20
+        run: |
+          python3 - <<'PY'
+          import re
+          p='android/app/build.gradle'
+          s=open(p).read()
+          s=re.sub(r'versionCode\s+\d+', 'versionCode 100020', s)
+          s=re.sub(r'versionName\s+["\'][^"\']+["\']', 'versionName "1.0.20"', s)
+          open(p,'w').write(s)
+          PY
+
+      - name: Sync Android
+        run: ./node_modules/.bin/cap sync android
+
+      - name: Build 1.0.20 APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon --no-parallel --stacktrace -Dorg.gradle.jvmargs="-Xmx4g"
+
+      - name: Verify APK
+        run: |
+          APK="$(find android/app/build/outputs/apk/debug -type f -name '*.apk' | head -n 1)"
+          test -n "$APK"
+          sha256sum "$APK"
+          ls -lh "$APK"
+
+      - name: Upload 1.0.20 artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: TokoKasirLussal-Android-APK-v1.0.20
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish 1.0.20 as latest APK
+        run: |
+          set -e
+          APK="$(find android/app/build/outputs/apk/debug -type f -name '*.apk' | head -n 1)"
+          cp "$APK" TokoKasirLussal-latest.apk
+          SHA256="$(sha256sum TokoKasirLussal-latest.apk | awk '{print $1}')"
+          cat > update.json <<EOF
+          {
+            "version": "1.0.20",
+            "apk": "https://raw.githubusercontent.com/$GITHUB_REPOSITORY/main/TokoKasirLussal-latest.apk",
+            "sha256": "$SHA256"
+          }
+          EOF
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add TokoKasirLussal-latest.apk update.json
+          git commit -m "chore: restore Android APK v1.0.20"
+          git push origin HEAD:main
