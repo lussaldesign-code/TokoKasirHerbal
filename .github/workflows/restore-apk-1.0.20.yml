@@ -42,13 +42,12 @@ jobs:
       - name: Prepare exact 1.0.20 APK sources
         run: |
           set -e
-          LEGACY=d2ee60f615f310c4031d506ebcc82b0b75adc1d1
           rm -rf mobile
           mkdir -p mobile/www
-          git show "$LEGACY:index-supabase.html" > mobile/www/index.html
-          git show "$LEGACY:app.js" > mobile/www/app.js
-          git show "$LEGACY:apk-navigation.css" > mobile/www/apk-navigation.css
-          git show "$LEGACY:apk-navigation.js" > mobile/www/apk-navigation.js
+          cp index-supabase.html mobile/www/index.html
+          cp app.js mobile/www/app.js
+          cp apk-navigation.css mobile/www/apk-navigation.css
+          cp apk-navigation.js mobile/www/apk-navigation.js
           cp config.js manifest.webmanifest icon-192.svg icon-512.svg sw.js mobile/www/
           sed -i 's#config.js#config.js?v=1.0.20#g' mobile/www/index.html
           sed -i 's#app.js#app.js?v=1.0.20#g' mobile/www/index.html
