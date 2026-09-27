@@ -10,6 +10,7 @@ on:
       - 'apk-icon.svg'
       - 'apk-update.json'
       - '.github/workflows/build-apk-v2.yml'
+      - '.github/workflows/build-apk.yml'
 permissions:
   contents: write
 concurrency:
