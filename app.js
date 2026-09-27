@@ -1119,3 +1119,5 @@ if('serviceWorker' in navigator){
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();
   window.addEventListener('load',bind);
 })();
+
+/* WINDOWS BUILD SYNC: keep desktop bundle aligned with current Web application source. */
