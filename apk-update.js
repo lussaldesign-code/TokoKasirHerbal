@@ -37,7 +37,7 @@
     updateProgress(0,'Menyiapkan download...','Menghubungkan ke server update...');
     stopPoll();
     try{
-      downloadedId=Number(native.downloadApk(info.url));
+      downloadedId=Number(native.downloadApk(info.url, info.version||'latest'));
       if(!downloadedId)throw new Error('Android DownloadManager tidak mengembalikan ID download.');
     }catch(e){
       console.error('native APK download',e);closeUpdateModal();toast('Gagal memulai download: '+(e.message||e));return;
