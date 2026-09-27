@@ -8,6 +8,7 @@ const WEB_VERSION_URL=new URL('web-version.json',location.href).href;
 const CONFIG=window.APP_CONFIG||{url:'',key:''};
 let sb=null,currentUser=null,profile=null,products=[],agents=[],receivables=[],sales=[],saleItems=[],saleReturnItems=[],receivablePayments=[],users=[],purchases=[],purchaseItems=[],purchaseReturnItems=[],saleReturns=[],purchaseReturns=[],cart=[],purchaseCart=[],priceProduct=null,selectedProductImage='';
 let catalogRacks=[];
+let lastCompletedTransaction=null;
 const $=id=>document.getElementById(id),rp=n=>'Rp '+Number(n||0).toLocaleString('id-ID');
 let soundEnabled=localStorage.getItem('tokokasirlussal-sound')!=='off';
 let audioCtx=null;
@@ -329,9 +330,16 @@ async function printReceipt(s){
     win.document.close();
   }catch(e){console.error('printReceipt',e);toast('Transaksi berhasil, tetapi cetak gagal: '+(e.message||e));}
 }
+async function printLastTransaction(){
+  if(!lastCompletedTransaction)return toast('Belum ada transaksi yang bisa dicetak.');
+  await printReceipt(lastCompletedTransaction);
+}
 async function checkout(){try{if(!cart.length)return toast('Keranjang kosong.');const cartSnapshot=cart.map(x=>({...x}));const total=cartSnapshot.reduce((a,x)=>a+x.harga*x.qty,0),metode=$('payment').value,dibayar=metode==='tunai'?Number($('cash').value||0):Number($('dp').value||0),agent=metode==='piutang'?$('agentForSale').value:null;if(metode==='tunai'&&dibayar<total)return toast('Uang tunai kurang.');if(metode==='piutang'&&!agent)return toast('Pilih agen.');const {data,error}=await sb.rpc('create_sale',{p_kasir_id:profile.id,p_agent_id:agent||null,p_metode:metode,p_dibayar:dibayar,p_items:cartSnapshot.map(x=>({product_id:x.id,qty:x.qty,tipe_harga:x.type}))});if(error)throw error;toast('Transaksi '+data.nomor_transaksi+' berhasil.');
-    const cetak=confirm('Transaksi berhasil.\n\nNomor: '+data.nomor_transaksi+'\nTotal: '+rp(Number(data.total||total))+'\n\nApakah ingin mencetak struk transaksi ini?');
-    if(cetak){await printReceipt({nomor:data.nomor_transaksi,items:cartSnapshot,total:Number(data.total||total),dibayar,kembalian:metode==='tunai'?Math.max(0,dibayar-total):0,metode});}
+    lastCompletedTransaction={nomor:data.nomor_transaksi,items:cartSnapshot,total:Number(data.total||total),dibayar,kembalian:metode==='tunai'?Math.max(0,dibayar-total):0,metode};
+    const printBtn=$('printLastTransactionBtn');
+    const printInfo=$('lastTransactionInfo');
+    if(printBtn){printBtn.disabled=false;printBtn.classList.remove('hidden');}
+    if(printInfo)printInfo.textContent='Transaksi '+data.nomor_transaksi+' siap dicetak.';
     cart=[];$('cash').value='';$('dp').value='';await loadAll()}catch(e){console.error(e);toast(e.message||'Transaksi gagal')}}
 function fillAgentSelect(){$('agentForSale').innerHTML='<option value="">Pilih agen</option>'+agents.map(a=>`<option value="${a.id}">${esc(a.nama)}${a.hp?' — '+esc(a.hp):''}</option>`).join('')}
 function renderAgents(){$('agents').innerHTML=agents.map(a=>`<tr><td>${esc(a.nama)}</td><td>${esc(a.hp||'-')}</td><td>${esc(a.alamat||'-')}</td><td>${profile?.role==='admin'?`<button class="btn danger" onclick="deleteAgent('${a.id}')">Hapus</button>`:''}</td></tr>`).join('')}
