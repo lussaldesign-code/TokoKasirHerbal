@@ -22,8 +22,9 @@ permissions:
   contents: write
 
 concurrency:
-  group: tokokasirlussal-windows-build
-  cancel-in-progress: true
+  # Serialize generated-file publication with the APK workflow so neither can overwrite the other's commit.
+  group: tokokasirlussal-platform-publication
+  cancel-in-progress: false
 
 jobs:
   build-windows:
