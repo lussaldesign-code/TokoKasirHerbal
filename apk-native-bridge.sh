@@ -111,6 +111,6 @@ perm='<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES
 if 'android.permission.REQUEST_INSTALL_PACKAGES' not in s:
     idx=s.find('>')
     if idx < 0: raise SystemExit("Manifest root tag not found")
-    s=s[:idx+1]+"\\n"+perm+s[idx+1:]
+    s=s[:idx+1]+"\n"+perm+s[idx+1:]
 p.write_text(s, encoding="utf-8")
 PY
