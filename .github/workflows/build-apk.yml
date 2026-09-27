@@ -16,7 +16,8 @@ on:
       - 'icon-192.svg'
       - 'icon-512.svg'
       - 'apk-navigation.css'
-      - 'apk-navigation.js'\n      - 'apk-version.txt'
+      - 'apk-navigation.js'
+      - 'apk-version.txt'
       - '.github/workflows/build-apk.yml'
       - '!TokoKasirLussal-latest.apk'
       - '!update.json'
@@ -102,7 +103,7 @@ jobs:
         shell: bash
         run: |
           VERSION="$(tr -d '[:space:]' < apk-version.txt)"
-          VERSION_CODE="$(node -e "const v=process.env.VERSION.split('.').map(Number); console.log(v[0]*10000+v[1]*100+v[2])")"
+          VERSION_CODE="$(node -e "const v=require('fs').readFileSync('apk-version.txt','utf8').trim().split('.').map(Number); console.log(v[0]*10000+v[1]*100+v[2])")"
           export VERSION VERSION_CODE
           python3 - <<'PY'
           import os,re
