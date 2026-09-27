@@ -558,9 +558,18 @@ async function checkForUpdate(){
       return;
     }
 
-    // APK: selalu gunakan manifest APK resmi dari main branch.
-    // Jangan membaca update.json dari server Web/PWA karena bisa tertinggal.
-    const info=await fetchUpdateManifest(UPDATE_MANIFEST_FALLBACK,'');
+    // APK: gunakan native Android HTTPS untuk mengambil manifest resmi.
+    // WebView tertentu dapat menolak fetch lintas-origin ke raw.githubusercontent.com;
+    // native HttpURLConnection tidak bergantung pada CORS WebView.
+    let info;
+    if(IS_APK&&window.AndroidUpdater?.getUpdateManifest){
+      const raw=window.AndroidUpdater.getUpdateManifest(UPDATE_MANIFEST_FALLBACK);
+      const parsed=JSON.parse(raw||'{}');
+      if(parsed?.error)throw Error(parsed.error);
+      info=parsed;
+    }else{
+      info=await fetchUpdateManifest(UPDATE_MANIFEST_FALLBACK,'');
+    }
     const latest=String(info?.version||'').trim();
     const url=String(info?.apk||'');
     if(!latest)throw Error('Versi update tidak valid atau manifest belum tersedia.');
