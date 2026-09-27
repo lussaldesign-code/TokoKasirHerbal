@@ -1,4 +1,4 @@
-const APP_VERSION='1.0.23';
+const APP_VERSION='1.0.28';
 const UPDATE_MANIFEST_URL=new URL('update.json',location.href).href;
 const WINDOWS_UPDATE_MANIFEST_URL=new URL('windows-update.json',location.href).href;
 const UPDATE_MANIFEST_FALLBACK='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/update.json';
@@ -38,46 +38,16 @@ document.addEventListener('pointerdown',e=>{
 },{passive:true});
 function toast(m){$('toast').textContent=m;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),3000)}
 function requireConfig(){if(!CONFIG.url||!CONFIG.key){toast('Isi config.js dengan Supabase URL dan publishable/anon key.');throw Error('Supabase config belum diisi')}}
-async function ensureSession(){
-  requireConfig();
-  const STORAGE='tokokasirlussal-auth-v2';
-  const makeClient=()=>supabase.createClient(CONFIG.url,CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:STORAGE}});
-  if(!sb)sb=makeClient();
-  let s;
-  try{s=await sb.auth.getSession();}catch(e){
-    console.warn('[auth] session storage error, resetting local auth',e);
-    try{localStorage.removeItem(STORAGE)}catch(_){}
-    sb=makeClient();
-    s=await sb.auth.getSession();
-  }
-  if(s.error){
-    try{localStorage.removeItem(STORAGE)}catch(_){}
-    sb=makeClient();
-    s=await sb.auth.getSession();
-  }
-  const existing=s.data?.session;
-  if(existing?.user?.id)return existing;
-  const r=await sb.auth.signInAnonymously();
-  if(r.error)throw Error('Login otomatis Supabase gagal: '+r.error.message);
-  if(!r.data?.session)throw Error('Supabase tidak mengembalikan sesi.');
-  return r.data.session;
-}
+async function ensureSession(){requireConfig();if(!sb)sb=supabase.createClient(CONFIG.url,CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'tokokasirlussal-auth'}});let s=await sb.auth.getSession();if(s.error)throw s.error;const existing=s.data?.session;if(existing?.user?.is_anonymous===true)return existing;if(existing){await sb.auth.signOut({scope:'local'});}let r=await sb.auth.signInAnonymously();if(r.error)throw Error('Login otomatis Supabase gagal: '+r.error.message);if(!r.data?.session)throw Error('Supabase tidak mengembalikan sesi.');return r.data.session}
 let loginMode='kasir';
 function setLoginMode(mode){loginMode=mode;const isAdmin=mode==='admin';$('loginKasirBtn')?.classList.toggle('primary',!isAdmin);$('loginKasirBtn')?.classList.toggle('secondary',isAdmin);$('loginAdminBtn')?.classList.toggle('primary',isAdmin);$('loginAdminBtn')?.classList.toggle('secondary',!isAdmin);$('usernameField')?.classList.remove('hidden');$('pinField')?.classList.toggle('hidden',!isAdmin);if($('usernameLabel'))$('usernameLabel').textContent=isAdmin?'Username Admin':'Username Kasir';if($('username'))$('username').placeholder=isAdmin?'Masukkan username admin':'Masukkan username kasir';if($('loginTitle'))$('loginTitle').textContent=isAdmin?'Login Admin':'Login Kasir';if($('loginHint'))$('loginHint').textContent=isAdmin?'Masukkan username admin dan PIN 4 angka.':'Masukkan username kasir untuk masuk.';if(isAdmin)$('pin')?.focus();else $('username')?.focus()}
-let loginBusy=false;
-async function login(){
-  if(loginBusy)return;
-  loginBusy=true;
-  const submit=$('loginSubmit');
-  const oldText=submit?.innerHTML;
-  if(submit){submit.disabled=true;submit.setAttribute('aria-busy','true');submit.innerHTML='Memproses login... <span>⏳</span>';}
-  try{const pin=($('pin')?.value||'').trim(),username=($('username')?.value||'').trim().toLowerCase();if(!username)return toast(loginMode==='admin'?'Masukkan username admin terlebih dahulu.':'Masukkan username kasir terlebih dahulu.');if(loginMode==='admin'&&!/^[0-9]{4}$/.test(pin))return toast('PIN admin harus tepat 4 angka.');let session=await ensureSession();currentUser=session.user;let result=loginMode==='admin'?await sb.rpc('kiosk_login_pin',{p_username:username,p_pin:pin}):await sb.rpc('kiosk_login_cashier',{p_username:username});if(result.error&&/JWT|session|anonymous|not authenticated/i.test(result.error.message||'')){await sb.auth.signOut();session=await ensureSession();currentUser=session.user;result=loginMode==='admin'?await sb.rpc('kiosk_login_pin',{p_username:username,p_pin:pin}):await sb.rpc('kiosk_login_cashier',{p_username:username});}if(result.error)throw result.error;const data=result.data;if(!data?.length)throw Error('Akun tidak ditemukan atau tidak aktif.');const account=data[0];if(loginMode==='admin'&&account.role!=='admin')throw Error('Akun ini bukan akun admin.');if(loginMode==='kasir'&&account.role==='admin')throw Error('Gunakan tombol Login Admin.');const prof=await sb.rpc('kiosk_profile',{p_username:account.username});if(prof.error)throw prof.error;if(!prof.data?.length)throw Error('Profil akun belum tersedia.');profile=prof.data[0];profile.auth_user_id=currentUser.id;if(!profile.aktif)throw Error('Akun tidak aktif.');localStorage.setItem('tokokasirlussal-username',profile.username);showApp();try{await loadAll()}catch(loadErr){console.error('loadAll after login',loadErr);toast('Login berhasil, tetapi data belum dapat dimuat: '+(loadErr?.message||'periksa data Supabase'));}}catch(e){console.error('login',e);const m=String(e?.message||e);if(/anonymous|disabled|sign.?in/i.test(m))toast('Login otomatis Supabase gagal. Aktifkan Anonymous Sign-Ins di Supabase Authentication.');else toast(m||'Login gagal')}finally{loginBusy=false;if(submit){submit.disabled=false;submit.removeAttribute('aria-busy');submit.innerHTML=oldText||'Masuk ke Dashboard <span>→</span>';}}
-}async function loadProfileByUsername(username){const {data,error}=await sb.rpc('kiosk_profile',{p_username:username});if(error)throw error;if(!data?.length)throw Error('Profil akun belum tersedia.');profile=data[0]}
+async function login(){try{const pin=($('pin')?.value||'').trim(),username=($('username')?.value||'').trim().toLowerCase();if(!username)return toast(loginMode==='admin'?'Masukkan username admin terlebih dahulu.':'Masukkan username kasir terlebih dahulu.');if(loginMode==='admin'&&!/^[0-9]{4}$/.test(pin))return toast('PIN admin harus tepat 4 angka.');let session=await ensureSession();currentUser=session.user;let result=loginMode==='admin'?await sb.rpc('kiosk_login_pin',{p_username:username,p_pin:pin}):await sb.rpc('kiosk_login_cashier',{p_username:username});if(result.error&&/JWT|session|anonymous|not authenticated/i.test(result.error.message||'')){await sb.auth.signOut();session=await ensureSession();currentUser=session.user;result=loginMode==='admin'?await sb.rpc('kiosk_login_pin',{p_username:username,p_pin:pin}):await sb.rpc('kiosk_login_cashier',{p_username:username});}if(result.error)throw result.error;const data=result.data;if(!data?.length)throw Error('Akun tidak ditemukan atau tidak aktif.');const account=data[0];if(loginMode==='admin'&&account.role!=='admin')throw Error('Akun ini bukan akun admin.');if(loginMode==='kasir'&&account.role==='admin')throw Error('Gunakan tombol Login Admin.');const prof=await sb.rpc('kiosk_profile',{p_username:account.username});if(prof.error)throw prof.error;if(!prof.data?.length)throw Error('Profil akun belum tersedia.');profile=prof.data[0];profile.auth_user_id=currentUser.id;if(!profile.aktif)throw Error('Akun tidak aktif.');localStorage.setItem('tokokasirlussal-username',profile.username);showApp();try{await loadAll()}catch(loadErr){console.error('loadAll after login',loadErr);toast('Login berhasil, tetapi data belum dapat dimuat: '+(loadErr?.message||'periksa data Supabase'));}}catch(e){console.error('login',e);const m=String(e?.message||e);if(/anonymous|disabled|sign.?in/i.test(m))toast('Login otomatis Supabase gagal. Aktifkan Anonymous Sign-Ins di Supabase Authentication.');else toast(m||'Login gagal')}}
+async function loadProfileByUsername(username){const {data,error}=await sb.rpc('kiosk_profile',{p_username:username});if(error)throw error;if(!data?.length)throw Error('Profil akun belum tersedia.');profile=data[0]}
 async function restoreLogin(){showLogin()}
 async function logout(){try{localStorage.removeItem('tokokasirlussal-username');if(sb)await sb.auth.signOut()}finally{location.reload()}}
 async function loadProfile(){if(!currentUser?.id)throw Error('Sesi login tidak valid.');const {data,error}=await sb.from('users').select('*').eq('auth_user_id',currentUser.id).maybeSingle();if(error)throw error;if(!data)throw Error('Profile pengguna belum dibuat di public.users.');profile=data}
-function showLogin(){document.body.classList.add('login-screen');document.body.classList.remove('app-screen','mobile-sheet-open');document.querySelector('.side')?.style.removeProperty('transform');document.querySelector('.side')?.classList.remove('nav-gesture-dragging');$('app')?.classList.add('hidden');$('app')?.setAttribute('aria-hidden','true');$('login')?.classList.remove('hidden');$('login')?.removeAttribute('aria-hidden')}
-function showApp(){document.body.classList.remove('login-screen');document.body.classList.add('app-screen');$('login')?.classList.add('hidden');$('login')?.setAttribute('aria-hidden','true');$('app')?.classList.remove('hidden');$('app')?.removeAttribute('aria-hidden');const admin=String(profile?.role||'').toLowerCase()==='admin';document.documentElement.dataset.userRole=admin?'admin':'cashier';document.body.dataset.userRole=admin?'admin':'cashier';if($('activeUser'))$('activeUser').textContent=(admin?'Admin':'Kasir')+' Aktif: '+(profile?.nama||profile?.username||'-');updateAccountView();showAppVersion();if($('settingsRole'))$('settingsRole').textContent=admin?'Admin':'Kasir';if(typeof refreshReceiptPrinters==='function')refreshReceiptPrinters();if($('settingsPrinterStatus'))$('settingsPrinterStatus').textContent=localStorage.getItem('tokokasir_receipt_printer')?'Tersimpan':'Belum dipilih';['navAgen','navPiutang','navPembelian','navRetur','navLaporan','navAkun'].forEach(id=>{const el=$(id);if(el)el.style.setProperty('display',admin?'flex':'none','important')});if($('addProductBtn'))$('addProductBtn').style.setProperty('display',admin?'block':'none','important');if($('addAgentBtn'))$('addAgentBtn').style.setProperty('display',admin?'block':'none','important');if(!admin){document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));$('tab-dashboard')?.classList.add('active');document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));document.querySelector('.nav[onclick*="tab(\'dashboard\'"]')?.classList.add('active')}}
+function showLogin(){$('app')?.classList.add('hidden');$('login')?.classList.remove('hidden')}
+function showApp(){$('login')?.classList.add('hidden');$('app')?.classList.remove('hidden');const admin=String(profile?.role||'').toLowerCase()==='admin';document.documentElement.dataset.userRole=admin?'admin':'cashier';document.body.dataset.userRole=admin?'admin':'cashier';if($('activeUser'))$('activeUser').textContent=(admin?'Admin':'Kasir')+' Aktif: '+(profile?.nama||profile?.username||'-');updateAccountView();showAppVersion();['navAgen','navPiutang','navPembelian','navLaporan','navAkun'].forEach(id=>{const el=$(id);if(el)el.style.setProperty('display',admin?'flex':'none','important')});if($('addProductBtn'))$('addProductBtn').style.setProperty('display',admin?'block':'none','important');if($('addAgentBtn'))$('addAgentBtn').style.setProperty('display',admin?'block':'none','important');if(!admin){document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));$('tab-dashboard')?.classList.add('active');document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));document.querySelector('.nav[onclick*="tab(\'dashboard\'"]')?.classList.add('active')}}
 /* TOKOKASIRLUSSAL_MOBILE_SWIPE_V2 */
 const _originalTab=tab;
 tab=function(name,el){
@@ -90,7 +60,7 @@ tab=function(name,el){
  return ok;
 };
 /* TOKOKASIRLUSSAL_MOBILE_SWIPE_V1 */
-const MOBILE_TAB_ORDER=['dashboard','kasir','agen','piutang','pembelian','barang-dibawa','retur','laporan','akun'];
+const MOBILE_TAB_ORDER=['dashboard','kasir','agen','piutang','pembelian','laporan','akun'];
 let mobileSwipeStartX=0,mobileSwipeStartY=0,mobileSwipeTracking=false;
 function mobileVisibleTabs(){
   return MOBILE_TAB_ORDER.filter(name=>{
@@ -131,41 +101,6 @@ function setupMobileSwipe(){
     mobileGoBySwipe(dx<0?1:-1);
   },{passive:true});
 }
-/* APK NAV ORDER FIX: keep every visible feature in its real tab, including Pengaturan/Akun. */
-(function setupApkNavTargets(){
-  function bind(){
-    if(!window.Capacitor)return;
-    document.querySelectorAll('body.app-screen .side .nav').forEach(function(btn){
-      if(btn.dataset.apkTargetReady==='1')return;
-      const onclick=btn.getAttribute('onclick')||'';
-      const m=onclick.match(/tab\(['"]([^'"]+)['"]/);
-      if(!m)return;
-      btn.dataset.apkTarget=m[1];
-      btn.dataset.apkTargetReady='1';
-      btn.addEventListener('click',function(){
-        const name=btn.dataset.apkTarget;
-        const target=document.getElementById('tab-'+name);
-        if(!target)return;
-        document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
-        target.classList.add('active');
-        document.querySelectorAll('body.app-screen .side .nav').forEach(x=>x.classList.remove('active'));
-        btn.classList.add('active');
-        if(name==='akun'){
-          try{updateAccountView();renderUsers();if(typeof refreshReceiptPrinters==='function')refreshReceiptPrinters();}catch(e){console.error('renderAccount',e)}
-        }
-        if(name==='laporan'){
-          try{renderReports();}catch(e){console.error('renderReports',e)}
-        }
-        target.scrollTop=0;
-        document.querySelector('.main')?.scrollTo({top:0,left:0,behavior:'smooth'});
-        try{history.replaceState(null,'','#'+name)}catch(_){}
-      },{passive:true});
-    });
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);
-  else bind();
-  window.addEventListener('load',bind);
-})();
 function setupMobileTabState(){
   setupMobileSwipe();
   const hash=location.hash.replace('#','');
@@ -175,122 +110,53 @@ function setupMobileTabState(){
   }
 }
 
-function receiptPrinterName(){
-  const el=$('receiptPrinter');
-  return el?.value||localStorage.getItem('tokokasir_receipt_printer')||'';
-}
-function normalizeDetectedPrinters(raw){
-  const list=Array.isArray(raw)?raw:(Array.isArray(raw?.printers)?raw.printers:(Array.isArray(raw?.data)?raw.data:[]));
-  return list.map((p,i)=>{
-    if(typeof p==='string')return {name:p,type:'Printer sistem'};
-    const name=String(p?.name||p?.printerName||p?.displayName||p?.deviceName||'').trim();
-    if(!name)return null;
-    const text=(name+' '+String(p?.description||p?.status||p?.type||'')).toLowerCase();
-    const type=/thermal|pos|receipt|xprinter|panda|58mm|80mm/.test(text)?'Thermal':'Printer biasa';
-    return {name,type,raw:p};
-  }).filter(Boolean).filter((p,i,a)=>a.findIndex(x=>x.name===p.name)===i);
-}
-async function detectReceiptPrinters(showToast=false){
-  const el=$('receiptPrinter'),status=$('printerDetectStatus'),note=$('printerSelectedNote');
-  if(!el)return [];
-  const saved=localStorage.getItem('tokokasir_receipt_printer')||'';
-  el.disabled=true;
-  if(status)status.textContent='Mendeteksi printer yang tersambung...';
-  let printers=[];
-  try{
-    const api=window.electronPrinter;
-    const fn=api?.getPrinters||api?.listPrinters||api?.getAvailablePrinters;
-    if(typeof fn==='function') printers=normalizeDetectedPrinters(await fn.call(api));
-  }catch(e){console.warn('detect printers',e)}
-  el.innerHTML='<option value="">Pilih printer...</option>'+printers.map(p=>'<option value="'+escAttr(p.name)+'">'+esc(p.name)+' — '+esc(p.type)+'</option>').join('');
-  if(saved&&printers.some(p=>p.name===saved))el.value=saved;
-  else if(saved&&!printers.length){
-    const o=document.createElement('option');o.value=saved;o.textContent=saved+' — tersimpan';el.appendChild(o);el.value=saved;
-  }
-  el.disabled=false;
-  if(status)status.textContent=printers.length?printers.length+' printer terdeteksi':'Belum ada printer yang terdeteksi';
-  if(note)note.textContent=el.value?'Printer dipilih: '+el.value:'Belum ada printer dipilih.';
-  if(showToast)toast(printers.length?'Ditemukan '+printers.length+' printer.':'API daftar printer belum tersedia di perangkat ini.');
-  return printers;
-}
-function refreshReceiptPrinters(){
-  const el=$('receiptPrinter');
-  if(!el)return;
-  const saved=localStorage.getItem('tokokasir_receipt_printer')||'';
-  if(el.dataset.printerBound!=='1'){
-    el.dataset.printerBound='1';
-    el.addEventListener('change',()=>{
-      localStorage.setItem('tokokasir_receipt_printer',el.value||'');
-      const note=$('printerSelectedNote');if(note)note.textContent=el.value?'Printer dipilih: '+el.value:'Belum ada printer dipilih.';
-    });
-  }
-  detectReceiptPrinters(false);
-}
-function forceSettingsTab(){
-  const target=$('tab-akun');
-  const nav=$('navAkun');
-  if(!target||!nav)return false;
-  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
-  target.classList.add('active');
-  document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));
-  nav.classList.add('active');
-  try{history.replaceState(null,'','#akun')}catch(_){}
-  target.scrollTop=0;
-  document.querySelector('.main')?.scrollTo({top:0,left:0,behavior:'smooth'});
-  try{updateAccountView();renderUsers();refreshReceiptPrinters()}catch(e){console.error('forceSettingsTab',e)}
-  return true;
-}
 function isAdminOnlyTab(name){return ['agen','piutang','pembelian','laporan','akun'].includes(name)}
-function tab(name,el){const target=$('tab-'+name);if(!target){console.warn('Tab tidak ditemukan:',name);toast('Menu '+name+' belum tersedia.');return false;}const role=String(profile?.role||'').trim().toLowerCase();if(isAdminOnlyTab(name)&&role!=='admin'){toast('Menu ini khusus Admin.');return false;}document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));target.classList.add('active');document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));const nav=el||[...document.querySelectorAll('.nav')].find(x=>(x.getAttribute('onclick')||'').includes("tab('"+name+"'"));nav?.classList.add('active');if(name==='retur'){try{renderReturns()}catch(e){console.error('renderReturns',e);toast('Retur gagal dimuat: '+(e.message||e))}}if(name==='laporan'){try{renderReports()}catch(e){console.error('renderReports',e);toast('Laporan gagal dimuat: '+(e.message||e))}}if(name==='akun'){try{updateAccountView();renderUsers();if(typeof refreshReceiptPrinters==='function')refreshReceiptPrinters()}catch(e){console.error('renderAccount',e);toast('Pengaturan gagal dimuat: '+(e.message||e))}}return true}
+function tab(name,el){const target=$('tab-'+name);if(!target){console.warn('Tab tidak ditemukan:',name);toast('Menu '+name+' belum tersedia.');return false;}if(profile?.role!=='admin'&&isAdminOnlyTab(name)){toast('Menu ini khusus Admin.');return false;}document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));target.classList.add('active');document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));el?.classList.add('active');if(name==='akun')refreshReceiptPrinters();return true}
 function goDashboardAction(name){const target=$('tab-'+name);if(!target){toast('Menu belum tersedia: '+name);return;}const nav=[...document.querySelectorAll('.nav')].find(x=>(x.getAttribute('onclick')||'').includes("tab('"+name+"'"));tab(name,nav||null);target.scrollIntoView({behavior:'smooth',block:'start'});}
 async function loadAll(){
-  if(!sb)throw Error('Database belum siap.');
-  const role=String(profile?.role||'').trim().toLowerCase();
-  async function read(name,query,fallback=[]){
-    try{
-      const result=await query;
-      if(result.error){console.warn('loadAll '+name,result.error);return fallback}
-      return result.data||fallback;
-    }catch(e){
-      console.warn('loadAll '+name,e);
-      return fallback;
-    }
-  }
+ const required=[
+  sb.from('products').select('*').eq('aktif',true).order('nama'),
+  sb.from('agents').select('*').eq('aktif',true).order('nama'),
+  sb.from('receivables').select('*, agents(nama), sales(nomor_transaksi,created_at)').order('created_at',{ascending:false}),
+  sb.from('barang_dibawa').select('*').order('created_at',{ascending:false}),
+  sb.from('barang_dibawa_items').select('*').order('created_at',{ascending:false})
+ ];
+ const results=await Promise.all(required);
+ for(const x of results)if(x.error)throw x.error;
+ const [p,a,r,bd,bdi]=results;
+ products=p.data||[];agents=a.data||[];receivables=r.data||[];barangDibawa=bd.data||[];barangDibawaItems=bdi.data||[];
+ await loadDashboardCatalog();
+ sales=[];saleItems=[];receivablePayments=[];purchases=[];purchaseItems=[];
+ saleReturns=[];saleReturnItems=[];purchaseReturns=[];purchaseReturnItems=[];users=[];
 
-  /* Core catalog data is loaded independently so one optional table cannot blank the whole app. */
-  products=await read('products',sb.from('products').select('*').eq('aktif',true).order('nama'),products);
-  agents=await read('agents',sb.from('agents').select('*').eq('aktif',true).order('nama'),agents);
-  receivables=await read('receivables',sb.from('receivables').select('*, agents(nama), sales(nomor_transaksi,created_at)').order('created_at',{ascending:false}),receivables);
-  barangDibawa=await read('barang_dibawa',sb.from('barang_dibawa').select('*').order('created_at',{ascending:false}),barangDibawa);
-  barangDibawaItems=await read('barang_dibawa_items',sb.from('barang_dibawa_items').select('*').order('created_at',{ascending:false}),barangDibawaItems);
-
-  await loadDashboardCatalog();
-
-  const common=[
-    ['sales',role==='admin'
-      ?sb.from('sales').select('*').order('created_at',{ascending:false}).limit(1000)
-      :sb.from('sales').select('*').eq('kasir_id',profile.id).order('created_at',{ascending:false}).limit(500)],
-    ['sale_items',sb.from('sale_items').select('*').order('created_at',{ascending:false}).limit(5000)],
-    ['sale_returns',sb.from('sale_returns').select('*').order('created_at',{ascending:false}).limit(500)],
-    ['sale_return_items',sb.from('sale_return_items').select('*').order('created_at',{ascending:false}).limit(5000)]
-  ];
-  const adminOnly=role==='admin'?[
-    ['receivable_payments',sb.from('receivable_payments').select('*').order('created_at',{ascending:false}).limit(5000)],
-    ['purchases',sb.from('purchases').select('*').order('created_at',{ascending:false}).limit(500)],
-    ['purchase_items',sb.from('purchase_items').select('*').order('created_at',{ascending:false}).limit(5000)],
-    ['purchase_returns',sb.from('purchase_returns').select('*').order('created_at',{ascending:false}).limit(500)],
-    ['purchase_return_items',sb.from('purchase_return_items').select('*').order('created_at',{ascending:false}).limit(5000)],
-    ['users',sb.from('users').select('id,username,nama,role,aktif,created_at,updated_at,auth_user_id').order('nama')]
-  ]:[];
-  const optional=[...common,...adminOnly];
-  const loaded=await Promise.all(optional.map(([name,q])=>read(name,q,[])));
-  const get=name=>loaded[optional.findIndex(x=>x[0]===name)]||[];
-  sales=get('sales');saleItems=get('sale_items');saleReturns=get('sale_returns');saleReturnItems=get('sale_return_items');
-  receivablePayments=get('receivable_payments');purchases=get('purchases');purchaseItems=get('purchase_items');
-  purchaseReturns=get('purchase_returns');purchaseReturnItems=get('purchase_return_items');users=get('users');
-
-  renderAll();
+ const common=[
+  ['sales',profile?.role==='admin'
+    ?sb.from('sales').select('*').order('created_at',{ascending:false}).limit(1000)
+    :sb.from('sales').select('*').eq('kasir_id',profile.id).order('created_at',{ascending:false}).limit(500)],
+  ['sale_items',sb.from('sale_items').select('*').order('created_at',{ascending:false}).limit(5000)],
+  ['sale_returns',sb.from('sale_returns').select('*').order('created_at',{ascending:false}).limit(500)],
+  ['sale_return_items',sb.from('sale_return_items').select('*').order('created_at',{ascending:false}).limit(5000)]
+ ];
+ const adminOnly=profile?.role==='admin'?[
+  ['receivable_payments',sb.from('receivable_payments').select('*').order('created_at',{ascending:false}).limit(5000)],
+  ['purchases',sb.from('purchases').select('*').order('created_at',{ascending:false}).limit(500)],
+  ['purchase_items',sb.from('purchase_items').select('*').order('created_at',{ascending:false}).limit(5000)],
+  ['purchase_returns',sb.from('purchase_returns').select('*').order('created_at',{ascending:false}).limit(500)],
+  ['purchase_return_items',sb.from('purchase_return_items').select('*').order('created_at',{ascending:false}).limit(5000)],
+  ['users',sb.from('users').select('id,username,nama,role,aktif,created_at,updated_at,auth_user_id').order('nama')]
+ ]:[];
+ const optional=[...common,...adminOnly];
+ const optionalResults=await Promise.all(optional.map(async([name,q])=>{
+  try{const x=await q;if(x.error){console.warn('loadAll '+name,x.error);return {data:[]}}return x}
+  catch(e){console.warn('loadAll '+name,e);return {data:[]}}
+ }));
+ const get=n=>optionalResults[optional.findIndex(x=>x[0]===n)]?.data||[];
+ sales=get('sales');saleItems=get('sale_items');saleReturns=get('sale_returns');saleReturnItems=get('sale_return_items');
+ receivablePayments=get('receivable_payments');purchases=get('purchases');purchaseItems=get('purchase_items');
+ purchaseReturns=get('purchase_returns');purchaseReturnItems=get('purchase_return_items');users=get('users');
+ renderAll();
 }
+
 function changeAmount(){const total=cart.reduce((n,x)=>n+Number(x.harga||0)*Number(x.qty||0),0);const cash=Number($('cash')?.value||0);const el=$('change');if(el)el.textContent=cash>=total&&total>0?'Kembalian: '+rp(cash-total):cash>0?'Kurang: '+rp(Math.max(0,total-cash)):''}
 function renderCart(){const el=$('cart');if(!el)return;el.innerHTML=cart.length?cart.map((x,i)=>'<div class="cart-item"><div style="flex:1;min-width:0"><b>'+esc(x.nama)+'</b><small style="display:block;color:#789487">'+esc(x.type_label||'Ecer')+' • '+rp(x.harga)+'</small></div><div style="display:flex;align-items:center;gap:6px"><button class="btn secondary" style="padding:4px 8px" onclick="changeCartQty('+i+',-1)">−</button><b>'+x.qty+'</b><button class="btn secondary" style="padding:4px 8px" onclick="changeCartQty('+i+',1)">+</button><button class="btn secondary" style="padding:4px 8px" onclick="removeCartItem('+i+')">✕</button></div><b style="min-width:85px;text-align:right">'+rp(x.harga*x.qty)+'</b></div>').join(''):'<div class="note">Belum ada produk di keranjang.</div>';const total=cart.reduce((n,x)=>n+Number(x.harga||0)*Number(x.qty||0),0);if($('total'))$('total').textContent=rp(total);changeAmount()}
 function changeCartQty(index,delta){if(!cart[index])return;cart[index].qty=Math.max(0,Number(cart[index].qty||0)+delta);if(cart[index].qty===0)cart.splice(index,1);renderCart()}
@@ -300,8 +166,48 @@ btns.querySelectorAll('.price-choice-btn').forEach(btn=>btn.addEventListener('cl
 function paymentChanged(){const metode=$('payment')?.value, cashFields=$('cashFields'), debtFields=$('debtFields');if(!cashFields||!debtFields)return;const isDebt=metode==='piutang';cashFields.classList.toggle('hidden',isDebt);debtFields.classList.toggle('hidden',!isDebt);if(isDebt){fillAgentSelect();$('cash').value='';$('change').textContent='';}else{$('dp').value='';$('agentForSale').value='';changeAmount()}}
 function addToCart(type){if(!priceProduct)return toast('Produk belum dipilih.');const map={ecer:['Harga Ecer','harga_ecer'],reseller:['Harga Reseller','harga_reseller'],agen:['Harga Agen','harga_agen'],grosir:['Harga Grosir','harga_grosir']};const cfg=map[type]||map.ecer;const harga=Number(priceProduct[cfg[1]]||0);if(harga<=0)return toast('Harga '+cfg[0]+' belum diatur.');const existing=cart.find(x=>x.id===priceProduct.id&&x.type===type);if(existing)existing.qty++;else cart.push({id:priceProduct.id,nama:priceProduct.nama,harga,qty:1,type,type_label:cfg[0]});closeModal('priceModal');renderCart()}
 function renderAll(){syncCategoryControls();renderProducts();renderAgents();renderReceivables();renderReports();renderPurchases();renderReturns();renderUsers();fillAgentSelect();fillPurchaseProducts();renderCart();renderPurchaseCart();renderNotifications();renderBarangDibawa();if(typeof renderReturnsMenu==='function')renderReturnsMenu()}
-function renderProducts(){const q=($('search')?.value||'').trim().toLowerCase(),cat=$('category')?.value||'Semua';const list=products.filter(p=>String(p.nama||'').toLowerCase().includes(q)&&(cat==='Semua'||String(p.kategori||'')===cat));const groups=[...new Set(list.map(p=>String(p.kategori||'Produk').trim()||'Produk'))];const el=$('products');if(!el)return;el.innerHTML=groups.map(group=>'<div class="rak"><h3>📦 '+esc(group)+'</h3><div class="grid">'+list.filter(p=>(String(p.kategori||'Produk').trim()||'Produk')===group).map(p=>'<div class="product" data-product-id="'+escAttr(p.id)+'"><button type="button" class="edit '+(String(profile?.role||'').toLowerCase()==='admin'?'':'hidden')+'" data-edit-id="'+escAttr(p.id)+'">✏️</button><img src="'+escAttr(p.gambar||'')+'" onerror="this.style.display=\'none\'"><div class="info"><b>'+esc(p.nama)+'</b><div class="price">'+rp(p.harga_ecer)+'</div><div class="stock">Sisa Stok: '+Number(p.stok||0)+'</div></div></div>').join('')+'</div></div>').join('')||'<div class="note">Produk belum tersedia.</div>';el.querySelectorAll('[data-product-id]').forEach(card=>card.addEventListener('click',()=>choosePrice(card.dataset.productId)));el.querySelectorAll('[data-edit-id]').forEach(btn=>btn.addEventListener('click',e=>{e.stopPropagation();openProduct(btn.dataset.editId)}))}
+function renderProducts(){const q=($('search')?.value||'').trim().toLowerCase(),cat=$('category')?.value||'Semua';const list=products.filter(p=>String(p.nama||'').toLowerCase().includes(q)&&(cat==='Semua'||String(p.kategori||'')===cat));const groups=[...new Set(list.map(p=>String(p.kategori||'Produk').trim()||'Produk'))];const el=$('products');if(!el)return;el.innerHTML=groups.map(group=>'<div class="rak"><h3>📦 '+esc(group)+'</h3><div class="grid">'+list.filter(p=>(String(p.kategori||'Produk').trim()||'Produk')===group).map(p=>'<div class="product" data-product-id="'+escAttr(p.id)+'"><button class="edit '+(profile?.role==='admin'?'':'hidden')+'" data-edit-id="'+escAttr(p.id)+'">✏️</button><img src="'+escAttr(p.gambar||'')+'" onerror="this.style.display=\'none\'"><div class="info"><b>'+esc(p.nama)+'</b><div class="price">'+rp(p.harga_ecer)+'</div><div class="stock">Sisa Stok: '+Number(p.stok||0)+'</div></div></div>').join('')+'</div></div>').join('')||'<div class="note">Produk belum tersedia.</div>';el.querySelectorAll('[data-product-id]').forEach(card=>card.addEventListener('click',()=>choosePrice(card.dataset.productId)));el.querySelectorAll('[data-edit-id]').forEach(btn=>btn.addEventListener('click',e=>{e.stopPropagation();openProduct(btn.dataset.editId)}))}
 
+
+// WINDOWS SOFTWARE: printer selection in Pengaturan.
+async function detectReceiptPrinters(selectPreferred){
+  const select=$('receiptPrinter'),status=$('printerDetectStatus'),note=$('printerSelectedNote');
+  if(!select)return [];
+  if(!window.electronPrinter?.listPrinters){
+    if(status)status.textContent='Fitur printer Windows tidak tersedia.';
+    return [];
+  }
+  try{
+    if(status)status.textContent='Mendeteksi printer...';
+    const printers=await window.electronPrinter.listPrinters();
+    select.innerHTML='<option value="">Pilih printer...</option>'+printers.map(p=>'<option value="'+escAttr(p.name)+'">'+esc(p.displayName||p.name)+(p.isDefault?' • Default':'')+'</option>').join('');
+    let saved='';
+    try{saved=localStorage.getItem('tokokasirlussal-printer')||''}catch(e){}
+    const preferred=saved||receiptPrinterName()||'';
+    if(preferred&&printers.some(p=>p.name===preferred))select.value=preferred;
+    if(!select.value&&selectPreferred){
+      const panda=printers.find(p=>/panda/i.test(String(p.name||'')));
+      const def=printers.find(p=>p.isDefault);
+      if(panda)select.value=panda.name;else if(def)select.value=def.name;else if(printers[0])select.value=printers[0].name;
+    }
+    if(select.value){
+      try{localStorage.setItem('tokokasirlussal-printer',select.value)}catch(e){}
+      const selected=printers.find(p=>p.name===select.value);
+      if(note)note.textContent='Printer aktif: '+(selected?.displayName||select.value);
+      if(status)status.textContent=printers.length+' printer terdeteksi';
+    }else{
+      if(note)note.textContent='Belum ada printer dipilih.';
+      if(status)status.textContent=printers.length?printers.length+' printer terdeteksi':'Tidak ada printer terdeteksi';
+    }
+    return printers;
+  }catch(e){
+    console.error('detectReceiptPrinters',e);
+    if(status)status.textContent='Gagal mendeteksi printer.';
+    if(note)note.textContent=e?.message||'Periksa printer Windows.';
+    return [];
+  }
+}
+function refreshReceiptPrinters(){return detectReceiptPrinters(false)}
 async function testReceiptPrinter(){
   const name=receiptPrinterName()||$('receiptPrinter')?.value;
   if(!name)return toast('Pilih printer Panda terlebih dahulu.');
@@ -341,13 +247,6 @@ function renderReceivables(){$('receivables').innerHTML=receivables.map(r=>`<tr>
 async function payDebt(id,sisa){const v=prompt('Nominal pembayaran',String(sisa));if(!v)return;const amount=Number(v);if(!Number.isFinite(amount)||amount<=0)return toast('Nominal pembayaran tidak valid.');try{const {error}=await sb.rpc('pay_receivable',{p_receivable_id:id,p_kasir_id:profile.id,p_jumlah:amount,p_keterangan:'Pembayaran piutang'});if(error)throw error;await loadAll();toast('Pembayaran piutang berhasil.')}catch(e){toast(e.message)}}
 function localDay(d=new Date()){const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')}
 function reportPaymentLabel(s){return s.metode_pembayaran==='piutang'?'Piutang / DP':'Lunas Tunai'}
-function switchReportView(view,button){
- const target=view==='month'?'reportViewMonth':'reportViewToday';
- document.querySelectorAll('.report-view').forEach(x=>x.classList.toggle('active',x.id===target));
- document.querySelectorAll('.report-switch-btn').forEach(x=>x.classList.toggle('active',x===button||x.dataset.reportView===view));
- const active=document.getElementById(target);
- if(active)active.scrollTop=0;
-}
 function renderReports(){
  const now=new Date(),day=localDay(now),month=day.slice(0,7);
  const ss=Array.isArray(sales)?sales:[],si=Array.isArray(saleItems)?saleItems:[];
@@ -405,34 +304,17 @@ function renderReports(){
  if($('reportDate'))$('reportDate').textContent=now.toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
  if($('reportReturnSummary'))$('reportReturnSummary').innerHTML='<div class="metric card"><span>Retur Penjualan Hari Ini</span><b>'+rp(returHari)+'</b><small class="note">'+retQtyHari+' Pcs dikembalikan</small></div><div class="metric card"><span>Retur Penjualan Bulan Ini</span><b>'+rp(returBulan)+'</b></div><div class="metric card"><span>Pembelian Bersih Hari Ini</span><b>'+rp(purNetHari)+'</b><small class="note">Bruto '+rp(purGrossHari)+' • Retur '+rp(purRetHariTotal)+'</small></div><div class="metric card"><span>Pembelian Bersih Bulan Ini</span><b>'+rp(purNetBulan)+'</b><small class="note">Bruto '+rp(purGrossBulan)+' • Retur '+rp(purRetBulanTotal)+'</small></div>';
 
- const userMap=Object.fromEntries((Array.isArray(users)?users:[]).map(u=>[u.id,u]));
- const productNameMap=Object.fromEntries((Array.isArray(products)?products:[]).map(p=>[p.id,p.nama]));
- const saleItemsBySale={};
- si.forEach(i=>{(saleItemsBySale[i.sale_id]||(saleItemsBySale[i.sale_id]=[])).push(i)});
- const transactionProducts=s=>{
-   const rows=saleItemsBySale[s.id]||[];
-   if(!rows.length)return '—';
-   return rows.map(i=>{
-     const name=i.nama_produk||productNameMap[i.product_id]||'Produk tidak ditemukan';
-     const qty=Number(i.qty||0);
-     return esc(name)+(qty>0?' × '+qty:'');
-   }).join('<br>');
- };
- const transactionUser=s=>esc(userMap[s.kasir_id]?.nama||userMap[s.kasir_id]?.username||(s.kasir_id===profile?.id?(profile?.nama||profile?.username):'—'));
-
  const salesEl=$('sales');
  if(salesEl)salesEl.innerHTML=activeDaySales.map(s=>{
    const ag=agents.find(a=>a.id===s.agent_id);
    const total=Number(s.total||0),paid=paymentNet(s);
-   return '<tr><td>'+new Date(s.created_at).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})+'</td><td><b>'+esc(s.nomor_transaksi)+'</b></td><td>'+transactionProducts(s)+'</td><td>'+transactionUser(s)+'</td><td>'+esc(ag?.nama||'Umum')+'</td><td>'+rp(total)+'</td><td>'+rp(paid)+'</td><td>'+esc(reportPaymentLabel(s))+'</td></tr>';
- }).join('')||'<tr><td colspan="8" class="note">Belum ada penjualan aktif hari ini.</td></tr>';
+   return '<tr><td>'+new Date(s.created_at).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})+'</td><td><b>'+esc(s.nomor_transaksi)+'</b></td><td>'+esc(ag?.nama||'Umum')+'</td><td>'+rp(total)+'</td><td>'+rp(paid)+'</td><td>'+rp(Math.max(0,total-paid))+'</td><td>'+esc(reportPaymentLabel(s))+'</td></tr>';
+ }).join('')||'<tr><td colspan="7" class="note">Belum ada penjualan aktif hari ini.</td></tr>';
 
- if($('todayReportCount'))$('todayReportCount').textContent=activeDaySales.length+' transaksi';
- if($('monthReportCount'))$('monthReportCount').textContent=activeMonthSales.length+' transaksi';
  if($('monthlySales'))$('monthlySales').innerHTML=activeMonthSales.map(s=>{
    const total=Number(s.total||0),paid=paymentNet(s);
-   return '<tr><td>'+new Date(s.created_at).toLocaleDateString('id-ID')+'</td><td>'+esc(s.nomor_transaksi)+'</td><td>'+transactionProducts(s)+'</td><td>'+transactionUser(s)+'</td><td>'+rp(total)+'</td><td>'+rp(paid)+'</td><td>'+esc(reportPaymentLabel(s))+'</td></tr>';
- }).join('')||'<tr><td colspan="7" class="note">Belum ada penjualan aktif bulan ini.</td></tr>';
+   return '<tr><td>'+new Date(s.created_at).toLocaleDateString('id-ID')+'</td><td>'+esc(s.nomor_transaksi)+'</td><td>'+rp(total)+'</td><td>'+rp(paid)+'</td><td>'+esc(reportPaymentLabel(s))+'</td></tr>';
+ }).join('')||'<tr><td colspan="5" class="note">Belum ada penjualan aktif bulan ini.</td></tr>';
 
  if($('soldProducts'))$('soldProducts').innerHTML=itemRows.map((x,i)=>'<tr><td>'+(i+1)+'</td><td>'+esc(x.nama)+'</td><td>'+x.qty+'</td><td>'+rp(x.total)+'</td></tr>').join('')||'<tr><td colspan="4" class="note">Belum ada produk terjual hari ini.</td></tr>';
 
@@ -600,68 +482,18 @@ async function setUserPin(id){if(profile?.role!=='admin')return toast('Hanya adm
 function openNewUser(){if(profile?.role!=='admin')return toast('Hanya admin yang dapat menambah akun.');$('newUserNama').value='';$('newUserUsername').value='';$('newUserRole').value='karyawan';syncAccountPinField('karyawan','new');openModal('newUserModal')}
 async function saveNewUser(){try{if(profile?.role!=='admin')return toast('Hanya admin yang dapat menambah akun.');const nama=$('newUserNama').value.trim(),username=$('newUserUsername').value.trim().toLowerCase(),role=$('newUserRole').value,pin=role==='admin'?$('newUserPassword').value.trim():'';if(!nama||!username)return toast('Nama dan username wajib diisi.');if(!/^[a-z0-9._-]{3,30}$/.test(username))return toast('Username 3-30 karakter: huruf, angka, titik, garis bawah atau strip.');if(role==='admin'&&!/^[0-9]{4}$/.test(pin))return toast('PIN admin harus tepat 4 angka.');if(role==='karyawan'&&pin)return toast('Kasir tidak menggunakan PIN.');const {error}=await sb.rpc('admin_create_user',{p_username:username,p_nama:nama,p_role:role,p_pin:pin||null});if(error)throw error;closeModal('newUserModal');await loadAll();toast('Akun '+(role==='admin'?'admin':'kasir')+' berhasil dibuat.')}catch(e){console.error('saveNewUser',e);toast('Gagal membuat akun: '+(e.message||'periksa database'))}}
 async function saveAccount(){try{const nama=$('accountNama').value.trim(),username=$('accountUsername').value.trim().toLowerCase();if(!nama)return toast('Nama wajib diisi.');if(!/^[a-z0-9._-]{3,30}$/.test(username))return toast('Username 3-30 karakter: huruf, angka, titik, garis bawah atau strip.');const {data,error}=await sb.rpc('kiosk_update_account',{p_nama:nama,p_username:username});if(error)throw error;if(!data?.length)throw Error('Akun tidak berhasil diperbarui.');profile=data[0];localStorage.setItem('tokokasirlussal-username',username);$('activeUser').textContent='Kasir Aktif: '+profile.nama;closeModal('accountModal');updateAccountView();if($('activeUser'))$('activeUser').textContent=(profile?.role==='admin'?'Admin':'Kasir')+' Aktif: '+(profile?.nama||profile?.username||'-');await loadAll();toast('Akun berhasil diperbarui.')}catch(e){console.error('saveAccount',e);toast('Gagal memperbarui akun: '+(e.message||'periksa database'))}}
-function renderUsers(){if(String(profile?.role||'').trim().toLowerCase()!=='admin'){$('users').innerHTML='';return}const total=users.length,admins=users.filter(u=>u.role==='admin').length,cashiers=users.filter(u=>u.role!=='admin').length,active=users.filter(u=>u.aktif).length;if($('accountCount'))$('accountCount').textContent=total;if($('adminCount'))$('adminCount').textContent=admins;if($('cashierCount'))$('cashierCount').textContent=cashiers;if($('activeAccountCount'))$('activeAccountCount').textContent=active;$('users').innerHTML=users.map(u=>{const initial=esc((u.nama||u.username||'?').trim().charAt(0).toUpperCase());return `<div class="account-card"><div class="account-card-top"><div class="avatar">${initial}</div><div style="min-width:0;flex:1"><div class="account-name">${esc(u.nama||'-')}</div><div class="account-username">@${esc(u.username||'-')}</div></div></div><div class="account-card-meta"><div><span class="role-pill ${u.role==='admin'?'admin':''}">${u.role==='admin'?'🛡️ Admin':'🛒 Kasir'}</span> <span class="status-pill ${u.aktif?'on':'off'}">${u.aktif?'Aktif':'Nonaktif'}</span></div><div class="account-card-actions"><button class="btn secondary" onclick="openUserEditor('${u.id}')">✏️ Edit</button></div></div></div>`}).join('')||'<div class="note">Belum ada akun.</div>'}
+function renderUsers(){if(profile?.role!=='admin'){$('users').innerHTML='';return}const total=users.length,admins=users.filter(u=>u.role==='admin').length,cashiers=users.filter(u=>u.role!=='admin').length,active=users.filter(u=>u.aktif).length;if($('accountCount'))$('accountCount').textContent=total;if($('adminCount'))$('adminCount').textContent=admins;if($('cashierCount'))$('cashierCount').textContent=cashiers;if($('activeAccountCount'))$('activeAccountCount').textContent=active;$('users').innerHTML=users.map(u=>{const initial=esc((u.nama||u.username||'?').trim().charAt(0).toUpperCase());return `<div class="account-card"><div class="account-card-top"><div class="avatar">${initial}</div><div style="min-width:0;flex:1"><div class="account-name">${esc(u.nama||'-')}</div><div class="account-username">@${esc(u.username||'-')}</div></div></div><div class="account-card-meta"><div><span class="role-pill ${u.role==='admin'?'admin':''}">${u.role==='admin'?'🛡️ Admin':'🛒 Kasir'}</span> <span class="status-pill ${u.aktif?'on':'off'}">${u.aktif?'Aktif':'Nonaktif'}</span></div><div class="account-card-actions"><button class="btn secondary" onclick="openUserEditor('${u.id}')">✏️ Edit</button></div></div></div>`}).join('')||'<div class="note">Belum ada akun.</div>'}
 function setAccountRole(prefix,role){const select=$(prefix+'UserRole');if(!select)return;select.value=role;const wrap=$(prefix+'PinWrap'),input=$(prefix+'UserPassword');if(wrap)wrap.classList.toggle('hidden',role!=='admin');if(wrap)wrap.classList.toggle('pin-slide-in',role==='admin');if(input){input.value='';input.disabled=role!=='admin';input.placeholder=role==='admin'?'••••':'Kasir tidak menggunakan PIN';}const modal=$(prefix==='edit'?'userModal':'newUserModal');modal?.querySelectorAll('.role-choice').forEach(b=>b.classList.toggle('active',b.dataset.role===role));}function syncAccountPinField(mode,prefix){const isAdmin=mode==='admin';const wrap=$(prefix+'PinWrap'),input=$(prefix+'UserPassword');if(wrap)wrap.classList.toggle('hidden',!isAdmin);if(input){input.value='';input.placeholder=isAdmin?'••••':'Kasir tidak menggunakan PIN';input.disabled=!isAdmin;input.setAttribute('aria-hidden',String(!isAdmin));}if(wrap){wrap.classList.toggle('pin-slide-in',isAdmin);}}
 function openUserEditor(id){if(profile?.role!=='admin')return toast('Hanya admin yang dapat mengelola akun.');const u=users.find(x=>x.id===id);if(!u)return toast('Akun tidak ditemukan.');$('editUserId').value=u.id;$('editUserNama').value=u.nama||'';$('editUserUsername').value=u.username||'';$('editUserRole').value=u.role||'karyawan';$('editUserAktif').value=u.aktif?'true':'false';syncAccountPinField(u.role==='admin'?'admin':'karyawan','edit');openModal('userModal')}
 async function saveUserEdit(){try{if(profile?.role!=='admin')return toast('Hanya admin yang dapat mengelola akun.');const id=$('editUserId').value,nama=$('editUserNama').value.trim(),username=$('editUserUsername').value.trim().toLowerCase(),role=$('editUserRole').value,aktif=$('editUserAktif').value==='true',pin=$('editUserPassword').value.trim(),oldRole=users.find(u=>u.id===id)?.role;if(!id||!nama||!username)return toast('Nama dan username wajib diisi.');if(!/^[a-z0-9._-]{3,30}$/.test(username))return toast('Username 3-30 karakter: huruf, angka, titik, garis bawah atau strip.');if(id===profile.id&&(role!=='admin'||!aktif))return toast('Akun admin yang sedang digunakan tidak dapat diturunkan atau dinonaktifkan.');if(role==='admin'&&pin&&!/^[0-9]{4}$/.test(pin))return toast('PIN admin harus tepat 4 angka.');if(role==='karyawan'&&pin)return toast('Kasir tidak menggunakan PIN.');if(role==='admin'&&oldRole!=='admin'&&!pin)return toast('PIN wajib diisi saat akun kasir diubah menjadi admin.');const {data,error}=await sb.rpc('admin_update_user',{p_user_id:id,p_nama:nama,p_username:username,p_role:role,p_aktif:aktif,p_pin:pin||null});if(error)throw error;if(!data?.length)throw Error('Database tidak mengembalikan akun yang diperbarui.');if(id===profile.id){profile={...profile,...data[0]};localStorage.setItem('tokokasirlussal-username',profile.username);updateAccountView();if($('activeUser'))$('activeUser').textContent='Admin Aktif: '+(profile.nama||profile.username||'-')}closeModal('userModal');await loadAll();toast('Akun berhasil diperbarui.')}catch(e){console.error('saveUserEdit',e);toast('Gagal memperbarui akun: '+(e.message||'periksa database/RLS'))}}
-function openProduct(id){if(String(profile?.role||'').trim().toLowerCase()!=='admin')return toast('Hanya admin yang dapat mengelola produk.');const p=id?products.find(x=>x.id===id):null;const deleteBtn=$('deleteProductBtn');if(deleteBtn)deleteBtn.classList.toggle('hidden',!p);const title=$('productTitle');if(title)title.textContent=p?'Edit Produk':'Tambah Produk';$('productId').value=p?.id||'';$('pNama').value=p?.nama||'';$('pEcer').value=p?.harga_ecer??0;$('pReseller').value=p?.harga_reseller??0;$('pAgen').value=p?.harga_agen??0;$('pGrosir').value=p?.harga_grosir??0;$('pStok').value=p?.stok??0;$('pKategori').value=p?.kategori||'Kapsul';selectedProductImage=p?.gambar||'';const fileInput=$('pGambarFile'),cameraInput=$('pGambarCamera');if(fileInput)fileInput.value='';if(cameraInput)cameraInput.value='';const preview=$('pGambarPreview');if(preview){if(p?.gambar){preview.src=p.gambar;preview.classList.remove('hidden')}else{preview.removeAttribute('src');preview.classList.add('hidden')}}const cameraAction=$('productCameraAction');if(cameraAction)cameraAction.style.display=window.Capacitor?'block':'none';openModal('productModal')}
-function previewProductImage(event){const file=event.target.files?.[0];if(!file)return;selectedProductImage='';if(!file.type.startsWith('image/')){event.target.value='';return toast('File harus berupa gambar.')}if(file.size>8*1024*1024){event.target.value='';return toast('Ukuran gambar maksimal 8 MB.')}const reader=new FileReader();reader.onload=()=>{const preview=$('pGambarPreview');if(preview){preview.src=reader.result;preview.classList.remove('hidden')}};reader.onerror=()=>toast('Gagal membaca gambar.');reader.readAsDataURL(file)}
+function openProduct(id){if(profile?.role!=='admin')return toast('Hanya admin yang dapat mengelola produk.');const p=id?products.find(x=>x.id===id):null;const deleteBtn=$('deleteProductBtn');if(deleteBtn)deleteBtn.classList.toggle('hidden',!p);selectedProductImage=p?.gambar||'';$('productTitle').textContent=p?'Edit Produk':'Produk Baru';$('productId').value=p?.id||'';$('pNama').value=p?.nama||'';$('pEcer').value=p?.harga_ecer||0;$('pReseller').value=p?.harga_reseller||0;$('pAgen').value=p?.harga_agen||0;$('pGrosir').value=p?.harga_grosir||0;$('pStok').value=p?.stok||0;$('pKategori').value=p?.kategori||'Kapsul';$('pGambar').value=p?.gambar&&!p.gambar.startsWith('data:image/')?p.gambar:'';const fileInput=$('pGambarFile');if(fileInput)fileInput.value='';const preview=$('pGambarPreview');if(preview){if(p?.gambar){preview.src=p.gambar;preview.classList.remove('hidden')}else{preview.src='';preview.classList.add('hidden')}}openModal('productModal')}
+function previewProductImage(event){const file=event.target.files?.[0];if(!file)return;if(!file.type.startsWith('image/')){event.target.value='';return toast('File harus berupa gambar.')}if(file.size>8*1024*1024){event.target.value='';return toast('Ukuran gambar maksimal 8 MB.')}const reader=new FileReader();reader.onload=()=>{const preview=$('pGambarPreview');if(preview){preview.src=reader.result;preview.classList.remove('hidden')}};reader.onerror=()=>toast('Gagal membaca gambar.');reader.readAsDataURL(file)}
 function compressImage(file,max=900,quality=.76){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onerror=reject;reader.onload=()=>{const img=new Image();img.onerror=reject;img.onload=()=>{const scale=Math.min(1,max/Math.max(img.width,img.height)),w=Math.max(1,Math.round(img.width*scale)),h=Math.max(1,Math.round(img.height*scale)),c=document.createElement('canvas');c.width=w;c.height=h;const ctx=c.getContext('2d');ctx.drawImage(img,0,0,w,h);resolve(c.toDataURL('image/jpeg',quality))};img.src=reader.result};reader.readAsDataURL(file)})}
-async function saveProduct(){
-  try{
-    if(String(profile?.role||'').trim().toLowerCase()!=='admin')return toast('Hanya admin yang dapat menyimpan produk.');
-    const nama=$('pNama').value.trim();
-    if(!nama)return toast('Nama produk wajib diisi.');
-    const nums=['pEcer','pReseller','pAgen','pGrosir','pStok'].map(id=>Number($(id).value||0));
-    if(nums.some(v=>!Number.isFinite(v)||v<0))return toast('Harga dan stok harus berupa angka nol atau lebih.');
-    const [harga_ecer,harga_reseller,harga_agen,harga_grosir,stok]=nums;
-    let gambar=selectedProductImage;
-    const fileInput=$('pGambarFile'),cameraInput=$('pGambarCamera'),file=cameraInput?.files?.[0]||fileInput?.files?.[0];
-    if(file){
-      toast('Mengolah gambar...');
-      gambar=await compressImage(file);
-      if(gambar.length>900000)gambar=await compressImage(file,700,.65);
-      if(gambar.length>1400000)throw Error('Gambar masih terlalu besar. Pilih gambar yang lebih kecil.');
-    }
-    const kategori=$('pKategori').value||'Lainnya';
-    const id=$('productId').value;
-    if(!sb)throw Error('Database belum siap.');
-    let data,error;
-    if(id){
-      const result=await sb.rpc('kiosk_update_product',{
-        p_product_id:id,
-        p_nama:nama,
-        p_harga_ecer:harga_ecer,
-        p_harga_reseller:harga_reseller,
-        p_harga_agen:harga_agen,
-        p_harga_grosir:harga_grosir,
-        p_stok:stok,
-        p_kategori:kategori,
-        p_gambar:gambar||null,
-        p_aktif:true
-      });
-      data=result.data;
-      error=result.error;
-    }else{
-      const result=await sb.rpc('kiosk_insert_product',{p_nama:nama,p_harga_ecer:harga_ecer,p_harga_reseller:harga_reseller,p_harga_agen:harga_agen,p_harga_grosir:harga_grosir,p_stok:stok,p_kategori:kategori,p_gambar:gambar||null,p_aktif:true});
-      data=result.data;
-      error=result.error;
-    }
-    if(error)throw error;
-    if(!data)throw Error('Produk tidak berhasil disimpan.');
-    closeModal('productModal');
-    selectedProductImage='';
-    await loadAll();
-    toast(id?'Produk berhasil diperbarui.':'Produk berhasil ditambahkan.');
-  }catch(e){
-    console.error('saveProduct',e);
-    toast('Gagal menyimpan produk: '+(e.message||'periksa koneksi/database'));
-  }
-}
-async function deleteProduct(event){try{if(event)event.stopPropagation();if(String(profile?.role||'').trim().toLowerCase()!=='admin')return toast('Hanya admin yang dapat menghapus produk.');const id=$('productId').value;if(!id)return toast('Produk belum dipilih.');const nama=$('pNama').value.trim()||'produk ini';if(!confirm('Hapus produk "'+nama+'"? Produk akan dihapus dari daftar penjualan.'))return;const {data,error}=await sb.from('products').update({aktif:false}).eq('id',id).select().single();if(error)throw error;if(!data)throw Error('Produk tidak berhasil dihapus.');closeModal('productModal');selectedProductImage='';await loadAll();toast('Produk berhasil dihapus.')}catch(e){console.error('deleteProduct',e);toast('Gagal menghapus produk: '+(e.message||'periksa RLS Supabase'))}}
+async function saveProduct(){try{if(profile?.role!=='admin')return toast('Hanya admin yang dapat menyimpan produk.');const nama=$('pNama').value.trim();if(!nama)return toast('Nama produk wajib diisi.');const nums=['pEcer','pReseller','pAgen','pGrosir','pStok'].map(id=>Number($(id).value||0));if(nums.some(v=>!Number.isFinite(v)||v<0))return toast('Harga dan stok harus berupa angka nol atau lebih.');const [harga_ecer,harga_reseller,harga_agen,harga_grosir,stok]=nums;let gambar=$('pGambar').value.trim()||selectedProductImage;const fileInput=$('pGambarFile'),file=fileInput?.files?.[0];if(file){toast('Mengolah gambar...');gambar=await compressImage(file);if(gambar.length>900000)gambar=await compressImage(file,700,.65);if(gambar.length>1400000)throw Error('Gambar masih terlalu besar. Pilih gambar yang lebih kecil.')}const row={nama,harga_ecer,harga_reseller,harga_agen,harga_grosir,stok,kategori:$('pKategori').value||'Lainnya',gambar,aktif:true};const id=$('productId').value;let q=id?sb.from('products').update(row).eq('id',id):sb.from('products').insert(row);const {data,error}=await q.select().single();if(error)throw error;if(!data)throw Error('Produk tidak berhasil disimpan.');closeModal('productModal');selectedProductImage='';await loadAll();toast(id?'Produk berhasil diperbarui.':'Produk berhasil ditambahkan.')}catch(e){console.error('saveProduct',e);toast('Gagal menyimpan produk: '+(e.message||'periksa RLS Supabase'))}}
+async function deleteProduct(event){try{if(event)event.stopPropagation();if(profile?.role!=='admin')return toast('Hanya admin yang dapat menghapus produk.');const id=$('productId').value;if(!id)return toast('Produk belum dipilih.');const nama=$('pNama').value.trim()||'produk ini';if(!confirm('Hapus produk "'+nama+'"? Produk akan dihapus dari daftar penjualan.'))return;const {data,error}=await sb.from('products').update({aktif:false}).eq('id',id).select().single();if(error)throw error;if(!data)throw Error('Produk tidak berhasil dihapus.');closeModal('productModal');selectedProductImage='';await loadAll();toast('Produk berhasil dihapus.')}catch(e){console.error('deleteProduct',e);toast('Gagal menghapus produk: '+(e.message||'periksa RLS Supabase'))}}
 function openAgent(){if(profile?.role!=='admin')return toast('Hanya admin yang dapat menambah agen.');$('aNama').value=$('aHp').value=$('aAlamat').value='';openModal('agentModal')}
-function openModal(id){const m=$(id);if(!m)return;const sheet=document.querySelector('.side');sheet?.classList.remove('sheet-half','sheet-expanded');document.body.classList.add('modal-open');document.body.classList.remove('mobile-sheet-open');document.getElementById('mobileSheetBackdrop')?.classList.remove('show');m.classList.add('show');m.setAttribute('aria-hidden','false');setTimeout(()=>{const first=m.querySelector('input:not([type="hidden"]),select,button');first?.focus()},80)}
-function closeModal(id){const m=$(id);if(!m)return;m.classList.remove('show');m.setAttribute('aria-hidden','true');if(!document.querySelector('.modal.show'))document.body.classList.remove('modal-open')}
+function openModal(id){const m=$(id);if(!m)return;m.classList.add('show');document.body.classList.add('modal-open');setTimeout(()=>{const first=m.querySelector('input:not([type="hidden"]),select,button');first?.focus()},80)}
+function closeModal(id){const m=$(id);if(!m)return;m.classList.remove('show');if(!document.querySelector('.modal.show'))document.body.classList.remove('modal-open')}
 document.addEventListener('click',e=>{const m=e.target.closest('.modal');if(m&&e.target===m)closeModal(m.id)});
 document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;const m=document.querySelector('.modal.show');if(m)closeModal(m.id)});
 function buildPrintReportHtml(){
@@ -901,61 +733,6 @@ async function completeBarangDibawa(){
 }
 const _oldOpenBarangDibawaComplete=openBarangDibawaComplete;
 openBarangDibawaComplete=function(id){window.__carryCompleteId=id;return _oldOpenBarangDibawaComplete(id)};
-/* TOKOKASIRLUSSAL_MOBILE_NAV_V4 */
-(function setupMobileNavigationBar(){
-  // Gerakan bottom-sheet ini khusus APK/Capacitor. Web/PWA memakai layout web normal.
-  if(!window.Capacitor)return;
-  let bar=null, dragging=false, startY=0, startX=0, startTranslate=0, verticalGesture=false;
-  const mobile=()=>!!window.Capacitor&&window.innerWidth<=800;
-  const getBar=()=>document.querySelector('body.app-screen .side');
-  function maxTranslate(){ return Math.max(0,(bar?.getBoundingClientRect().height||67)-18); }
-  function apply(t,animate=true){
-    if(!bar||!mobile())return;
-    bar.classList.toggle('nav-gesture-dragging',!animate);
-    bar.style.transform='translateY('+Math.max(0,Math.min(maxTranslate(),t))+'px)';
-  }
-  function begin(e){
-    if(!mobile()||!bar)return;
-    startY=e.clientY;startX=e.clientX;startTranslate=bar.getBoundingClientRect().top-(window.innerHeight-bar.getBoundingClientRect().height);
-    verticalGesture=false;dragging=true;
-    bar.classList.add('nav-gesture-dragging');
-  }
-  function move(e){
-    if(!dragging||!bar)return;
-    const dx=e.clientX-startX,dy=e.clientY-startY;
-    if(!verticalGesture && Math.abs(dx)>Math.abs(dy)+8){
-      dragging=false;bar.classList.remove('nav-gesture-dragging');return;
-    }
-    if(Math.abs(dy)>=Math.abs(dx)+4)verticalGesture=true;
-    if(!verticalGesture)return;
-    const next=Math.max(0,Math.min(maxTranslate(),startTranslate+dy));
-    apply(next,false);e.preventDefault();
-  }
-  function end(e){
-    if(!dragging||!bar)return;
-    dragging=false;bar.classList.remove('nav-gesture-dragging');
-    const h=bar.getBoundingClientRect().height||67;
-    const current=Math.max(0,Math.min(h-18,bar.getBoundingClientRect().top-(window.innerHeight-h)));
-    const dy=e.clientY-startY;
-    if(verticalGesture){
-      const target=(dy< -18 || current<h*.45)?0:h-18;
-      apply(target,true);
-    }else{
-      bar.style.removeProperty('transform');
-    }
-  }
-  function init(){
-    bar=getBar();if(!bar||bar.dataset.mobileNavV4==='1')return;
-    bar.dataset.mobileNavV4='1';
-    bar.addEventListener('pointerdown',begin,{passive:true});
-    bar.addEventListener('pointermove',move,{passive:false});
-    bar.addEventListener('pointerup',end,{passive:true});
-    bar.addEventListener('pointercancel',end,{passive:true});
-    window.addEventListener('resize',()=>{if(!mobile()){bar.style.removeProperty('transform');bar.classList.remove('nav-gesture-dragging')}});
-    bar.style.transform='translateY('+(maxTranslate())+'px)';
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
-})();
 let deferredInstallPrompt=null;
 window.addEventListener('beforeinstallprompt',e=>{
   e.preventDefault();
@@ -985,266 +762,18 @@ if('serviceWorker' in navigator){
   window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(e=>console.warn('PWA service worker',e)));
 }
 
-/* LOGIN CLICK FALLBACK: bind directly after the app script has loaded. */
-(function bindLoginControls(){
-  function bind(){
-    const submit=document.getElementById('loginSubmit');
-    if(submit && submit.dataset.bound!=='1'){
-      submit.dataset.bound='1';
-      submit.addEventListener('click',function(e){e.preventDefault();window.login();});
-    }
-    const kasir=document.getElementById('loginKasirBtn');
-    if(kasir && kasir.dataset.bound!=='1'){
-      kasir.dataset.bound='1';
-      kasir.addEventListener('click',function(e){e.preventDefault();setLoginMode('kasir');});
-    }
-    const admin=document.getElementById('loginAdminBtn');
-    if(admin && admin.dataset.bound!=='1'){
-      admin.dataset.bound='1';
-      admin.addEventListener('click',function(e){e.preventDefault();setLoginMode('admin');});
-    }
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();
-})();
-
-/* PRODUCT EDIT CLICK FIX — delegated so dynamically rendered product cards always work. */
-(function bindProductEditClick(){
-  function bind(){
-    if(window.__productEditClickFix)return;
-    window.__productEditClickFix=true;
-    document.addEventListener('click',function(e){
-      const btn=e.target.closest?.('[data-edit-id]');
-      if(!btn)return;
-      e.preventDefault();
-      e.stopPropagation();
-      const id=btn.getAttribute('data-edit-id');
-      if(!id)return;
-      if(typeof openProduct==='function')openProduct(id);
-      else if(typeof window.openProduct==='function')window.openProduct(id);
-    },true);
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();
-})();
-
-// WEB SETTINGS NAVIGATION FIX: ensure Pengaturan never leaves the Laporan tab visible.
-(function bindWebSettingsNavigation(){
-  function bind(){
-    const nav=document.getElementById('navAkun');
-    if(!nav||nav.dataset.webSettingsFix==='1')return;
-    nav.dataset.webSettingsFix='1';
-    nav.addEventListener('click',function(e){
-      if(window.Capacitor)return;
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      forceSettingsTab();
-    },true);
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();
-  window.addEventListener('load',bind);
-})();
-
-/* PRODUCT EDIT STABILITY — reliable delegated handler */
+// Windows-only printer selector binding.
 (function(){
-  function bindProductEdit(){
-    if(window.__productEditStableBound)return;
-    window.__productEditStableBound=true;
-    document.addEventListener('click',function(e){
-      const btn=e.target.closest && e.target.closest('[data-edit-id]');
-      if(!btn)return;
-      e.preventDefault();
-      e.stopPropagation();
-      const id=btn.getAttribute('data-edit-id');
-      if(id && typeof openProduct==='function')openProduct(id);
-    },true);
+  function bindWindowsPrinterSettings(){
+    const select=document.getElementById('receiptPrinter');
+    if(!select||select.dataset.bound==='1')return;
+    select.dataset.bound='1';
+    select.addEventListener('change',function(){
+      try{localStorage.setItem('tokokasirlussal-printer',this.value||'')}catch(e){}
+      const note=document.getElementById('printerSelectedNote');
+      if(note)note.textContent=this.value?'Printer aktif: '+this.options[this.selectedIndex].text:'Belum ada printer dipilih.';
+    });
   }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindProductEdit,{once:true});else bindProductEdit();
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindWindowsPrinterSettings,{once:true});else bindWindowsPrinterSettings();
+  window.addEventListener('load',function(){bindWindowsPrinterSettings();setTimeout(function(){if(typeof refreshReceiptPrinters==='function')refreshReceiptPrinters()},150)});
 })();
-
-/* FINAL WEB SETTINGS ROUTING — settings must show accounts, never reports */
-(function(){
-  function bindFinalSettings(){
-    const nav=document.getElementById('navAkun');
-    if(!nav||nav.dataset.finalSettingsRoute==='1')return;
-    nav.dataset.finalSettingsRoute='1';
-    nav.addEventListener('click',function(e){
-      if(window.Capacitor)return;
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      const target=document.getElementById('tab-akun');
-      if(!target)return;
-      document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
-      target.classList.add('active');
-      document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));
-      nav.classList.add('active');
-      try{history.replaceState(null,'','#akun')}catch(_){}
-      target.scrollTop=0;
-      try{updateAccountView();renderUsers();refreshReceiptPrinters();}catch(err){console.error('final settings route',err)}
-    },true);
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindFinalSettings,{once:true});else bindFinalSettings();
-  window.addEventListener('load',bindFinalSettings);
-})();
-
-
-/* FINAL WEB SETTINGS HARD ROUTE V2 — never let Pengaturan land on Laporan */
-(function(){
-  function openWebSettings(e){
-    if(window.Capacitor)return;
-    const nav=document.getElementById('navAkun');
-    if(!nav)return;
-    if(e && e.target && !e.target.closest('#navAkun'))return;
-    const target=document.getElementById('tab-akun');
-    if(!target)return;
-    const role=String(window.profile?.role||profile?.role||'').trim().toLowerCase();
-    if(role && role!=='admin')return;
-    if(e){e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();}
-    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
-    document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));
-    target.classList.add('active');
-    nav.classList.add('active');
-    target.style.setProperty('display','flex','important');
-    target.style.setProperty('visibility','visible','important');
-    document.querySelectorAll('.report-section').forEach(x=>x.classList.remove('active'));
-    try{history.replaceState(null,'','#akun')}catch(_){}
-    target.scrollTop=0;
-    document.querySelector('.main')?.scrollTo({top:0,left:0,behavior:'auto'});
-    try{updateAccountView();renderUsers();if(typeof refreshReceiptPrinters==='function')refreshReceiptPrinters();}catch(err){console.error('web settings hard route',err)}
-  }
-  function bind(){
-    const nav=document.getElementById('navAkun');
-    if(!nav || nav.dataset.settingsHardRouteV2==='1')return;
-    nav.dataset.settingsHardRouteV2='1';
-    nav.addEventListener('click',openWebSettings,true);
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();
-  window.addEventListener('load',bind);
-})();
-
-/* WINDOWS BUILD SYNC: keep desktop bundle aligned with current Web application source. */
-
-
-/* WINDOWS SOFTWARE ISOLATED LOGIN — separate renderer, Web/APK untouched */
-(function(){
-'use strict';
-function repairSoftwareLogin(){
- try{
-  const login=document.getElementById('login');
-  const box=login?.querySelector('.login-box');
-  const submit=document.getElementById('loginSubmit');
-  const kasir=document.getElementById('loginKasirBtn');
-  const admin=document.getElementById('loginAdminBtn');
-  const username=document.getElementById('username');
-  const pin=document.getElementById('pin');
-  if(!login)return;
-  [login,box,submit,kasir,admin,username,pin].forEach(function(el){
-   if(!el)return;
-   el.style.setProperty('pointer-events','auto','important');
-   el.style.setProperty('user-select','auto','important');
-  });
-  login.style.setProperty('z-index','99999','important');
-  if(submit && submit.dataset.softwareLoginBound!=='1'){
-   submit.dataset.softwareLoginBound='1';
-   submit.addEventListener('click',function(e){
-    e.preventDefault(); e.stopPropagation();
-    if(typeof window.login==='function') window.login();
-   },true);
-  }
-  if(kasir && kasir.dataset.softwareLoginBound!=='1'){
-   kasir.dataset.softwareLoginBound='1';
-   kasir.addEventListener('click',function(e){
-    e.preventDefault(); e.stopPropagation();
-    if(typeof window.setLoginMode==='function') window.setLoginMode('kasir');
-   },true);
-  }
-  if(admin && admin.dataset.softwareLoginBound!=='1'){
-   admin.dataset.softwareLoginBound='1';
-   admin.addEventListener('click',function(e){
-    e.preventDefault(); e.stopPropagation();
-    if(typeof window.setLoginMode==='function') window.setLoginMode('admin');
-   },true);
-  }
- }catch(e){console.error('[software-login]',e);}
-}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',repairSoftwareLogin,{once:true});else repairSoftwareLogin();
-window.addEventListener('load',repairSoftwareLogin);
-setInterval(repairSoftwareLogin,1000);
-})();
-
-
-/* WINDOWS SOFTWARE LOGIN — HARD INTERACTION ISOLATION
-   Only this Electron renderer gets this fix. Web/APK files are untouched. */
-(function(){
-  'use strict';
-  const STYLE_ID='tokokasir-software-login-hard-fix';
-  function installLoginIsolation(){
-    if(document.getElementById(STYLE_ID)) return;
-    const style=document.createElement('style');
-    style.id=STYLE_ID;
-    style.textContent=[
-      'html,body{width:100%;height:100%;overflow:hidden!important}',
-      'body.login-screen{position:relative!important;isolation:isolate!important;overflow:hidden!important}',
-      'body.login-screen>*:not(#login){pointer-events:none!important;visibility:hidden!important}',
-      'body.login-screen #login{display:grid!important;position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;min-height:100vh!important;margin:0!important;z-index:2147483647!important;pointer-events:auto!important;visibility:visible!important;opacity:1!important}',
-      'body.login-screen #login:before,body.login-screen #login:after{pointer-events:none!important;z-index:0!important}',
-      'body.login-screen #login .login-box{position:relative!important;z-index:2147483647!important;pointer-events:auto!important;visibility:visible!important}',
-      'body.login-screen #login button,body.login-screen #login input{position:relative!important;z-index:2147483647!important;pointer-events:auto!important;touch-action:manipulation!important}',
-      'body.login-screen #login .login-switch{position:relative!important;z-index:2147483647!important;pointer-events:auto!important}',
-      'body.login-screen #loginSubmit,body.login-screen #loginKasirBtn,body.login-screen #loginAdminBtn{cursor:pointer!important;-webkit-app-region:no-drag!important}',
-      'body.login-screen #app{pointer-events:none!important;visibility:hidden!important}'
-    ].join('');
-    (document.head||document.documentElement).appendChild(style);
-  }
-
-  function bindLoginControls(){
-    installLoginIsolation();
-    const submit=document.getElementById('loginSubmit');
-    const kasir=document.getElementById('loginKasirBtn');
-    const admin=document.getElementById('loginAdminBtn');
-    if(submit && submit.dataset.softwareHardBound!=='1'){
-      submit.dataset.softwareHardBound='1';
-      submit.onclick=null;
-      submit.addEventListener('pointerup',function(e){
-        e.preventDefault(); e.stopPropagation();
-        if(typeof window.login==='function') window.login();
-      },false);
-    }
-    if(kasir && kasir.dataset.softwareHardBound!=='1'){
-      kasir.dataset.softwareHardBound='1';
-      kasir.onclick=null;
-      kasir.addEventListener('pointerup',function(e){
-        e.preventDefault(); e.stopPropagation();
-        if(typeof window.setLoginMode==='function') window.setLoginMode('kasir');
-      },false);
-    }
-    if(admin && admin.dataset.softwareHardBound!=='1'){
-      admin.dataset.softwareHardBound='1';
-      admin.addEventListener('pointerup',function(e){
-        e.preventDefault(); e.stopPropagation();
-        if(typeof window.setLoginMode==='function') window.setLoginMode('admin');
-      },false);
-    }
-  }
-
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',bindLoginControls,{once:true});
-  }else bindLoginControls();
-  window.addEventListener('load',bindLoginControls);
-  new MutationObserver(bindLoginControls).observe(document.documentElement,{childList:true,subtree:true});
-})();
-
-/* SOFTWARE AUTH BRIDGE — adopt the authenticated session supplied by Electron main. */
-window.__softwareCompleteLogin = async function(result){
-  if(!result?.session?.access_token) throw new Error('Sesi software tidak valid.');
-  if(!window.supabase?.createClient) throw new Error('Supabase SDK belum termuat.');
-  const makeClient=()=>supabase.createClient(CONFIG.url,CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'tokokasirlussal-auth-v2'}});
-  if(!sb) sb=makeClient();
-  const adopted=await sb.auth.setSession({access_token:result.session.access_token,refresh_token:result.session.refresh_token||''});
-  if(adopted.error) throw adopted.error;
-  currentUser=adopted.data.session?.user||result.session.user;
-  profile=result.profile;
-  profile.auth_user_id=currentUser?.id||profile.auth_user_id;
-  localStorage.setItem('tokokasirlussal-username',profile.username);
-  showApp();
-  try{await loadAll()}catch(loadErr){console.error('[software-auth] loadAll after login',loadErr);toast('Login berhasil, tetapi data belum dapat dimuat: '+(loadErr?.message||'periksa koneksi Supabase'));}
-  return true;
-};
