@@ -25,6 +25,7 @@ concurrency:
   # Serialize generated-file publication with the APK workflow so neither can overwrite the other's commit.
   group: tokokasirlussal-platform-publication
   cancel-in-progress: false
+  queue: max
 
 jobs:
   build-windows:
