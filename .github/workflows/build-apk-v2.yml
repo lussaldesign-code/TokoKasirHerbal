@@ -8,6 +8,7 @@ on:
       - 'apk-navigation-v2.js'
       - 'apk-navigation-v2.css'
       - 'apk-icon.svg'
+      - 'apk-update.json'
       - '.github/workflows/build-apk-v2.yml'
 concurrency:
   group: tokokasirlussal-fresh-apk
@@ -40,7 +41,7 @@ jobs:
           mkdir -p mobile/www
           cp index-supabase.html mobile/www/index.html
           cp app.js config.js sw.js mobile/www/
-          cp apk-navigation-v2.css apk-navigation-v2.js apk-icon.svg mobile/www/
+          cp apk-navigation-v2.css apk-navigation-v2.js apk-icon.svg apk-update.json mobile/www/
           python3 - <<'PY'
           from pathlib import Path
           import re, os
@@ -60,6 +61,7 @@ jobs:
           p.write_text(s, encoding="utf-8")
           PY
           sed -i "s#tokokasirlussal-v[0-9.]*#tokokasirlussal-v$VERSION#g" mobile/www/sw.js
+          sed -i "s#__APK_VERSION__#$VERSION#g" mobile/www/apk-navigation-v2.js
           echo "Prepared APK bundle version $VERSION"
       - name: Install packages
         run: npm install --legacy-peer-deps --no-audit --no-fund
@@ -124,11 +126,119 @@ jobs:
               p.write_text(s,encoding="utf-8")
           PY
           echo "TokoKasirLussal themed splash installed"
+      - name: Install native APK updater bridge
+        shell: bash
+        run: |
+          set -e
+          mkdir -p android/app/src/main/java/com/lussaldesign/tokokasirlussal
+          cat > android/app/src/main/java/com/lussaldesign/tokokasirlussal/MainActivity.java <<'EOF'
+          package com.lussaldesign.tokokasirlussal;
+
+          import android.content.Intent;
+          import android.net.Uri;
+          import android.os.Build;
+          import android.os.Bundle;
+          import android.os.Environment;
+          import android.provider.Settings;
+          import android.webkit.JavascriptInterface;
+          import android.widget.Toast;
+          import androidx.core.content.FileProvider;
+          import com.getcapacitor.BridgeActivity;
+          import java.io.File;
+          import java.io.FileOutputStream;
+          import java.io.InputStream;
+          import java.net.HttpURLConnection;
+          import java.net.URL;
+
+          public class MainActivity extends BridgeActivity {
+            @Override
+            public void onCreate(Bundle savedInstanceState) {
+              super.onCreate(savedInstanceState);
+              getBridge().getWebView().addJavascriptInterface(new ApkUpdater(this), "AndroidUpdater");
+            }
+            static class ApkUpdater {
+              private final MainActivity activity;
+              ApkUpdater(MainActivity activity) { this.activity = activity; }
+              @JavascriptInterface public void downloadAndInstall(final String url) {
+                if (url == null || !url.startsWith("https://")) { activity.toast("Link update APK tidak aman."); return; }
+                new Thread(() -> {
+                  try {
+                    URL u = new URL(url);
+                    HttpURLConnection c = (HttpURLConnection)u.openConnection();
+                    c.setConnectTimeout(20000); c.setReadTimeout(120000); c.setInstanceFollowRedirects(true); c.connect();
+                    if (c.getResponseCode() < 200 || c.getResponseCode() >= 400) throw new Exception("HTTP " + c.getResponseCode());
+                    File dir = activity.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+                    if (dir == null) throw new Exception("Penyimpanan tidak tersedia");
+                    if (!dir.exists() && !dir.mkdirs()) throw new Exception("Folder download gagal dibuat");
+                    File out = new File(dir, "TokoKasirLussal-update.apk");
+                    try (InputStream in = c.getInputStream(); FileOutputStream fos = new FileOutputStream(out)) {
+                      byte[] buf = new byte[8192]; int n; while ((n=in.read(buf))!=-1) fos.write(buf,0,n);
+                    } finally { c.disconnect(); }
+                    activity.runOnUiThread(() -> activity.installApk(out));
+                  } catch(Exception e) { activity.toast("Gagal mengunduh update: " + e.getMessage()); }
+                }).start();
+              }
+            }
+            void toast(String message) { runOnUiThread(() -> Toast.makeText(this,message,Toast.LENGTH_LONG).show()); }
+            void installApk(File apk) {
+              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !getPackageManager().canRequestPackageInstalls()) {
+                try {
+                  Intent s=new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES);
+                  s.setData(Uri.parse("package:"+getPackageName())); startActivity(s);
+                } catch(Exception ignored) {}
+                Toast.makeText(this,"Izinkan pemasangan aplikasi dari sumber ini, lalu tekan Update lagi.",Toast.LENGTH_LONG).show();
+                return;
+              }
+              Uri uri=FileProvider.getUriForFile(this,getPackageName()+".fileprovider",apk);
+              Intent i=new Intent(Intent.ACTION_VIEW);
+              i.setDataAndType(uri,"application/vnd.android.package-archive");
+              i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_GRANT_READ_URI_PERMISSION);
+              startActivity(i);
+            }
+          }
+          EOF
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("android/app/src/main/AndroidManifest.xml")
+          s=p.read_text(encoding="utf-8")
+          provider='''    <provider
+                android:name="androidx.core.content.FileProvider"
+                android:authorities="com.lussaldesign.tokokasirlussal.fileprovider"
+                android:exported="false"
+                android:grantUriPermissions="true">
+                <meta-data
+                    android:name="android.support.FILE_PROVIDER_PATHS"
+                    android:resource="@xml/apk_file_paths" />
+            </provider>
+          '''
+          if 'androidx.core.content.FileProvider' not in s: s=s.replace('</application>',provider+'</application>')
+          p.write_text(s,encoding="utf-8")
+          PY
+          mkdir -p android/app/src/main/res/xml
+          cat > android/app/src/main/res/xml/apk_file_paths.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <paths xmlns:android="http://schemas.android.com/apk/res/android">
+              <external-files-path name="apk_downloads" path="Download/" />
+          </paths>
+          EOF
       - name: Sync
         run: ./node_modules/.bin/cap sync android
+      - name: Read APK version
+        id: apk_version
+        shell: bash
+        run: echo "version=$(tr -d '[:space:]' < apk-version.txt)" >> "$GITHUB_OUTPUT"
       - name: Build
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon --no-parallel --stacktrace -Dorg.gradle.jvmargs="-Xmx4g"
+      - name: Publish APK release asset
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v${{ steps.apk_version.outputs.version }}
+          name: TokoKasirLussal v${{ steps.apk_version.outputs.version }}
+          files: android/app/build/outputs/apk/debug/*.apk
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
