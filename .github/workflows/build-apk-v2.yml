@@ -10,6 +10,8 @@ on:
       - 'apk-icon.svg'
       - 'apk-update.json'
       - '.github/workflows/build-apk-v2.yml'
+permissions:
+  contents: write
 concurrency:
   group: tokokasirlussal-fresh-apk
   cancel-in-progress: false
