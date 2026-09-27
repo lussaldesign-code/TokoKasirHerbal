@@ -27,6 +27,7 @@ concurrency:
   # Android and Windows both write generated files to main; serialize publication only.
   group: tokokasirlussal-platform-publication
   cancel-in-progress: false
+  queue: max
 
 permissions:
   contents: write
