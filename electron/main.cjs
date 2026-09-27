@@ -1,8 +1,53 @@
 const { app, BrowserWindow, Menu, shell, dialog, ipcMain } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const { execFileSync } = require('child_process');
 
 let mainWindow;
+
+function readSoftwareSupabaseConfig() {
+  const configPath = path.join(__dirname, '..', 'config.js');
+  const source = fs.readFileSync(configPath, 'utf8');
+  const urlMatch = source.match(/url\s*:\s*['"]([^'"]+)['"]/);
+  const keyMatch = source.match(/key\s*:\s*['"]([^'"]+)['"]/);
+  if (!urlMatch || !keyMatch) throw new Error('Konfigurasi Supabase software tidak ditemukan.');
+  return { url: urlMatch[1].replace(/\/$/, ''), key: keyMatch[1] };
+}
+async function supabaseSoftwareRequest(baseUrl, apiKey, pathname, token, body) {
+  const response = await fetch(baseUrl + pathname, {
+    method: 'POST',
+    headers: { apikey: apiKey, Authorization: 'Bearer ' + (token || apiKey), 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(body || {})
+  });
+  const raw = await response.text();
+  let data = null;
+  try { data = raw ? JSON.parse(raw) : null; } catch (_) {}
+  if (!response.ok) throw new Error(String(data?.message || data?.error_description || data?.error || raw || ('HTTP ' + response.status)));
+  return data;
+}
+ipcMain.handle('software-login', async (_event, payload) => {
+  const mode = payload?.mode === 'admin' ? 'admin' : 'kasir';
+  const username = String(payload?.username || '').trim().toLowerCase();
+  const pin = String(payload?.pin || '').trim();
+  if (!username) throw new Error('Masukkan username terlebih dahulu.');
+  if (mode === 'admin' && !/^\d{4}$/.test(pin)) throw new Error('PIN admin harus tepat 4 angka.');
+  const { url, key } = readSoftwareSupabaseConfig();
+  const auth = await supabaseSoftwareRequest(url, key, '/auth/v1/signup', '', {});
+  if (!auth?.access_token || !auth?.user?.id) throw new Error('Supabase tidak mengembalikan sesi login. Pastikan Anonymous Sign-Ins aktif.');
+  const rpcName = mode === 'admin' ? 'kiosk_login_pin' : 'kiosk_login_cashier';
+  const rpcBody = mode === 'admin' ? { p_username: username, p_pin: pin } : { p_username: username };
+  const result = await supabaseSoftwareRequest(url, key, '/rest/v1/rpc/' + rpcName, auth.access_token, rpcBody);
+  const account = Array.isArray(result) ? result[0] : result;
+  if (!account) throw new Error('Akun tidak ditemukan atau tidak aktif.');
+  if (mode === 'admin' && account.role !== 'admin') throw new Error('Akun ini bukan akun admin.');
+  if (mode === 'kasir' && account.role === 'admin') throw new Error('Gunakan tombol Login Admin.');
+  const profileResult = await supabaseSoftwareRequest(url, key, '/rest/v1/rpc/kiosk_profile', auth.access_token, { p_username: account.username });
+  const profile = Array.isArray(profileResult) ? profileResult[0] : profileResult;
+  if (!profile) throw new Error('Profil akun belum tersedia.');
+  if (!profile.aktif) throw new Error('Akun tidak aktif.');
+  profile.auth_user_id = auth.user.id;
+  return { ok:true, session:{access_token:auth.access_token,refresh_token:auth.refresh_token||'',user:auth.user}, account, profile };
+});
 
 
 ipcMain.handle('open-downloaded-update', async (_event, filePath) => {
