@@ -150,6 +150,8 @@ jobs:
           retention-days: 90
 
       - name: Publish APK to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -e
           VERSION="$(tr -d '[:space:]' < apk-version.txt)"
