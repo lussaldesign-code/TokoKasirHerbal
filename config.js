@@ -2,7 +2,7 @@
 // Hanya gunakan publishable/anon key. Jangan pernah menaruh service_role/secret key di file ini.
 window.APP_CONFIG={
   url:'https://geoedddgvzvqsykuekdw.supabase.co',
-  key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdlb2VkZGRndnp2cXN5a3Vla2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwODM3MjAsImV4cCI6MjEwNTY1OTcyMH0.DKaoJbKparsGc9_WEQ_jefQVJl5raNgPGckbw9UVoNI'
+  key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnZW9lZGRkdnpxcXN5a3Vla2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwODM3MjAsImV4cCI6MjEwNTY1OTcyMH0.DKaoJbKparsGc9_WEQ_jefQVJl5raNgPGckbw9UVoNI'
 };
 
 document.addEventListener('DOMContentLoaded',()=>{
@@ -46,12 +46,11 @@ function renderReturnsMenu(){
  }).join('')||'<tr><td colspan="5" class="note">Belum ada pembelian.</td></tr>';
 }
 
-// Load the existing top-right bell notification logic without touching authentication.
 document.addEventListener('DOMContentLoaded',function(){
   if(document.getElementById('bell-notification-fix-loader'))return;
   const s=document.createElement('script');
   s.id='bell-notification-fix-loader';
-  s.src='bell-notification-fix.js?v=20260928';
+  s.src='bell-notification-fix-v2.js?v=20260928';
   s.defer=true;
   document.head.appendChild(s);
 });
