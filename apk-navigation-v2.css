@@ -12,7 +12,7 @@ html.apk-v2 .apk-sheet-handle span{opacity:.65!important}
 html.apk-v2 body.app-screen .side .brand{display:none!important}
 html.apk-v2 body.app-screen .side .nav{flex:0 0 78px!important;width:78px!important;min-width:78px!important;max-width:78px!important;height:58px!important;min-height:58px!important;margin:0!important;padding:5px 3px!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:3px!important;border-radius:15px!important;color:#5d7568!important;background:transparent!important;font-size:9px!important;font-weight:800!important;line-height:1!important;text-align:center!important;transition:.22s ease!important;transform:none!important}
 html.apk-v2 body.app-screen .side .nav span{width:34px!important;height:28px!important;display:grid!important;place-items:center!important;font-size:22px!important;line-height:1!important;border-radius:10px!important}
-html.apk-v2 body.app-screen .side .nav.active{color:#f0fff8!important;background:#eaf8ee!important;color:#176b39!important;box-shadow:inset 0 0 0 1px #bfe2ca,0 5px 14px rgba(18,59,37,.12)!important}
+html.apk-v2 body.app-screen .side .nav.active{color:#176b39!important;background:#eaf8ee!important;box-shadow:inset 0 0 0 1px #bfe2ca,0 5px 14px rgba(18,59,37,.12)!important}
 html.apk-v2 body.app-screen .side .nav.active span{color:#16803b!important;background:#d7f3df!important;box-shadow:none!important;transform:translateY(-1px) scale(1.04)!important}
 html.apk-v2 body.app-screen .side .nav.logout{margin:0!important;color:#ffaaa9!important}
 html.apk-v2 body.app-screen #tab-akun.apk-v2-settings{display:flex!important;flex-direction:column!important;height:calc(100dvh - 20px)!important;min-height:calc(100dvh - 20px)!important;overflow:hidden!important;background:linear-gradient(145deg,#050806,#07110c)!important}
@@ -31,4 +31,9 @@ html.apk-v2 body.app-screen #printerSettingsCard.apk-v2-printer{background:#fff!
 html.apk-v2 .apk-camera-main{width:100%!important;margin:8px 0 10px!important;padding:14px 16px!important;border:1px solid #bfe2ca!important;border-radius:14px!important;background:linear-gradient(135deg,#eaf8ee,#f7fcf8)!important;color:#176b39!important;font-weight:800!important;text-align:left!important;display:flex!important;align-items:center!important;gap:10px!important}
 html.apk-v2 .apk-camera-main span{font-size:14px!important}.apk-camera-main small{display:block!important;margin-left:auto!important;color:#6b7b70!important;font-weight:600!important}
 html.apk-v2 .apk-sheet-handle i{background:#16803b!important;box-shadow:none!important}.apk-sheet-handle span{color:#5d7568!important}
+/* APK laporan: biarkan seluruh isi laporan ikut scroll vertikal, bukan terpotong oleh .tab overflow:hidden */
+html.apk-v2 body.app-screen #tab-laporan{height:auto!important;min-height:calc(100dvh - 20px)!important;overflow:visible!important;display:flex!important;flex-direction:column!important;padding-bottom:24px!important}
+html.apk-v2 body.app-screen #tab-laporan .dash{flex:0 0 auto!important}
+html.apk-v2 body.app-screen #tab-laporan .tablebox{flex:0 0 auto!important;max-height:none!important;overflow-x:auto!important;overflow-y:visible!important;-webkit-overflow-scrolling:touch!important}
+html.apk-v2 body.app-screen #tab-laporan .tablebox table{min-width:650px!important}
 }
