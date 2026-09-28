@@ -32,67 +32,44 @@ function fixApkSettings(){
   if(!tab)return;
   var content=tab.querySelector('.account-content');
   if(!content)return;
-
-  /* The Web source already contains the printer card. APK must reuse it. */
   var printer=content.querySelector('#printerSettingsCard');
-  if(!printer){
-    printer=content.querySelector('.printer-settings');
-    if(printer)printer.id='printerSettingsCard';
-  }
-  if(printer){
-    printer.classList.add('apk-settings-printer');
-    var summary=content.querySelector('.account-summary');
-    if(summary && printer.parentElement===content && printer.previousElementSibling!==summary){
-      summary.insertAdjacentElement('afterend',printer);
-    }
-    try{if(typeof refreshReceiptPrinters==='function')refreshReceiptPrinters();}catch(e){console.warn('APK printer refresh',e)}
-  }
-
-  tab.classList.add('apk-settings-fixed');
-  content.classList.add('apk-settings-content-fixed');
+  if(!printer){printer=content.querySelector('.printer-settings');if(printer)printer.id='printerSettingsCard';}
+  if(printer){printer.classList.add('apk-settings-printer');var summary=content.querySelector('.account-summary');if(summary&&printer.parentElement===content&&printer.previousElementSibling!==summary)summary.insertAdjacentElement('afterend',printer);try{if(typeof refreshReceiptPrinters==='function')refreshReceiptPrinters();}catch(e){console.warn('APK printer refresh',e)}}
+  tab.classList.add('apk-settings-fixed');content.classList.add('apk-settings-content-fixed');
 }
-function bind(){
-  fixApkSettings();
-  var tab=document.getElementById('tab-akun');
-  if(!tab || tab.dataset.apkSettingsFixV2==='1')return;
-  tab.dataset.apkSettingsFixV2='1';
-  new MutationObserver(function(){fixApkSettings()}).observe(tab,{childList:true,subtree:true});
-}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();
-window.addEventListener('load',bind);
+function bind(){fixApkSettings();var tab=document.getElementById('tab-akun');if(!tab||tab.dataset.apkSettingsFixV2==='1')return;tab.dataset.apkSettingsFixV2='1';new MutationObserver(function(){fixApkSettings()}).observe(tab,{childList:true,subtree:true});}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();window.addEventListener('load',bind);
 })();
-
 
 /* APK SETTINGS / REPORT ROUTE FIX — Settings always opens Settings, never Reports. */
 (function(){
 'use strict';
-function openSettings(){
+function openSettings(){if(!document.documentElement.classList.contains('apk-nav-enabled'))return;var nav=document.getElementById('navAkun'),target=document.getElementById('tab-akun');if(!nav||!target)return;document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('active')});document.querySelectorAll('.nav').forEach(function(x){x.classList.remove('active')});document.querySelectorAll('.report-section').forEach(function(x){x.classList.remove('active')});target.classList.add('active');nav.classList.add('active');target.style.setProperty('display','flex','important');target.style.setProperty('visibility','visible','important');target.style.setProperty('position','relative','important');target.style.setProperty('z-index','1','important');try{history.replaceState(null,'','#akun')}catch(e){}try{if(typeof updateAccountView==='function')updateAccountView();if(typeof renderUsers==='function')renderUsers();if(typeof refreshReceiptPrinters==='function')refreshReceiptPrinters()}catch(e){console.warn('APK settings route',e)}}
+function bindSettings(){var nav=document.getElementById('navAkun');if(!nav||nav.dataset.apkSettingsRoute==='1')return;nav.dataset.apkSettingsRoute='1';nav.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();openSettings()},true)}
+function enforceActive(){if(!document.documentElement.classList.contains('apk-nav-enabled'))return;var active=document.querySelector('.tab.active');if(active&&active.id==='tab-akun')document.querySelectorAll('.report-section').forEach(function(x){x.classList.remove('active')})}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindSettings,{once:true});else bindSettings();window.addEventListener('load',bindSettings);setInterval(enforceActive,500);
+})();
+
+/* APK REPORT SCROLL FIX — allow vertical swipe/scroll inside the existing report panel. */
+(function(){
+'use strict';
+function fixReports(){
   if(!document.documentElement.classList.contains('apk-nav-enabled'))return;
-  var nav=document.getElementById('navAkun'), target=document.getElementById('tab-akun');
-  if(!nav||!target)return;
-  document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('active');});
-  document.querySelectorAll('.nav').forEach(function(x){x.classList.remove('active');});
-  document.querySelectorAll('.report-section').forEach(function(x){x.classList.remove('active');});
-  target.classList.add('active'); nav.classList.add('active');
-  target.style.setProperty('display','flex','important');
-  target.style.setProperty('visibility','visible','important');
-  target.style.setProperty('position','relative','important');
-  target.style.setProperty('z-index','1','important');
-  try{history.replaceState(null,'','#akun');}catch(e){}
-  try{if(typeof updateAccountView==='function')updateAccountView();if(typeof renderUsers==='function')renderUsers();if(typeof refreshReceiptPrinters==='function')refreshReceiptPrinters();}catch(e){console.warn('APK settings route',e)}
+  document.querySelectorAll('.report-section').forEach(function(report){
+    report.style.setProperty('box-sizing','border-box','important');
+    report.style.setProperty('min-height','0','important');
+    report.style.setProperty('max-height','calc(100dvh - 72px - env(safe-area-inset-bottom))','important');
+    report.style.setProperty('height','calc(100dvh - 72px - env(safe-area-inset-bottom))','important');
+    report.style.setProperty('overflow-y','auto','important');
+    report.style.setProperty('overflow-x','hidden','important');
+    report.style.setProperty('-webkit-overflow-scrolling','touch','important');
+    report.style.setProperty('overscroll-behavior-y','contain','important');
+    report.style.setProperty('touch-action','pan-y','important');
+    report.style.setProperty('padding-bottom','96px','important');
+  });
+  var main=document.querySelector('body.app-screen .main');
+  if(main){main.style.setProperty('min-height','0','important');main.style.setProperty('overflow','hidden','important');}
 }
-function bindSettings(){
-  var nav=document.getElementById('navAkun');
-  if(!nav||nav.dataset.apkSettingsRoute==='1')return;
-  nav.dataset.apkSettingsRoute='1';
-  nav.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();openSettings();},true);
-}
-function enforceActive(){
-  if(!document.documentElement.classList.contains('apk-nav-enabled'))return;
-  var active=document.querySelector('.tab.active');
-  if(active && active.id==='tab-akun')document.querySelectorAll('.report-section').forEach(function(x){x.classList.remove('active');});
-}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindSettings,{once:true});else bindSettings();
-window.addEventListener('load',bindSettings);
-setInterval(enforceActive,500);
+function bind(){fixReports();var main=document.querySelector('body.app-screen .main');if(main&&!main.dataset.apkReportObserver){main.dataset.apkReportObserver='1';new MutationObserver(fixReports).observe(main,{childList:true,subtree:true,attributes:true,attributeFilter:['class']})}}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();window.addEventListener('load',bind);setTimeout(fixReports,500);setTimeout(fixReports,1500);
 })();
