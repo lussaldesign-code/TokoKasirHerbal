@@ -2,7 +2,7 @@
 // Hanya gunakan publishable/anon key. Jangan pernah menaruh service_role/secret key di file ini.
 window.APP_CONFIG={
   url:'https://geoedddgvzvqsykuekdw.supabase.co',
-  key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnZW9lZGQgvnpxcXN5a3Vla2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwODM3MjAsImV4cCI6MjEwNTY1OTcyMH0.DKaoJbKparsGc9_WEQ_jefQVJl5raNgPGckbw9UVoNI'
+  key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdlb2VkZGRndnp2cXN5a3Vla2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwODM3MjAsImV4cCI6MjEwNTY1OTcyMH0.DKaoJbKparsGc9_WEQ_jefQVJl5raNgPGckbw9UVoNI'
 };
 
 document.addEventListener('DOMContentLoaded',()=>{
@@ -46,7 +46,7 @@ function renderReturnsMenu(){
  }).join('')||'<tr><td colspan="5" class="note">Belum ada pembelian.</td></tr>';
 }
 
-// Bell notification rules only. Login, Supabase session, and authentication are untouched.
+// Bell-only rule: no login, session, Supabase client, or authentication changes.
 document.addEventListener('DOMContentLoaded',()=>{
   try{
     if(typeof renderNotifications!=='function')return;
