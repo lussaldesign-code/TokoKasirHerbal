@@ -20,51 +20,18 @@
   "build": {
     "appId": "com.lussaldesign.tokokasirlussal",
     "productName": "TokoKasirLussal",
-    "directories": {
-      "output": "dist"
-    },
-    "files": [
-      "electron/**/*",
-      "index.html",
-      "index-supabase.html",
-      "app.js",
-      "config.js"
-    ],
+    "directories": {"output": "dist"},
+    "files": ["electron/**/*","index.html","index-supabase.html","app.js","config.js"],
     "asar": true,
-    "publish": {
-      "provider": "github",
-      "owner": "lussaldesign-code",
-      "repo": "TokoKasirHerbal",
-      "releaseType": "release"
-    },
-    "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "artifactName": "TokoKasirLussal-Setup-${version}.${ext}"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "TokoKasirLussal",
-      "perMachine": false,
-      "allowElevation": true,
-      "differentialPackage": false
-    }
+    "publish": {"provider": "github","owner": "lussaldesign-code","repo": "TokoKasirHerbal","releaseType": "release"},
+    "win": {"target":[{"target":"nsis","arch":["x64"]}],"artifactName":"TokoKasirLussal-Setup-${version}.${ext}"},
+    "nsis": {"oneClick":false,"allowToChangeInstallationDirectory":true,"createDesktopShortcut":true,"createStartMenuShortcut":true,"shortcutName":"TokoKasirLussal","perMachine":false,"allowElevation":true,"differentialPackage":false}
   },
   "dependencies": {
     "@capacitor/core": "8.5.2",
     "@capacitor/android": "8.5.2",
+    "@capacitor/push-notifications": "8.0.0",
     "electron-updater": "^6.6.2"
   },
-  "engines": {
-    "node": ">=22"
-  }
+  "engines": {"node": ">=22"}
 }
