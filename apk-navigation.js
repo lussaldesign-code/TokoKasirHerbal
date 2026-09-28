@@ -56,20 +56,31 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 function fixReports(){
   if(!document.documentElement.classList.contains('apk-nav-enabled'))return;
   document.querySelectorAll('.report-section').forEach(function(report){
-    report.style.setProperty('box-sizing','border-box','important');
-    report.style.setProperty('min-height','0','important');
-    report.style.setProperty('max-height','calc(100dvh - 72px - env(safe-area-inset-bottom))','important');
-    report.style.setProperty('height','calc(100dvh - 72px - env(safe-area-inset-bottom))','important');
-    report.style.setProperty('overflow-y','auto','important');
-    report.style.setProperty('overflow-x','hidden','important');
-    report.style.setProperty('-webkit-overflow-scrolling','touch','important');
-    report.style.setProperty('overscroll-behavior-y','contain','important');
-    report.style.setProperty('touch-action','pan-y','important');
-    report.style.setProperty('padding-bottom','96px','important');
+    report.style.setProperty('box-sizing','border-box','important');report.style.setProperty('min-height','0','important');report.style.setProperty('max-height','calc(100dvh - 72px - env(safe-area-inset-bottom))','important');report.style.setProperty('height','calc(100dvh - 72px - env(safe-area-inset-bottom))','important');report.style.setProperty('overflow-y','auto','important');report.style.setProperty('overflow-x','hidden','important');report.style.setProperty('-webkit-overflow-scrolling','touch','important');report.style.setProperty('overscroll-behavior-y','contain','important');report.style.setProperty('touch-action','pan-y','important');report.style.setProperty('padding-bottom','96px','important');
   });
-  var main=document.querySelector('body.app-screen .main');
-  if(main){main.style.setProperty('min-height','0','important');main.style.setProperty('overflow','hidden','important');}
+  var main=document.querySelector('body.app-screen .main');if(main){main.style.setProperty('min-height','0','important');main.style.setProperty('overflow','hidden','important');}
 }
 function bind(){fixReports();var main=document.querySelector('body.app-screen .main');if(main&&!main.dataset.apkReportObserver){main.dataset.apkReportObserver='1';new MutationObserver(fixReports).observe(main,{childList:true,subtree:true,attributes:true,attributeFilter:['class']})}}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();window.addEventListener('load',bind);setTimeout(fixReports,500);setTimeout(fixReports,1500);
+})();
+
+/* APK TAB ISOLATION FIX — hide the existing inactive Account/Settings panel instead of letting it overlay Kasir. */
+(function(){
+'use strict';
+function isolateInactiveTabs(){
+  if(!document.documentElement.classList.contains('apk-nav-enabled'))return;
+  document.querySelectorAll('body.app-screen .main .tab, body.app-screen .main > section.tab, body.app-screen #tab-akun').forEach(function(tab){
+    if(tab.classList.contains('active')){
+      tab.style.removeProperty('display');tab.style.removeProperty('visibility');tab.style.removeProperty('opacity');tab.style.removeProperty('pointer-events');
+    }else{
+      tab.style.setProperty('display','none','important');tab.style.setProperty('visibility','hidden','important');tab.style.setProperty('opacity','0','important');tab.style.setProperty('pointer-events','none','important');
+    }
+  });
+}
+function bindIsolation(){
+  isolateInactiveTabs();
+  var main=document.querySelector('body.app-screen .main');
+  if(main&&!main.dataset.apkTabIsolation){main.dataset.apkTabIsolation='1';new MutationObserver(function(){isolateInactiveTabs()}).observe(main,{subtree:true,attributes:true,attributeFilter:['class','style']});}
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindIsolation,{once:true});else bindIsolation();window.addEventListener('load',bindIsolation);
 })();
