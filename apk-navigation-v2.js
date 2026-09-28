@@ -48,16 +48,19 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 window.addEventListener('load',boot);
 })();
 
-/* APK STOCK NOTIFICATION V2 — hanya APK, Web/Windows tidak disentuh. */
+/* APK STOCK NOTIFICATION V3 — kategori Agarillus: <10; kategori lain: hanya 0. */
 (function(){
 'use strict';
+function getCategory(p){return String(p.kategori??p.category??p.nama_kategori??p.category_name??'').trim();}
+function isAgarillus(p){return getCategory(p).toLowerCase()==='agarillus';}
 function getStockAlerts(){
   const list=Array.isArray(window.products)?window.products:[];
   return list.map(p=>({
     id:p.id,
     nama:String(p.nama||p.nama_produk||p.name||'Produk'),
+    kategori:getCategory(p),
     stok:Number(p.stok??p.stock??0)
-  })).filter(p=>Number.isFinite(p.stok)&&p.stok<10).sort((a,b)=>a.stok-b.stok);
+  })).filter(p=>Number.isFinite(p.stok)&&((isAgarillus(p)&&p.stok<10)||(!isAgarillus(p)&&p.stok===0))).sort((a,b)=>a.stok-b.stok);
 }
 function ensureUi(){
   if(!document.documentElement.classList.contains('apk-v2'))return null;
@@ -69,7 +72,7 @@ function ensureUi(){
   wrap.id='apkStockNotification';
   wrap.className='card';
   wrap.style.cssText='margin:0 0 12px;padding:14px;border-radius:16px;border:1px solid #dfe8e2;background:#fff;box-shadow:0 5px 16px rgba(18,59,37,.08);';
-  wrap.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><div><b style="font-size:14px">🔔 Notifikasi Stok</b><div class="note">Produk dengan stok kurang dari 10 ditampilkan di sini.</div></div><b id="apkStockNotificationCount" style="min-width:28px;text-align:center;padding:5px 8px;border-radius:99px;background:#fff3cd;color:#8a5a00;font-size:12px">0</b></div><div id="apkStockNotificationList" style="margin-top:10px"></div>';
+  wrap.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><div><b style="font-size:14px">🔔 Notifikasi Stok</b><div class="note">Agarillus: stok kurang dari 10. Kategori lain: hanya stok habis.</div></div><b id="apkStockNotificationCount" style="min-width:28px;text-align:center;padding:5px 8px;border-radius:99px;background:#fff3cd;color:#8a5a00;font-size:12px">0</b></div><div id="apkStockNotificationList" style="margin-top:10px"></div>';
   const first=host.firstElementChild;
   if(first&&first.id!=='apkStockNotification')host.insertBefore(wrap,first);else host.appendChild(wrap);
   return wrap;
@@ -82,18 +85,15 @@ function render(){
   const list=document.getElementById('apkStockNotificationList');
   if(count)count.textContent=String(alerts.length);
   if(!list)return;
-  if(!alerts.length){
-    list.innerHTML='<div class="note" style="padding:9px 0">Tidak ada produk dengan stok kurang dari 10.</div>';
-    return;
-  }
+  if(!alerts.length){list.innerHTML='<div class="note" style="padding:9px 0">Tidak ada notifikasi stok.</div>';return;}
   list.innerHTML=alerts.map(p=>{
-    const empty=p.stok<=0;
+    const empty=p.stok===0;
     const label=empty?'Stok habis':'Stok menipis';
     const bg=empty?'#fee2e2':'#fff7e6';
     const fg=empty?'#b91c1c':'#8a5a00';
     return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid #edf1ee">'+
-      '<div style="min-width:0"><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHtml(p.nama)+'</b><span class="note">'+label+'</span></div>'+
-      '<span style="flex:0 0 auto;padding:5px 8px;border-radius:9px;background:'+bg+';color:'+fg+';font-weight:800;font-size:11px">'+(empty?'0':p.stok)+' pcs</span></div>';
+      '<div style="min-width:0"><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHtml(p.nama)+'</b><span class="note">'+escapeHtml(p.kategori)+(isAgarillus(p)?' · Stok menipis':' · Stok habis')+'</span></div>'+
+      '<span style="flex:0 0 auto;padding:5px 8px;border-radius:9px;background:'+bg+';color:'+fg+';font-weight:800;font-size:11px">'+p.stok+' pcs</span></div>';
   }).join('');
 }
 function escapeHtml(v){return String(v).replace(/[&<>'"]/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s]));}
