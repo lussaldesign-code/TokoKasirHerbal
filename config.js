@@ -25,15 +25,13 @@ function renderReturnsMenu(){
  saleList.innerHTML=ss.map(s=>{const returned=sr.filter(r=>r.sale_id===s.id).reduce((a,r)=>a+Number(r.total||0),0),items=(Array.isArray(saleItems)?saleItems:[]).filter(i=>i.sale_id===s.id),remaining=items.reduce((sum,i)=>{const used=(Array.isArray(saleReturnItems)?saleReturnItems:[]).filter(r=>r.sale_item_id===i.id).reduce((a,r)=>a+Number(r.qty||0),0);return sum+Math.max(0,Number(i.qty||0)-used)},0);return '<tr><td>'+esc(s.created_at?new Date(s.created_at).toLocaleDateString('id-ID'):'-')+'</td><td><b>'+esc(s.nomor_transaksi||s.id)+'</b></td><td>'+rp(Math.max(0,Number(s.total||0)-returned))+'</td><td>'+rp(s.dibayar||0)+'</td><td><button class="btn danger" type="button" '+(remaining<=0?'disabled':'')+' onclick="openSaleReturn(&quot;'+escAttr(s.id)+'&quot;)">'+(remaining>0?'↩ Retur':'✓ Sudah Diretur')+'</button></td></tr>'}).join('')||'<tr><td colspan="5" class="note">Belum ada transaksi penjualan.</td></tr>';
  purchaseList.innerHTML=ps.map(p=>{const returned=pr.filter(r=>r.purchase_id===p.id).reduce((a,r)=>a+Number(r.total||0),0),items=(Array.isArray(purchaseItems)?purchaseItems:[]).filter(i=>i.purchase_id===p.id),remaining=items.reduce((sum,i)=>{const used=(Array.isArray(purchaseReturnItems)?purchaseReturnItems:[]).filter(r=>r.purchase_item_id===i.id).reduce((a,r)=>a+Number(r.qty||0),0);return sum+Math.max(0,Number(i.qty||0)-used)},0);return '<tr><td>'+esc(p.tanggal||'-')+'</td><td><b>'+esc(p.nomor_pembelian||p.id)+'</b></td><td>'+esc(p.supplier||'-')+'</td><td>'+rp(Math.max(0,Number(p.total||0)-returned))+'</td><td><button class="btn danger" type="button" '+(remaining<=0?'disabled':'')+' onclick="openPurchaseReturn(&quot;'+escAttr(p.id)+'&quot;)">'+(remaining>0?'↩ Retur':'✓ Sudah Diretur')+'</button></td></tr>'}).join('')||'<tr><td colspan="5" class="note">Belum ada pembelian.</td></tr>';
 }
-
-/* STOCK NOTIFICATION RULES — Web + Windows software
-   Agarillus: stok < 10. Kategori lain: hanya stok 0. */
+/* STOCK NOTIFICATION RULES — Web + Windows software */
 (function(){
  'use strict';
  const categoryOf=p=>String(p?.kategori??p?.category??p?.nama_kategori??p?.category_name??'').trim().toLowerCase();
  const stockOf=p=>Number(p?.stok??p?.stock??0);
  window.getStockNotificationItems=function(){const list=Array.isArray(window.products)?window.products:[];return list.map(p=>({id:p.id,nama:String(p.nama??p.nama_produk??p.name??'Produk'),kategori:String(p.kategori??p.category??p.nama_kategori??p.category_name??''),stok:stockOf(p)})).filter(p=>Number.isFinite(p.stok)&&(categoryOf(p)==='agarillus'?p.stok<10:p.stok===0)).sort((a,b)=>a.stok-b.stok||a.nama.localeCompare(b.nama,'id'))};
- function escN(v){return String(v).replace(/[&<>'"]/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s]))}
+ function escN(v){return String(v).replace(/[&<>'\"]/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[s]))}
  function render(){
    if(window.Capacitor)return;
    const host=document.getElementById('tab-dashboard');if(!host)return;
@@ -45,4 +43,9 @@ function renderReturnsMenu(){
  }
  function boot(){render();setInterval(render,3000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)render()})}
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+})();
+/* WEB LOGIN FIX: load after app.js so it can safely replace the broken login handler. */
+(function(){
+ function loadLoginFix(){if(document.getElementById('webLoginFixScript'))return;const s=document.createElement('script');s.id='webLoginFixScript';s.src='web-login-fix.js?v=20260928';s.async=false;document.head.appendChild(s)}
+ if(document.readyState==='complete')loadLoginFix();else window.addEventListener('load',loadLoginFix,{once:true});
 })();
