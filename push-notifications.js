@@ -12,16 +12,19 @@
     }catch(e){return null;}
   }
   function show(msg){try{if(typeof toast==='function')toast(msg);else console.info('[FCM]',msg)}catch(e){console.info('[FCM]',msg)}}
+  function getSb(){try{return typeof sb!=='undefined'?sb:null}catch(e){return null}}
+  function getUser(){try{return typeof currentUser!=='undefined'?currentUser:null}catch(e){return null}}
+  function getProfile(){try{return typeof profile!=='undefined'?profile:null}catch(e){return null}}
 
   async function saveToken(token){
     token=String(token||'').trim();
-    if(!token)return;
+    if(!token)return false;
     pendingToken=token;
     localStorage.setItem('tokokasirlussal-fcm-token',token);
     try{
-      if(!window.sb||!window.currentUser)return false;
-      const username=window.profile?.username||null;
-      const r=await window.sb.rpc('register_push_device',{p_token:token,p_username:username});
+      const client=getSb(),user=getUser(),prof=getProfile();
+      if(!client||!user)return false;
+      const r=await client.rpc('register_push_device',{p_token:token,p_username:prof?.username||null});
       if(r.error)throw r.error;
       localStorage.setItem('tokokasirlussal-fcm-registered','1');
       console.info('[FCM] token registered',r.data);
@@ -33,8 +36,8 @@
   }
 
   async function init(){
-    if(started)return;
-    if(!window.sb||!window.currentUser||!window.profile)return false;
+    if(started)return false;
+    if(!getSb()||!getUser()||!getProfile())return false;
     const PushNotifications=plugin();
     if(!PushNotifications)return false;
     started=true;
