@@ -44,14 +44,21 @@ function bind(){fixReportScroll();var tab=document.getElementById('tab-laporan')
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();window.addEventListener('load',bind);setInterval(fixReportScroll,1000);
 })();
 
-/* APK STOCK NOTIFICATION — Agarillus <10; all other categories only when stock=0. */
+/* APK STOCK NOTIFICATION — existing top-right bell. Agarillus <10; other categories only stock=0. */
 (function(){
 'use strict';
 function esc(v){return String(v==null?'':v).replace(/[&<>'"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]})}
-function category(p){return String(p&& (p.kategori??p.category??p.nama_kategori??p.category_name??'')).trim().toLowerCase()}
-function stock(p){return Number(p&& (p.stok??p.stock??p.jumlah_stok??p.qty??0))}
-function getAlerts(){var list=Array.isArray(window.products)?window.products:[];return list.map(function(p){return {nama:String(p&&(p.nama??p.nama_produk??p.name)??'Produk'),kategori:String(p&&(p.kategori??p.category??p.nama_kategori??p.category_name)??''),stok:stock(p)}}).filter(function(p){return Number.isFinite(p.stok)&&((category(p)==='agarillus'&&p.stok<10)||(category(p)!=='agarillus'&&p.stok===0))}).sort(function(a,b){return a.stok-b.stok})}
-function render(){if(!window.Capacitor)return;var host=document.getElementById('tab-dashboard')||document.querySelector('.main');if(!host)return;var box=document.getElementById('apkStockNotification');if(!box){box=document.createElement('section');box.id='apkStockNotification';box.className='card';var first=host.firstElementChild;if(first)host.insertBefore(box,first);else host.appendChild(box)}var alerts=getAlerts();box.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><div><b>🔔 Notifikasi Stok</b><div class="note">Agarillus: stok &lt; 10 · kategori lain: hanya stok 0</div></div><b style="min-width:28px;text-align:center;padding:5px 8px;border-radius:99px;background:#fff3cd;color:#8a5a00;font-size:12px">'+alerts.length+'</b></div><div style="margin-top:8px">'+(alerts.length?alerts.map(function(p){var empty=p.stok===0;return '<div class="apk-stock-item" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid #edf1ee"><div style="min-width:0"><div style="font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(p.nama)+'</div><div class="note" style="font-size:11px">'+esc(p.kategori||'Tanpa kategori')+' · '+(empty?'Stok habis':'Stok menipis')+'</div></div><span style="flex:0 0 auto;padding:5px 8px;border-radius:9px;background:'+(empty?'#fee2e2':'#fff7e6')+';color:'+(empty?'#b91c1c':'#8a5a00')+';font-weight:800;font-size:11px">'+p.stok+' pcs</span></div>'}).join(''):'<div class="note" style="padding:10px 0">Tidak ada notifikasi stok.</div>')+'</div>'}
-function bind(){if(!window.Capacitor)return;render();setInterval(render,2500);document.addEventListener('visibilitychange',function(){if(!document.hidden)render()})}
+function category(p){return String(p&&(p.kategori??p.category??p.nama_kategori??p.category_name??'')).trim().toLowerCase()}
+function stock(p){return Number(p&&(p.stok??p.stock??p.jumlah_stok??p.qty??0))}
+function items(){var list=Array.isArray(window.products)?window.products:[];return list.map(function(p){return {nama:String(p&&(p.nama??p.nama_produk??p.name)??'Produk'),kategori:String(p&&(p.kategori??p.category??p.nama_kategori??p.category_name)??''),stok:stock(p)}}).filter(function(p){return Number.isFinite(p.stok)&&((category(p)==='agarillus'&&p.stok<10)||(category(p)!=='agarillus'&&p.stok===0))}).sort(function(a,b){return a.stok-b.stok})}
+function renderBell(){
+ var bell=document.getElementById('notificationBell'),badge=document.getElementById('notificationBadge'),count=document.getElementById('notificationCount'),list=document.getElementById('notificationList'),card=document.getElementById('apkStockNotification');
+ if(card)card.style.display='none';
+ if(!bell||!badge||!count||!list)return;
+ var alerts=items();count.textContent=String(alerts.length);badge.textContent=String(alerts.length);badge.classList.toggle('show',alerts.length>0);
+ if(!alerts.length){list.innerHTML='<div class="notify-empty">Tidak ada notifikasi stok.</div>';return;}
+ list.innerHTML=alerts.map(function(p){var empty=p.stok===0;return '<div class="notify-item '+(empty?'danger':'warn')+'"><span style="font-size:17px">'+(empty?'🔴':'🟡')+'</span><div style="min-width:0"><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(p.nama)+'</b><span style="font-size:10px;opacity:.82">'+esc(p.kategori||'Tanpa kategori')+' · '+(empty?'Stok habis':'Stok menipis: '+p.stok)+'</span></div></div>'}).join('');
+}
+function bind(){if(window.__apkBellFixReady)return;window.__apkBellFixReady=true;document.addEventListener('click',function(e){var bell=e.target.closest&&e.target.closest('#notificationBell');if(bell){e.preventDefault();e.stopImmediatePropagation();var menu=document.getElementById('notificationMenu');if(menu)menu.classList.toggle('show');renderBell()}},true);renderBell();setInterval(renderBell,1500)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();window.addEventListener('load',bind);
 })();
