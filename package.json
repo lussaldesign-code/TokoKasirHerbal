@@ -62,7 +62,6 @@
   "dependencies": {
     "@capacitor/core": "8.5.2",
     "@capacitor/android": "8.5.2",
-    "@capacitor/push-notifications": "8.0.2",
     "electron-updater": "^6.6.2"
   },
   "engines": {
