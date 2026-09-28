@@ -3,6 +3,15 @@
   const isApk=!!window.Capacitor && !/Electron/i.test(navigator.userAgent||'');
   if(!isApk)return;
 
+  async function getPushClient(){
+    if(window.sb?.rpc)return window.sb;
+    try{
+      const cfg=window.APP_CONFIG||{};
+      if(!cfg.url||!cfg.key||!window.supabase?.createClient)return null;
+      return window.supabase.createClient(cfg.url,cfg.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'tokokasirlussal-auth-v2'}});
+    }catch(e){console.error('[push] client init failed',e);return null}
+  }
+
   async function registerPush(){
     try{
       const mod=window.Capacitor?.Plugins?.PushNotifications;
@@ -20,10 +29,17 @@
     if(!mod)return;
     mod.addListener('registration', async token=>{
       try{
+        localStorage.setItem('tokokasirlussal-push-token',token.value);
         const username=localStorage.getItem('tokokasirlussal-username')||null;
-        const userId=window.currentUser?.id||null;
-        if(window.sb?.rpc) await window.sb.rpc('push_device_register',{p_token:token.value,p_username:username,p_auth_user_id:userId});
-        else localStorage.setItem('tokokasirlussal-push-token',token.value);
+        const client=await getPushClient();
+        if(client?.rpc){
+          const sessionResult=await client.auth.getSession();
+          const authUserId=sessionResult.data?.session?.user?.id||null;
+          if(authUserId){
+            const result=await client.rpc('push_device_register',{p_token:token.value,p_username:username,p_auth_user_id:authUserId});
+            if(result.error)throw result.error;
+          } else console.warn('[push] no Supabase session yet; token kept locally');
+        }
       }catch(e){console.error('[push] token save failed',e)}
     });
     mod.addListener('registrationError',e=>console.error('[push] registration error',e));
@@ -35,8 +51,7 @@
         if(nav) window.tab(target,nav);
       }
     });
-    // Register only after the bridge/listeners exist. This runs only inside the Android APK.
-    setTimeout(registerPush, 1200);
+    setTimeout(registerPush,1200);
   }
 
   window.TokoKasirPush={register:registerPush};
