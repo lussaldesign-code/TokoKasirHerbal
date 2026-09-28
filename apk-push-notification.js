@@ -35,6 +35,8 @@
         if(nav) window.tab(target,nav);
       }
     });
+    // Register only after the bridge/listeners exist. This runs only inside the Android APK.
+    setTimeout(registerPush, 1200);
   }
 
   window.TokoKasirPush={register:registerPush};
