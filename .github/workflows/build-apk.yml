@@ -1,41 +1,30 @@
-name: Legacy APK Build (Disabled)
+name: Build APK (Compatibility Launcher)
 
-# This workflow is intentionally kept as a compatibility stub.
-# The active APK pipeline is .github/workflows/build-apk-v2.yml.
-# Keeping this workflow as a no-op prevents the old signing pipeline from
-# failing when ANDROID_KEYSTORE_BASE64 is not configured.
+# This workflow restores the original APK workflow entry point without
+# requiring the old ANDROID_KEYSTORE_BASE64 signing secret.
+# The actual build is performed by build-apk-v2.yml.
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'index-supabase.html'
-      - 'app.js'
-      - 'config.js'
-      - 'capacitor.config.js'
-      - 'sw.js'
-      - 'manifest.webmanifest'
-      - 'icon-192.svg'
-      - 'icon-512.svg'
-      - 'apk-navigation.css'
-      - 'apk-navigation.js'
-      - 'apk-update.js'
-      - 'apk-native-bridge.sh'
-      - 'apk-version.txt'
-      - '.github/workflows/build-apk.yml'
 
-concurrency:
-  group: tokokasirlussal-legacy-apk-stub
-  cancel-in-progress: true
+permissions:
+  actions: write
 
 jobs:
-  disabled:
-    name: Legacy APK pipeline disabled
+  launch-apk-v2:
+    name: Launch APK V2 build
     runs-on: ubuntu-24.04
     steps:
-      - name: Use APK V2 pipeline
+      - name: Start active APK V2 workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          echo "Legacy build-apk.yml is disabled."
-          echo "The active APK build is .github/workflows/build-apk-v2.yml."
-          echo "No Android keystore secrets are required by this legacy stub."
+          set -e
+          curl --fail-with-body -L \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/build-apk-v2.yml/dispatches" \
+            -d '{"ref":"main"}'
+          echo "APK V2 workflow dispatched successfully."
