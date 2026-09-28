@@ -6,7 +6,7 @@
   'use strict';
 
   const RELEASES_API = 'https://api.github.com/repos/lussaldesign-code/TokoKasirHerbal/releases?per_page=20';
-  const CURRENT_VERSION = '1.0.33';
+  const CURRENT_VERSION = '1.0.30';
   const native = window.AndroidUpdater;
   let downloadId = 0;
   let statusTimer = null;
