@@ -2,7 +2,7 @@
 // Hanya gunakan publishable/anon key. Jangan pernah menaruh service_role/secret key di file ini.
 window.APP_CONFIG={
   url:'https://geoedddgvzvqsykuekdw.supabase.co',
-  key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnZW9lZGRkdnpxcXN5a3Vla2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwODM3MjAsImV4cCI6MjEwNTY1OTcyMH0.DKaoJbKparsGc9_WEQ_jefQVJl5raNgPGckbw9UVoNI'
+  key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdlb2VkZGRndnp2cXN5a3Vla3d3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwODM3MjAsImV4cCI6MjEwNTY1OTcyMH0.DKaoJbKparsGc9_WEQ_jefQVJl5raNgPGckbw9UVoNI'
 };
 
 document.addEventListener('DOMContentLoaded',()=>{
@@ -45,12 +45,3 @@ function renderReturnsMenu(){
    return '<tr><td>'+esc(p.tanggal||'-')+'</td><td><b>'+esc(p.nomor_pembelian||p.id)+'</b></td><td>'+esc(p.supplier||'-')+'</td><td>'+rp(Math.max(0,Number(p.total||0)-returned))+'</td><td><button class="btn danger" type="button" '+(remaining<=0?'disabled':'')+' onclick="openPurchaseReturn(&quot;'+escAttr(p.id)+'&quot;)">'+(remaining>0?'↩ Retur':'✓ Sudah Diretur')+'</button></td></tr>';
  }).join('')||'<tr><td colspan="5" class="note">Belum ada pembelian.</td></tr>';
 }
-
-document.addEventListener('DOMContentLoaded',function(){
-  if(document.getElementById('bell-notification-fix-loader'))return;
-  const s=document.createElement('script');
-  s.id='bell-notification-fix-loader';
-  s.src='bell-notification-fix-v2.js?v=20260928';
-  s.defer=true;
-  document.head.appendChild(s);
-});
