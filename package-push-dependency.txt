@@ -1,0 +1,1 @@
+Add @capacitor/push-notifications to package.json before building the APK.
