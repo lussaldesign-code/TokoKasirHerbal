@@ -19,13 +19,13 @@ on:
       - 'apk-update.js'
       - 'apk-native-bridge.sh'
       - 'apk-version.txt'
+      - 'returns-web.js'
+      - 'bell-notification-rule.js'
       - '.github/workflows/build-apk.yml'
       - '!TokoKasirLussal-latest.apk'
       - '!update.json'
 
 concurrency:
-  # APK builds must not wait behind Windows builds. Only APK runs share this queue.
-  # Windows has its own workflow/concurrency and can build independently.
   group: tokokasirlussal-apk-build
   cancel-in-progress: false
   queue: max
@@ -68,7 +68,10 @@ jobs:
           mkdir -p mobile/www
           cp index-supabase.html mobile/www/index.html
           cp app.js config.js manifest.webmanifest icon-192.svg icon-512.svg sw.js mobile/www/
-          # APK-only navigation overlay. Web/PWA and Windows source files remain untouched.
+          # Optional web modules are bundled when present so APK does not request missing scripts.
+          for file in returns-web.js bell-notification-rule.js; do
+            if [ -f "$file" ]; then cp "$file" mobile/www/; fi
+          done
           cp apk-navigation.css apk-navigation.js apk-update.js mobile/www/
           python3 - <<PY
           from pathlib import Path
