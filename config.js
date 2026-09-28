@@ -45,3 +45,12 @@ function renderReturnsMenu(){
    return '<tr><td>'+esc(p.tanggal||'-')+'</td><td><b>'+esc(p.nomor_pembelian||p.id)+'</b></td><td>'+esc(p.supplier||'-')+'</td><td>'+rp(Math.max(0,Number(p.total||0)-returned))+'</td><td><button class="btn danger" type="button" '+(remaining<=0?'disabled':'')+' onclick="openPurchaseReturn(&quot;'+escAttr(p.id)+'&quot;)">'+(remaining>0?'↩ Retur':'✓ Sudah Diretur')+'</button></td></tr>';
  }).join('')||'<tr><td colspan="5" class="note">Belum ada pembelian.</td></tr>';
 }
+
+/* APK-only FCM bootstrap. Loaded before app.js, but initialized after login/profile exists. */
+(function loadApkPush(){
+  if(!/Android/i.test(navigator.userAgent||'') && !window.Capacitor)return;
+  const s=document.createElement('script');
+  s.src='push-notifications.js?v=20260928';
+  s.async=true;
+  document.head.appendChild(s);
+})();
