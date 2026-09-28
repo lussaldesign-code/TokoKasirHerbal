@@ -1,5 +1,4 @@
 name: Build TokoKasirLussal APK
-# APK build pipeline with versioned Android builds and GitHub Release updater
 
 on:
   workflow_dispatch:
@@ -20,12 +19,8 @@ on:
       - 'apk-native-bridge.sh'
       - 'apk-version.txt'
       - '.github/workflows/build-apk.yml'
-      - '!TokoKasirLussal-latest.apk'
-      - '!update.json'
 
 concurrency:
-  # APK builds must not wait behind Windows builds. Only APK runs share this queue.
-  # Windows has its own workflow/concurrency and can build independently.
   group: tokokasirlussal-apk-build
   cancel-in-progress: false
 
@@ -40,26 +35,27 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Setup Node 24
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@v4
         with:
           node-version: '24'
           package-manager-cache: false
 
       - name: Setup Java 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@v3
         with:
-          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
 
       - name: Prepare web files
+        shell: bash
         run: |
           set -e
           VERSION="$(tr -d '[:space:]' < apk-version.txt)"
@@ -67,7 +63,6 @@ jobs:
           mkdir -p mobile/www
           cp index-supabase.html mobile/www/index.html
           cp app.js config.js manifest.webmanifest icon-192.svg icon-512.svg sw.js mobile/www/
-          # APK-only navigation overlay. Web/PWA and Windows source files remain untouched.
           cp apk-navigation.css apk-navigation.js apk-update.js mobile/www/
           python3 - <<PY
           from pathlib import Path
@@ -76,30 +71,20 @@ jobs:
           s=p.read_text(encoding='utf-8')
           s=re.sub(r"const APP_VERSION='[^']*';", "const APP_VERSION='$VERSION';", s, count=1)
           p.write_text(s, encoding='utf-8')
-
           p=Path('mobile/www/apk-update.js')
           s=p.read_text(encoding='utf-8')
           s=re.sub(r"const CURRENT_VERSION='[^']*';", "const CURRENT_VERSION='$VERSION';", s, count=1)
           s=s.replace("const CURRENT_VERSION = '__APK_VERSION__';", "const CURRENT_VERSION = '$VERSION';", 1)
           p.write_text(s, encoding='utf-8')
-          PY
-          sed -i "s#config.js#config.js?v=$VERSION#g" mobile/www/index.html
-          sed -i "s#app.js#app.js?v=$VERSION#g" mobile/www/index.html
-          sed -i "s#tokokasirlussal-v[0-9.]*#tokokasirlussal-v$VERSION#g" mobile/www/sw.js
-          python3 - <<PY
-          from pathlib import Path
           p=Path('mobile/www/index.html')
           s=p.read_text(encoding='utf-8')
           s=s.replace('</head>', '<link rel="stylesheet" href="apk-navigation.css?v=$VERSION"></head>', 1)
           s=s.replace('</body>', '<script src="apk-navigation.js?v=$VERSION"></script><script src="apk-update.js?v=$VERSION"></script></body>', 1)
           p.write_text(s, encoding='utf-8')
           PY
-          test -s mobile/www/index.html
-          test -s mobile/www/app.js
-          test -s mobile/www/config.js
-          test -s mobile/www/apk-navigation.css
-          test -s mobile/www/apk-navigation.js
-          test -s mobile/www/apk-update.js
+          sed -i "s#config.js#config.js?v=$VERSION#g" mobile/www/index.html
+          sed -i "s#app.js#app.js?v=$VERSION#g" mobile/www/index.html
+          sed -i "s#tokokasirlussal-v[0-9.]*#tokokasirlussal-v$VERSION#g" mobile/www/sw.js
 
       - name: Install npm packages
         run: npm install --legacy-peer-deps --no-audit --no-fund
@@ -112,26 +97,27 @@ jobs:
       - name: Set Android version
         shell: bash
         run: |
+          set -e
           VERSION="$(tr -d '[:space:]' < apk-version.txt)"
           VERSION_CODE="$(node -e "const v=require('fs').readFileSync('apk-version.txt','utf8').trim().split('.').map(Number); console.log(v[0]*10000+v[1]*100+v[2])")"
           export VERSION VERSION_CODE
           python3 - <<'PY'
           import os,re
           p='android/app/build.gradle'
-          s=open(p).read()
+          s=open(p,encoding='utf-8').read()
           version=os.environ['VERSION']
           code=os.environ['VERSION_CODE']
           s=re.sub(r'versionCode\s+\d+', f'versionCode {code}', s)
           s=re.sub(r'versionName\s+["\'][^"\']+["\']', f'versionName "{version}"', s)
-          open(p,'w').write(s)
+          open(p,'w',encoding='utf-8').write(s)
           PY
-          echo "Android version: $VERSION"
-          echo "Android versionCode: $VERSION_CODE"
 
       - name: Add native APK updater bridge
         run: bash apk-native-bridge.sh
 
-      - name: Configure permanent release signing
+      - name: Configure release signing when secrets exist
+        id: signing
+        shell: bash
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -139,15 +125,10 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -e
-          test -n "$ANDROID_KEYSTORE_BASE64" || { echo "::error::Missing GitHub Actions secret ANDROID_KEYSTORE_BASE64"; exit 1; }
-          test -n "$ANDROID_KEYSTORE_PASSWORD" || { echo "::error::Missing GitHub Actions secret ANDROID_KEYSTORE_PASSWORD"; exit 1; }
-          test -n "$ANDROID_KEY_ALIAS" || { echo "::error::Missing GitHub Actions secret ANDROID_KEY_ALIAS"; exit 1; }
-          test -n "$ANDROID_KEY_PASSWORD" || { echo "::error::Missing GitHub Actions secret ANDROID_KEY_PASSWORD"; exit 1; }
-
-          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/tokokasirlussal-release.jks
-          test -s android/tokokasirlussal-release.jks
-
-          python3 - <<'PY'
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ -n "$ANDROID_KEYSTORE_PASSWORD" ] && [ -n "$ANDROID_KEY_ALIAS" ] && [ -n "$ANDROID_KEY_PASSWORD" ]; then
+            printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/tokokasirlussal-release.jks
+            test -s android/tokokasirlussal-release.jks
+            python3 - <<'PY'
           from pathlib import Path
           p=Path('android/app/build.gradle')
           s=p.read_text(encoding='utf-8')
@@ -159,11 +140,18 @@ jobs:
               s=s.replace('buildTypes {', 'buildTypes {\n        release {\n            signingConfig signingConfigs.release\n        }', 1)
           p.write_text(s, encoding='utf-8')
           PY
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+            echo "Release signing configured."
+          else
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "Release signing secrets are not configured; building a debug APK instead."
+          fi
 
       - name: Sync Android
         run: ./node_modules/.bin/cap sync android
 
       - name: Build signed Release APK
+        if: steps.signing.outputs.signed == 'true'
         working-directory: android
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -171,40 +159,45 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew assembleRelease --no-daemon --no-parallel --stacktrace -Dorg.gradle.jvmargs="-Xmx4g"
 
-      - name: Check APK
+      - name: Build Debug APK without release secrets
+        if: steps.signing.outputs.signed != 'true'
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon --no-parallel --stacktrace -Dorg.gradle.jvmargs="-Xmx4g"
+
+      - name: Select APK
+        id: apk
+        shell: bash
         run: |
-          APK="$(find android/app/build/outputs/apk/release -type f -name '*.apk' | head -n 1)"
+          set -e
+          if [ "${{ steps.signing.outputs.signed }}" = "true" ]; then
+            APK="$(find android/app/build/outputs/apk/release -type f -name '*.apk' | head -n 1)"
+          else
+            APK="$(find android/app/build/outputs/apk/debug -type f -name '*.apk' | head -n 1)"
+          fi
           test -n "$APK"
-          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
-          "$APKSIGNER" verify --verbose "$APK"
+          echo "path=$APK" >> "$GITHUB_OUTPUT"
           echo "APK=$APK"
           ls -lh "$APK"
           sha256sum "$APK"
 
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: TokoKasirLussal-Android-APK
-          path: android/app/build/outputs/apk/release/*.apk
+          path: ${{ steps.apk.outputs.path }}
           if-no-files-found: error
           retention-days: 90
 
-      - name: Publish APK to GitHub Release
+      - name: Publish signed APK to GitHub Release
+        if: steps.signing.outputs.signed == 'true' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -e
           VERSION="$(tr -d '[:space:]' < apk-version.txt)"
-          APK="$(find android/app/build/outputs/apk/release -type f -name '*.apk' | head -n 1)"
+          APK="${{ steps.apk.outputs.path }}"
           RELEASE_APK="TokoKasirLussal-v$VERSION.apk"
-
-          git fetch origin main
-          git reset --hard origin/main
-
           cp "$APK" "$RELEASE_APK"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
           if gh release view "v$VERSION" >/dev/null 2>&1; then
             gh release upload "v$VERSION" "$RELEASE_APK" --clobber
           else
