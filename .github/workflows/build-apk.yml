@@ -88,6 +88,29 @@ jobs:
           sed -i "s#app.js#app.js?v=$VERSION#g" mobile/www/index.html
           sed -i "s#tokokasirlussal-v[0-9.]*#tokokasirlussal-v$VERSION#g" mobile/www/sw.js
 
+      - name: Detect Firebase configuration
+        id: firebase
+        shell: bash
+        env:
+          FIREBASE_GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.FIREBASE_GOOGLE_SERVICES_JSON_BASE64 }}
+        run: |
+          set -e
+          if [ -n "$FIREBASE_GOOGLE_SERVICES_JSON_BASE64" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "Firebase Android configuration is available."
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Firebase Android configuration is not configured; building a stable APK without the native push plugin."
+          fi
+
+      - name: Disable push plugin when Firebase is unavailable
+        if: steps.firebase.outputs.configured != 'true'
+        shell: bash
+        run: |
+          set -e
+          npm pkg delete dependencies.@capacitor/push-notifications
+          echo "Push plugin disabled for this build because Firebase configuration is not available."
+
       - name: Install npm packages
         run: npm install --legacy-peer-deps --no-audit --no-fund
 
@@ -95,6 +118,16 @@ jobs:
         run: |
           rm -rf android
           ./node_modules/.bin/cap add android
+
+      - name: Add Firebase Android configuration
+        if: steps.firebase.outputs.configured == 'true'
+        shell: bash
+        env:
+          FIREBASE_GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.FIREBASE_GOOGLE_SERVICES_JSON_BASE64 }}
+        run: |
+          set -e
+          printf '%s' "$FIREBASE_GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > android/app/google-services.json
+          test -s android/app/google-services.json
 
       - name: Set Android version
         shell: bash
