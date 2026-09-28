@@ -3,7 +3,7 @@ name: Build TokoKasirLussal APK
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, push-notification-apk]
     paths:
       - 'index-supabase.html'
       - 'app.js'
@@ -17,6 +17,8 @@ on:
       - 'apk-navigation.js'
       - 'apk-update.js'
       - 'apk-native-bridge.sh'
+      - 'apk-push-notification.js'
+      - 'package.json'
       - 'apk-version.txt'
       - '.github/workflows/build-apk.yml'
 
@@ -63,7 +65,7 @@ jobs:
           mkdir -p mobile/www
           cp index-supabase.html mobile/www/index.html
           cp app.js config.js manifest.webmanifest icon-192.svg icon-512.svg sw.js mobile/www/
-          cp apk-navigation.css apk-navigation.js apk-update.js mobile/www/
+          cp apk-navigation.css apk-navigation.js apk-update.js apk-push-notification.js mobile/www/
           python3 - <<PY
           from pathlib import Path
           import re
@@ -79,7 +81,7 @@ jobs:
           p=Path('mobile/www/index.html')
           s=p.read_text(encoding='utf-8')
           s=s.replace('</head>', '<link rel="stylesheet" href="apk-navigation.css?v=$VERSION"></head>', 1)
-          s=s.replace('</body>', '<script src="apk-navigation.js?v=$VERSION"></script><script src="apk-update.js?v=$VERSION"></script></body>', 1)
+          s=s.replace('</body>', '<script src="apk-navigation.js?v=$VERSION"></script><script src="apk-update.js?v=$VERSION"></script><script src="apk-push-notification.js?v=$VERSION"></script></body>', 1)
           p.write_text(s, encoding='utf-8')
           PY
           sed -i "s#config.js#config.js?v=$VERSION#g" mobile/www/index.html
