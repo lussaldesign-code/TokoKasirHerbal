@@ -1,12 +1,9 @@
-// Supabase Edge Function: send-push-notification
-// Requires secrets: FCM_PROJECT_ID, FCM_CLIENT_EMAIL, FCM_PRIVATE_KEY.
-// This function is intentionally server-side so FCM credentials never ship in the APK.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-push-secret",
+  "Access-Control-Allow-Headers": "content-type",
   "Content-Type": "application/json"
 };
 
@@ -27,26 +24,13 @@ async function makeAccessToken(projectId: string, clientEmail: string, privateKe
   const data = `${header}.${claim}`;
   const pem = privateKey.replace(/\\n/g, "\n");
   const binary = atob(pem.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\s/g, ""));
-  const key = await crypto.subtle.importKey(
-    "pkcs8",
-    Uint8Array.from(binary, c => c.charCodeAt(0)),
-    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-  const signature = await crypto.subtle.sign(
-    "RSASSA-PKCS1-v1_5",
-    key,
-    new TextEncoder().encode(data)
-  );
+  const key = await crypto.subtle.importKey("pkcs8", Uint8Array.from(binary, c => c.charCodeAt(0)), { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
+  const signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(data));
   const signed = `${data}.${b64url(String.fromCharCode(...new Uint8Array(signature)))}`;
   const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-      assertion: signed
-    })
+    body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: signed })
   });
   const tokenJson = await tokenResponse.json();
   if (!tokenResponse.ok) throw new Error(tokenJson.error_description || "FCM OAuth gagal");
@@ -55,70 +39,72 @@ async function makeAccessToken(projectId: string, clientEmail: string, privateKe
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  let eventId = "";
   try {
-    const secret = Deno.env.get("PUSH_FUNCTION_SECRET");
-    if (!secret || req.headers.get("x-push-secret") !== secret) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: cors });
-    }
-
     const body = await req.json();
-    const type = body.type === "sale" || body.type === "stock_empty" ? body.type : null;
-    if (!type) throw new Error("type harus sale atau stock_empty");
+    eventId = String(body?.event_id || "");
+    if (!eventId) throw new Error("event_id wajib diisi");
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-    const { data: devices, error: deviceError } = await supabase
-      .from("push_devices")
-      .select("id,token")
-      .eq("enabled", true);
+    const url = Deno.env.get("SUPABASE_URL");
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!url || !serviceKey) throw new Error("Konfigurasi Supabase Edge Function belum lengkap");
+    const supabase = createClient(url, serviceKey);
+
+    const { data: claimed, error: claimError } = await supabase
+      .from("push_notification_queue")
+      .update({ status: "processing", attempts: 1, last_error: null })
+      .eq("id", eventId)
+      .eq("status", "pending")
+      .select("id,type,payload,attempts")
+      .maybeSingle();
+    if (claimError) throw claimError;
+    if (!claimed) return new Response(JSON.stringify({ ok: true, skipped: true }), { headers: cors });
+
+    const projectId = Deno.env.get("FCM_PROJECT_ID");
+    const clientEmail = Deno.env.get("FCM_CLIENT_EMAIL");
+    const privateKey = Deno.env.get("FCM_PRIVATE_KEY");
+    if (!projectId || !clientEmail || !privateKey) throw new Error("FCM_PROJECT_ID, FCM_CLIENT_EMAIL, dan FCM_PRIVATE_KEY belum dikonfigurasi di Supabase");
+
+    const { data: devices, error: deviceError } = await supabase.from("push_devices").select("id,token").eq("enabled", true);
     if (deviceError) throw deviceError;
 
-    const projectId = Deno.env.get("FCM_PROJECT_ID")!;
-    const accessToken = await makeAccessToken(
-      projectId,
-      Deno.env.get("FCM_CLIENT_EMAIL")!,
-      Deno.env.get("FCM_PRIVATE_KEY")!
-    );
-
+    const accessToken = await makeAccessToken(projectId, clientEmail, privateKey);
+    const payload = claimed.payload || {};
     let title = "TokoKasirLussal";
     let message = "";
-    if (type === "sale") {
+    if (claimed.type === "sale") {
       title = "🛒 Penjualan Baru";
-      const nomor = body.nomor_transaksi ? ` #${body.nomor_transaksi}` : "";
-      const total = Number(body.total || 0).toLocaleString("id-ID");
-      message = `Transaksi${nomor} • Total Rp ${total}`;
-    } else {
+      const nomor = payload.nomor_transaksi ? ` #${payload.nomor_transaksi}` : "";
+      message = `Transaksi${nomor} • Total Rp ${Number(payload.total || 0).toLocaleString("id-ID")}`;
+    } else if (claimed.type === "stock_empty") {
       title = "📦 Produk Habis";
-      message = `${body.nama_produk || "Produk"} stoknya sudah 0`;
-    }
+      message = `${payload.nama_produk || "Produk"} stoknya sudah 0`;
+    } else throw new Error("Jenis push tidak didukung");
 
-    const results = [];
+    let sent = 0;
     for (const device of devices ?? []) {
       const response = await fetch(`https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          message: {
-            token: device.token,
-            notification: { title, body: message },
-            data: { type, target: type === "sale" ? "laporan" : "produk" },
-            android: { priority: "high", notification: { channel_id: "tokokasir" } }
-          }
-        })
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ message: { token: device.token, notification: { title, body: message }, data: { type: claimed.type, target: claimed.type === "sale" ? "laporan" : "produk" }, android: { priority: "high", notification: { channel_id: "tokokasir" } } } })
       });
       const result = await response.json();
-      if (!response.ok && String(result?.error?.status || "").toUpperCase() === "UNREGISTERED") {
-        await supabase.from("push_devices").update({ enabled: false }).eq("id", device.id);
-      }
-      results.push({ token: device.id, ok: response.ok });
+      if (response.ok) sent++;
+      else if (String(result?.error?.status || "").toUpperCase() === "UNREGISTERED") await supabase.from("push_devices").update({ enabled: false, updated_at: new Date().toISOString() }).eq("id", device.id);
+      else console.error("FCM send failed", result);
     }
-    return new Response(JSON.stringify({ ok: true, type, sent: results.filter(x => x.ok).length, total: results.length }), { headers: cors });
+
+    await supabase.from("push_notification_queue").update({ status: "sent", processed_at: new Date().toISOString(), last_error: sent === 0 && (devices?.length || 0) > 0 ? "Tidak ada perangkat yang menerima FCM" : null }).eq("id", claimed.id);
+    return new Response(JSON.stringify({ ok: true, type: claimed.type, sent, total: devices?.length || 0 }), { headers: cors });
   } catch (error) {
-    return new Response(JSON.stringify({ error: String(error?.message || error) }), { status: 400, headers: cors });
+    const message = String(error?.message || error);
+    if (eventId) {
+      try {
+        const url = Deno.env.get("SUPABASE_URL");
+        const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+        if (url && serviceKey) await createClient(url, serviceKey).from("push_notification_queue").update({ status: "failed", last_error: message, processed_at: new Date().toISOString() }).eq("id", eventId);
+      } catch (_) {}
+    }
+    return new Response(JSON.stringify({ error: message }), { status: 400, headers: cors });
   }
 });
