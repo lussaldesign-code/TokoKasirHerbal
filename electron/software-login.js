@@ -15,15 +15,9 @@ async function softwareLogin(e){
  busy=true;
  const submit=$('loginSubmit'),old=submit?.innerHTML;
  try{
-  const mode=$('pinField')&&!$('pinField').classList.contains('hidden')?'admin':'kasir';
-  const username=($('username')?.value||'').trim().toLowerCase();
-  const pin=($('pin')?.value||'').trim();
-  if(!username)throw new Error('Masukkan username terlebih dahulu.');
-  if(mode==='admin'&&!/^\d{4}$/.test(pin))throw new Error('PIN admin harus tepat 4 angka.');
-  if(!window.softwareAuth?.login)throw new Error('Penghubung login software belum aktif. Tutup lalu buka kembali aplikasi.');
+  if(typeof window.login!=='function')throw new Error('Modul login Windows belum dimuat. Tutup lalu buka kembali aplikasi.');
   if(submit){submit.disabled=true;submit.innerHTML='Memeriksa login... <span>⏳</span>';}
-  const result=await window.softwareAuth.login({mode,username,pin});
-  await window.__softwareCompleteLogin(result);
+  await window.login();
  }catch(err){
   console.error('[software-login-bridge]',err);
   const message=err?.message||String(err)||'Login gagal.';
