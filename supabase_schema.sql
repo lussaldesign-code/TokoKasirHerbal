@@ -302,7 +302,7 @@ create policy receivables_read on public.receivables
 
 create policy receivable_payments_read on public.receivable_payments
   for select to authenticated
-  using ((select public.my_user_id()) is not null);
+  using ((select public.my_role()) = 'admin' or kasir_id = (select public.kiosk_user_id()));
 
 create policy stock_movements_read on public.stock_movements
   for select to authenticated
