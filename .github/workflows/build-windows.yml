@@ -10,8 +10,6 @@ on:
       - package.json
       - package-lock.json
       - electron/**
-      - index.html
-      - index-supabase.html
       - app.js
       - config.js
       - .github/workflows/build-windows.yml
