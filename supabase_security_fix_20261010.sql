@@ -114,3 +114,6 @@ create policy barang_dibawa_items_read on public.barang_dibawa_items
 
 revoke execute on function public.enqueue_push_sale() from public, anon, authenticated;
 revoke execute on function public.enqueue_push_stock_empty() from public, anon, authenticated;
+
+-- The purchase function uses schema-qualified table references; pin its search_path.
+alter function public.create_purchase(text, date, text, jsonb) set search_path = '';
