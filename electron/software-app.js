@@ -136,8 +136,9 @@ async function login(){
  }catch(e){
   console.error('software login ['+stage+']',e);
   const message=String(e?.message||e||'Login gagal');
-  const hint=$('loginHint');if(hint)hint.textContent='Login gagal ('+stage+'): '+message;
-  toast('Login gagal pada tahap '+stage+': '+message);
+  const friendly=explainLoginFailure(message,stage);
+  setLoginNotice(friendly,'error');
+  toast('⚠ Login gagal: '+friendly);
  }finally{
   loginBusy=false;
   if(btn){btn.disabled=false;btn.removeAttribute('aria-busy');btn.innerHTML=oldText||'Masuk ke Dashboard →';}
