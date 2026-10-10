@@ -6,6 +6,8 @@ const CONFIG=window.APP_CONFIG||{url:'',key:''};
 let sb=null,currentUser=null,profile=null,products=[],agents=[],receivables=[],sales=[],saleItems=[],saleReturnItems=[],receivablePayments=[],users=[],purchases=[],purchaseItems=[],purchaseReturnItems=[],saleReturns=[],purchaseReturns=[],cart=[],purchaseCart=[],priceProduct=null,selectedProductImage='';
 let catalogRacks=[];
 const $=id=>document.getElementById(id),rp=n=>'Rp '+Number(n||0).toLocaleString('id-ID');
+window.addEventListener('error',e=>{const hint=document.getElementById('loginHint');const loginBox=document.getElementById('login');if(hint&&loginBox&&!loginBox.classList.contains('hidden'))hint.textContent='Kesalahan aplikasi: '+String(e.message||'skrip tidak dapat dijalankan');});
+window.addEventListener('unhandledrejection',e=>{const hint=document.getElementById('loginHint');const loginBox=document.getElementById('login');if(hint&&loginBox&&!loginBox.classList.contains('hidden'))hint.textContent='Login gagal: '+String(e.reason?.message||e.reason||'kesalahan tidak diketahui');});
 let soundEnabled=localStorage.getItem('tokokasirlussal-sound')!=='off';
 let audioCtx=null;
 function ensureAudio(){try{if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();return audioCtx}catch(e){return null}}
@@ -116,6 +118,7 @@ async function login(){
  }catch(e){
   console.error('software login ['+stage+']',e);
   const message=String(e?.message||e||'Login gagal');
+  const hint=$('loginHint');if(hint)hint.textContent='Login gagal ('+stage+'): '+message;
   toast('Login gagal pada tahap '+stage+': '+message);
  }finally{
   loginBusy=false;
