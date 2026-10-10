@@ -39,24 +39,42 @@ async function ensureSession(){requireConfig();if(!sb)sb=supabase.createClient(C
 let loginMode='kasir';
 function setLoginMode(mode){loginMode=mode;const isAdmin=mode==='admin';$('loginKasirBtn')?.classList.toggle('primary',!isAdmin);$('loginKasirBtn')?.classList.toggle('secondary',isAdmin);$('loginAdminBtn')?.classList.toggle('primary',isAdmin);$('loginAdminBtn')?.classList.toggle('secondary',!isAdmin);$('usernameField')?.classList.remove('hidden');$('pinField')?.classList.toggle('hidden',!isAdmin);if($('usernameLabel'))$('usernameLabel').textContent=isAdmin?'Username Admin':'Username Kasir';if($('username'))$('username').placeholder=isAdmin?'Masukkan username admin':'Masukkan username kasir';if($('loginTitle'))$('loginTitle').textContent=isAdmin?'Login Admin':'Login Kasir';if($('loginHint'))$('loginHint').textContent=isAdmin?'Masukkan username admin dan PIN 4 angka.':'Masukkan username kasir untuk masuk.';if(isAdmin)$('pin')?.focus();else $('username')?.focus()}
 async function login(){
+ let btn=null,oldText='';
  try{
   const pin=($('pin')?.value||'').trim();
   const username=($('username')?.value||'').trim().toLowerCase();
   if(!username)return toast(loginMode==='admin'?'Masukkan username admin terlebih dahulu.':'Masukkan username kasir terlebih dahulu.');
   if(loginMode==='admin'&&!/^[0-9]{4}$/.test(pin))return toast('PIN admin harus tepat 4 angka.');
-  const btn=document.querySelector('#loginForm button[type="submit"],#loginBtn,.login-submit');
-  if(btn){btn.disabled=true;btn.dataset.oldText=btn.textContent;btn.textContent='Memproses...';}
-  if(!window.softwareAuth?.login)throw Error('Modul login Windows tidak tersedia. Silakan pasang versi software terbaru.');
-  const result=await window.softwareAuth.login({mode:loginMode,username,pin});
-  if(!result?.ok||!result.session?.access_token||!result.profile)throw Error('Login gagal: sesi software tidak lengkap.');
-  if(!sb){
-    requireConfig();
-    sb=supabase.createClient(CONFIG.url,CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'tokokasirlussal-auth'}});
+  btn=document.querySelector('.login-submit');
+  if(btn){btn.disabled=true;oldText=btn.innerHTML;btn.innerHTML='Memproses login... ⏳';btn.setAttribute('aria-busy','true');}
+  requireConfig();
+  if(!window.supabase?.createClient)throw Error('Modul Supabase belum termuat. Periksa koneksi internet lalu buka ulang software.');
+  if(!sb)sb=supabase.createClient(CONFIG.url,CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'tokokasirlussal-auth'}});
+  let session=await ensureSession();
+  currentUser=session.user;
+  let result=loginMode==='admin'
+    ?await sb.rpc('kiosk_login_pin',{p_username:username,p_pin:pin})
+    :await sb.rpc('kiosk_login_cashier',{p_username:username});
+  if(result.error&&/JWT|session|anonymous|not authenticated/i.test(result.error.message||'')){
+    await sb.auth.signOut({scope:'local'});
+    session=await ensureSession();
+    currentUser=session.user;
+    result=loginMode==='admin'
+      ?await sb.rpc('kiosk_login_pin',{p_username:username,p_pin:pin})
+      :await sb.rpc('kiosk_login_cashier',{p_username:username});
   }
-  const sessionResult=await sb.auth.setSession({access_token:result.session.access_token,refresh_token:result.session.refresh_token||''});
-  if(sessionResult.error)throw sessionResult.error;
-  currentUser=sessionResult.data?.session?.user||result.session.user;
-  profile=result.profile;
+  if(result.error)throw result.error;
+  const data=result.data;
+  if(!data?.length)throw Error('Akun tidak ditemukan atau tidak aktif.');
+  const account=data[0];
+  if(loginMode==='admin'&&account.role!=='admin')throw Error('Akun ini bukan akun admin.');
+  if(loginMode==='kasir'&&account.role==='admin')throw Error('Gunakan tombol Login Admin.');
+  const prof=await sb.rpc('kiosk_profile',{p_username:account.username});
+  if(prof.error)throw prof.error;
+  if(!prof.data?.length)throw Error('Profil akun belum tersedia.');
+  profile=prof.data[0];
+  profile.auth_user_id=currentUser.id;
+  if(!profile.aktif)throw Error('Akun tidak aktif.');
   localStorage.setItem('tokokasirlussal-username',profile.username);
   window.dispatchEvent(new Event('login-success'));
   showApp();
@@ -69,10 +87,11 @@ async function login(){
   }
  }catch(e){
   console.error('software login',e);
-  toast(String(e?.message||e||'Login gagal'));
+  const message=String(e?.message||e||'Login gagal');
+  if(/anonymous|disabled|sign.?in/i.test(message))toast('Login otomatis Supabase gagal. Aktifkan Anonymous Sign-Ins di Supabase Authentication.');
+  else toast(message);
  }finally{
-  const btn=document.querySelector('#loginForm button[type="submit"],#loginBtn,.login-submit');
-  if(btn){btn.disabled=false;btn.textContent=btn.dataset.oldText||'Masuk ke Dashboard →';}
+  if(btn){btn.disabled=false;btn.removeAttribute('aria-busy');btn.innerHTML=oldText||'Masuk ke Dashboard →';}
  }
 }
 // Explicit globals keep the Windows login controls callable in the packaged Electron renderer.
