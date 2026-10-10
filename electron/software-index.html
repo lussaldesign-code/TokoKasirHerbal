@@ -322,6 +322,8 @@ body[data-user-role="cashier"] .side .nav.logout{display:flex!important}
 </style><style>
 /* Stock notifications + Barang Dibawa */
 .notify-wrap{position:fixed;top:18px;right:24px;z-index:45}
+/* Windows: hide the stock bell until the user is inside the app. */
+body:has(#login:not(.hidden)) .notify-wrap,body:has(#login:not(.hidden)) #stockToast{display:none!important}
 .notify-bell{width:44px;height:44px;border:1px solid #1d4c3b;border-radius:14px;background:#0b1510;color:#eafff5;display:grid;place-items:center;font-size:20px;box-shadow:0 10px 30px #0005;position:relative}
 .notify-bell:hover{transform:translateY(-2px);border-color:#10b981}
 .notify-badge{display:none;position:absolute;right:-5px;top:-5px;min-width:20px;height:20px;padding:0 5px;border-radius:99px;background:#ef4444;color:#fff;font-size:10px;font-weight:900;align-items:center;justify-content:center;border:2px solid #050806}
