@@ -15,3 +15,40 @@ create policy settings_select on public.settings
 revoke execute on function public.kiosk_login(text, text) from public, anon, authenticated;
 revoke execute on function public.kiosk_register_cashier(text) from public, anon, authenticated;
 revoke execute on function public.login_by_username(text) from public, anon, authenticated;
+
+
+-- Remove default PUBLIC/anon execution from exposed SECURITY DEFINER functions.
+-- Authenticated app sessions include Supabase anonymous-auth sessions; active RPCs
+-- remain available to authenticated while the legacy/insecure endpoints stay revoked.
+DO $$
+DECLARE
+  fn record;
+BEGIN
+  FOR fn IN
+    SELECT n.nspname AS schema_name,
+           p.proname AS function_name,
+           oidvectortypes(p.proargtypes) AS arg_types
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.prosecdef = true
+  LOOP
+    EXECUTE format(
+      'REVOKE EXECUTE ON FUNCTION %I.%I(%s) FROM PUBLIC, anon',
+      fn.schema_name, fn.function_name, fn.arg_types
+    );
+    IF fn.function_name NOT IN (
+      'kiosk_login',
+      'kiosk_register_cashier',
+      'login_by_username',
+      'enqueue_push_sale',
+      'enqueue_push_stock_empty',
+      'handle_new_auth_user'
+    ) THEN
+      EXECUTE format(
+        'GRANT EXECUTE ON FUNCTION %I.%I(%s) TO authenticated',
+        fn.schema_name, fn.function_name, fn.arg_types
+      );
+    END IF;
+  END LOOP;
+END $$;
