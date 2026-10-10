@@ -118,9 +118,9 @@ async function login(){
   profile=profiles[0];
   profile.auth_user_id=currentUser?.id||session.user?.id;
   if(!profile?.aktif)throw Error('Akun tidak aktif.');
-  const role=String(profile.role||account?.role||'').toLowerCase();
-  if(loginMode==='admin'&&role!=='admin')throw Error('Akun ini bukan akun admin.');
-  if(loginMode==='kasir'&&role==='admin')throw Error('Gunakan tombol Login Admin.');
+  const profileRole=String(profile.role||account?.role||'').toLowerCase();
+  if(loginMode==='admin'&&profileRole!=='admin')throw Error('Akun ini bukan akun admin.');
+  if(loginMode==='kasir'&&profileRole==='admin')throw Error('Gunakan tombol Login Admin.');
   stage='menyiapkan dashboard';
   localStorage.setItem('tokokasirlussal-username',profile.username||username);
   setLoginNotice('Login berhasil. Menyiapkan dashboard…','info');
