@@ -105,6 +105,31 @@ async function login(){
   if(btn){btn.disabled=false;btn.removeAttribute('aria-busy');btn.innerHTML=oldText||'Masuk ke Dashboard →';}
  }
 }
+
+// Windows login-button hardening: bind the visible button explicitly instead of relying on inline HTML handlers.
+function bindWindowsLoginButton(){
+ const button=$('loginSubmitBtn');
+ if(!button||button.dataset.loginBound==='1')return;
+ button.dataset.loginBound='1';
+ button.addEventListener('click',function(event){
+  event.preventDefault();
+  if(button.disabled||loginBusy)return;
+  try{
+   const result=login();
+   if(result&&typeof result.catch==='function')result.catch(error=>{
+    console.error('Windows login button handler failed',error);
+    toast('Login gagal: '+(error?.message||String(error)));
+   });
+  }catch(error){
+   console.error('Windows login button handler failed',error);
+   toast('Login gagal: '+(error?.message||String(error)));
+  }
+ });
+}
+window.login=login;
+window.setLoginMode=setLoginMode;
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindWindowsLoginButton,{once:true});
+else bindWindowsLoginButton();
 async function loadProfileByUsername(username){const {data,error}=await sb.rpc('kiosk_profile',{p_username:username});if(error)throw error;if(!data?.length)throw Error('Profil akun belum tersedia.');profile=data[0]}
 async function restoreLogin(){showLogin()}
 async function logout(){try{localStorage.removeItem('tokokasirlussal-username');if(sb)await sb.auth.signOut()}finally{location.reload()}}
