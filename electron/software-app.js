@@ -6,8 +6,8 @@ const CONFIG=window.APP_CONFIG||{url:'',key:''};
 let sb=null,currentUser=null,profile=null,products=[],agents=[],receivables=[],sales=[],saleItems=[],saleReturnItems=[],receivablePayments=[],users=[],purchases=[],purchaseItems=[],purchaseReturnItems=[],saleReturns=[],purchaseReturns=[],cart=[],purchaseCart=[],priceProduct=null,selectedProductImage='';
 let catalogRacks=[];
 const $=id=>document.getElementById(id),rp=n=>'Rp '+Number(n||0).toLocaleString('id-ID');
-window.addEventListener('error',e=>{const hint=document.getElementById('loginHint');const loginBox=document.getElementById('login');if(hint&&loginBox&&!loginBox.classList.contains('hidden'))hint.textContent='Kesalahan aplikasi: '+String(e.message||'skrip tidak dapat dijalankan');});
-window.addEventListener('unhandledrejection',e=>{const hint=document.getElementById('loginHint');const loginBox=document.getElementById('login');if(hint&&loginBox&&!loginBox.classList.contains('hidden'))hint.textContent='Login gagal: '+String(e.reason?.message||e.reason||'kesalahan tidak diketahui');});
+window.addEventListener('error',e=>{const loginBox=document.getElementById('login');if(loginBox&&!loginBox.classList.contains('hidden'))setLoginNotice('Aplikasi mengalami kesalahan: '+String(e.message||'skrip tidak dapat dijalankan')+'. Tutup lalu buka kembali software; jika berulang, kirim pesan ini ke pengelola.','error');});
+window.addEventListener('unhandledrejection',e=>{const loginBox=document.getElementById('login');if(loginBox&&!loginBox.classList.contains('hidden'))setLoginNotice('Proses login mengalami kesalahan tak tertangani: '+String(e.reason?.message||e.reason||'kesalahan tidak diketahui'),'error');});
 let soundEnabled=localStorage.getItem('tokokasirlussal-sound')!=='off';
 let audioCtx=null;
 function ensureAudio(){try{if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();return audioCtx}catch(e){return null}}
@@ -39,7 +39,24 @@ function toast(m){$('toast').textContent=m;$('toast').classList.add('show');setT
 function requireConfig(){if(!CONFIG.url||!CONFIG.key){toast('Isi config.js dengan Supabase URL dan publishable/anon key.');throw Error('Supabase config belum diisi')}}
 async function ensureSession(){requireConfig();if(!sb)sb=supabase.createClient(CONFIG.url,CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'tokokasirlussal-auth'}});let s=await sb.auth.getSession();if(s.error)throw s.error;const existing=s.data?.session;if(existing?.user?.is_anonymous===true)return existing;if(existing){await sb.auth.signOut({scope:'local'});}let r=await sb.auth.signInAnonymously();if(r.error)throw Error('Login otomatis Supabase gagal: '+r.error.message);if(!r.data?.session)throw Error('Supabase tidak mengembalikan sesi.');return r.data.session}
 let loginMode='kasir',loginBusy=false;
-function setLoginMode(mode){loginMode=mode;const isAdmin=mode==='admin';$('loginKasirBtn')?.classList.toggle('primary',!isAdmin);$('loginKasirBtn')?.classList.toggle('secondary',isAdmin);$('loginAdminBtn')?.classList.toggle('primary',isAdmin);$('loginAdminBtn')?.classList.toggle('secondary',!isAdmin);$('usernameField')?.classList.remove('hidden');$('pinField')?.classList.toggle('hidden',!isAdmin);if($('usernameLabel'))$('usernameLabel').textContent=isAdmin?'Username Admin':'Username Kasir';if($('username'))$('username').placeholder=isAdmin?'Masukkan username admin':'Masukkan username kasir';if($('loginTitle'))$('loginTitle').textContent=isAdmin?'Login Admin':'Login Kasir';if($('loginHint'))$('loginHint').textContent=isAdmin?'Masukkan username admin dan PIN 4 angka.':'Masukkan username kasir untuk masuk.';if(isAdmin)$('pin')?.focus();else $('username')?.focus()}
+function setLoginMode(mode){loginMode=mode;const isAdmin=mode==='admin';$('loginKasirBtn')?.classList.toggle('primary',!isAdmin);$('loginKasirBtn')?.classList.toggle('secondary',isAdmin);$('loginAdminBtn')?.classList.toggle('primary',isAdmin);$('loginAdminBtn')?.classList.toggle('secondary',!isAdmin);$('usernameField')?.classList.remove('hidden');$('pinField')?.classList.toggle('hidden',!isAdmin);if($('usernameLabel'))$('usernameLabel').textContent=isAdmin?'Username Admin':'Username Kasir';if($('username'))$('username').placeholder=isAdmin?'Masukkan username admin':'Masukkan username kasir';if($('loginTitle'))$('loginTitle').textContent=isAdmin?'Login Admin':'Login Kasir';setLoginNotice(isAdmin?'Masukkan username admin dan PIN 4 angka.':'Masukkan username kasir untuk masuk.','info');if(isAdmin)$('pin')?.focus();else $('username')?.focus()}
+function setLoginNotice(message,type='info'){
+ const hint=$('loginHint');if(!hint)return;
+ hint.textContent=String(message||'');
+ hint.className='note login-alert'+(type==='error'?' is-error':type==='warning'?' is-warning':'');
+ hint.setAttribute('role',type==='error'?'alert':'status');
+ hint.setAttribute('aria-live',type==='error'?'assertive':'polite');
+}
+function explainLoginFailure(message,stage){
+ const raw=String(message||'Login gagal');const lower=raw.toLowerCase();
+ if(/failed to fetch|networkerror|network request failed|err_internet_disconnected|internet disconnected|timed out|timeout/.test(lower))return 'Koneksi ke server gagal. Periksa internet, lalu coba masuk kembali. Detail: '+raw;
+ if(/config\.js|supabase config belum diisi|publishable|anon key/.test(lower))return 'Konfigurasi server belum benar. Periksa file config.js pada software Windows. Detail: '+raw;
+ if(/anonymous sign|anonymous provider|anonymous users|signups not allowed|signup is disabled/.test(lower))return 'Layanan autentikasi Supabase belum mengizinkan sesi otomatis. Admin perlu memeriksa pengaturan Authentication di Supabase. Detail: '+raw;
+ if(/function .* does not exist|could not find the function|schema cache|kiosk_login_pin|kiosk_login_cashier|kiosk_profile/.test(lower))return 'Fungsi login database belum tersedia atau belum sesuai. Periksa RPC login/profile di Supabase. Detail: '+raw;
+ if(/akun tidak ditemukan|akun tidak aktif|username|pin admin|bukan akun admin|gunakan tombol login admin|invalid.*credential|pin salah/.test(lower))return 'Akun tidak cocok atau tidak aktif. Periksa username, mode login, dan PIN Admin 4 angka. Detail: '+raw;
+ if(/permission denied|row-level security|rls|not authorized|jwt|not authenticated/.test(lower))return 'Server menolak akses login. Periksa sesi autentikasi, hak akses, dan kebijakan database Supabase. Detail: '+raw;
+ return 'Login belum berhasil pada tahap '+stage+'. Periksa koneksi dan data login, lalu coba lagi. Jika tetap gagal, kirimkan teks peringatan ini ke pengelola: '+raw;
+}
 async function login(){
  // Keep a single renderer-owned Supabase auth/session path in Windows to avoid conflicting Electron-main and renderer sessions.
  if(window.__softwareLoginMode==='admin'||window.__softwareLoginMode==='kasir')loginMode=window.__softwareLoginMode;
@@ -105,7 +122,8 @@ async function login(){
   if(loginMode==='kasir'&&role==='admin')throw Error('Gunakan tombol Login Admin.');
   stage='menyiapkan dashboard';
   localStorage.setItem('tokokasirlussal-username',profile.username||username);
-  window.dispatchEvent(new Event('login-success'));
+  setLoginNotice('Login berhasil. Menyiapkan dashboard…','info');
+   window.dispatchEvent(new Event('login-success'));
   showApp();
   try{
     stage='memuat data toko';
