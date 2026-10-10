@@ -208,12 +208,16 @@ drop policy if exists users_admin_insert on public.users;
 drop policy if exists users_admin_delete on public.users;
 
 drop policy if exists products_read on public.products;
+drop policy if exists products_select on public.products;
+drop policy if exists products_select_authenticated on public.products;
 drop policy if exists products_admin_write on public.products;
 drop policy if exists products_admin_insert on public.products;
 drop policy if exists products_admin_update on public.products;
 drop policy if exists products_admin_delete on public.products;
 
 drop policy if exists agents_read on public.agents;
+drop policy if exists agents_select on public.agents;
+drop policy if exists agents_select_authenticated on public.agents;
 drop policy if exists agents_admin_write on public.agents;
 drop policy if exists agents_admin_insert on public.agents;
 drop policy if exists agents_admin_update on public.agents;
@@ -224,7 +228,10 @@ drop policy if exists sale_items_read on public.sale_items;
 drop policy if exists receivables_read on public.receivables;
 drop policy if exists receivable_payments_read on public.receivable_payments;
 drop policy if exists receivables_select on public.receivables;
+drop policy if exists receivables_select_authenticated on public.receivables;
+drop policy if exists receivables_select_owner_or_admin on public.receivables;
 drop policy if exists receivable_payments_select on public.receivable_payments;
+drop policy if exists receivable_payments_select_owner_or_admin on public.receivable_payments;
 drop policy if exists stock_movements_read on public.stock_movements;
 
 -- ================================================================
