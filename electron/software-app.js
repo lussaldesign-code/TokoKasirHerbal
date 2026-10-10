@@ -39,7 +39,7 @@ async function ensureSession(){requireConfig();if(!sb)sb=supabase.createClient(C
 let loginMode='kasir';
 function setLoginMode(mode){loginMode=mode;const isAdmin=mode==='admin';$('loginKasirBtn')?.classList.toggle('primary',!isAdmin);$('loginKasirBtn')?.classList.toggle('secondary',isAdmin);$('loginAdminBtn')?.classList.toggle('primary',isAdmin);$('loginAdminBtn')?.classList.toggle('secondary',!isAdmin);$('usernameField')?.classList.remove('hidden');$('pinField')?.classList.toggle('hidden',!isAdmin);if($('usernameLabel'))$('usernameLabel').textContent=isAdmin?'Username Admin':'Username Kasir';if($('username'))$('username').placeholder=isAdmin?'Masukkan username admin':'Masukkan username kasir';if($('loginTitle'))$('loginTitle').textContent=isAdmin?'Login Admin':'Login Kasir';if($('loginHint'))$('loginHint').textContent=isAdmin?'Masukkan username admin dan PIN 4 angka.':'Masukkan username kasir untuk masuk.';if(isAdmin)$('pin')?.focus();else $('username')?.focus()}
 async function login(){
- let btn=null,oldText='';
+ let btn=null,oldText='',stage='validasi input';
  try{
   const pin=($('pin')?.value||'').trim();
   const username=($('username')?.value||'').trim().toLowerCase();
@@ -47,52 +47,58 @@ async function login(){
   if(loginMode==='admin'&&!/^[0-9]{4}$/.test(pin))return toast('PIN admin harus tepat 4 angka.');
   btn=document.querySelector('.login-submit');
   if(btn){btn.disabled=true;oldText=btn.innerHTML;btn.innerHTML='Memproses login... ⏳';btn.setAttribute('aria-busy','true');}
-  requireConfig();
-  if(IS_ELECTRON && window.softwareAuth?.login){
-    // Windows uses the isolated Electron main-process login bridge; this avoids
-    // renderer/CDN session-state differences while keeping web/APK login untouched.
+  stage='memuat konfigurasi Supabase';requireConfig();
+  if(window.softwareAuth?.login){
+    // Use the Windows main-process bridge whenever it exists; do not depend on UA text.
+    stage='autentikasi akun di Windows';
     const result=await window.softwareAuth.login({mode:loginMode,username,pin});
-    if(!result?.ok||!result?.session||!result?.profile)throw Error('Login Windows tidak mengembalikan sesi/profil lengkap.');
-    if(!window.supabase?.createClient)throw Error('Modul Supabase belum termuat. Periksa koneksi internet lalu buka ulang software.');
+    if(!result?.ok||!result?.session?.access_token||!result?.profile)throw Error('Bridge Windows tidak mengembalikan access token/profil yang lengkap.');
+    stage='memuat modul Supabase untuk data toko';
+    if(!window.supabase?.createClient)throw Error('Modul Supabase tidak termuat. Periksa koneksi internet dan coba buka ulang software.');
     if(!sb)sb=window.supabase.createClient(CONFIG.url,CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'tokokasirlussal-auth'}});
+    stage='menyimpan sesi login Windows';
     const saved=await sb.auth.setSession({access_token:result.session.access_token,refresh_token:result.session.refresh_token||''});
     if(saved.error)throw saved.error;
     currentUser=saved.data?.user||result.session.user;
     profile=result.profile;
   }else{
-    if(!window.supabase?.createClient)throw Error('Modul Supabase belum termuat. Periksa koneksi internet lalu buka ulang software.');
+    stage='memuat modul Supabase';
+    if(!window.supabase?.createClient)throw Error('Modul Supabase tidak termuat. Periksa koneksi internet dan coba buka ulang software.');
     if(!sb)sb=window.supabase.createClient(CONFIG.url,CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'tokokasirlussal-auth'}});
+    stage='membuat sesi autentikasi';
     let session=await ensureSession();
     currentUser=session.user;
+    stage='memeriksa username dan PIN';
     let result=loginMode==='admin'
       ?await sb.rpc('kiosk_login_pin',{p_username:username,p_pin:pin})
       :await sb.rpc('kiosk_login_cashier',{p_username:username});
     if(result.error&&/JWT|session|anonymous|not authenticated/i.test(result.error.message||'')){
       await sb.auth.signOut({scope:'local'});
-      session=await ensureSession();
-      currentUser=session.user;
+      session=await ensureSession();currentUser=session.user;
       result=loginMode==='admin'
         ?await sb.rpc('kiosk_login_pin',{p_username:username,p_pin:pin})
         :await sb.rpc('kiosk_login_cashier',{p_username:username});
     }
     if(result.error)throw result.error;
-    const data=result.data;
-    if(!data?.length)throw Error('Akun tidak ditemukan atau tidak aktif.');
-    const account=data[0];
-    if(loginMode==='admin'&&account.role!=='admin')throw Error('Akun ini bukan akun admin.');
-    if(loginMode==='kasir'&&account.role==='admin')throw Error('Gunakan tombol Login Admin.');
-    const prof=await sb.rpc('kiosk_profile',{p_username:account.username});
+    const data=Array.isArray(result.data)?result.data:(result.data?[result.data]:[]);
+    if(!data.length)throw Error('Akun tidak ditemukan atau tidak aktif.');
+    const account=data[0],role=String(account.role||'').toLowerCase();
+    if(loginMode==='admin'&&role!=='admin')throw Error('Akun ini bukan akun admin.');
+    if(loginMode==='kasir'&&role==='admin')throw Error('Gunakan tombol Login Admin.');
+    stage='memuat profil akun';
+    const prof=await sb.rpc('kiosk_profile',{p_username:account.username||username});
     if(prof.error)throw prof.error;
-    if(!prof.data?.length)throw Error('Profil akun belum tersedia.');
-    profile=prof.data[0];
-    profile.auth_user_id=currentUser.id;
-    if(!profile.aktif)throw Error('Akun tidak aktif.');
+    const rows=Array.isArray(prof.data)?prof.data:(prof.data?[prof.data]:[]);
+    if(!rows.length)throw Error('Profil akun belum tersedia.');
+    profile=rows[0];profile.auth_user_id=currentUser.id;
   }
-  if(!profile?.aktif)throw Error('Akun tidak aktif.');
+  if(!profile?.aktif)throw Error('Akun tidak aktif atau profil tidak valid.');
+  stage='menyiapkan dashboard';
   localStorage.setItem('tokokasirlussal-username',profile.username);
   window.dispatchEvent(new Event('login-success'));
   showApp();
   try{
+    stage='memuat data toko';
     await loadAll();
     toast('Login berhasil. Selamat datang, '+(profile.nama||profile.username)+'.');
   }catch(loadErr){
@@ -100,10 +106,10 @@ async function login(){
     toast('Login berhasil, tetapi data belum dapat dimuat: '+(loadErr?.message||'periksa data Supabase'));
   }
  }catch(e){
-  console.error('software login',e);
+  console.error('software login ['+stage+']',e);
   const message=String(e?.message||e||'Login gagal');
-  if(/anonymous|disabled|sign.?in/i.test(message))toast('Login otomatis Supabase gagal. Aktifkan Anonymous Sign-Ins di Supabase Authentication.');
-  else toast('Login gagal: '+message);
+  if(/anonymous|disabled|sign.?in/i.test(message))toast('Login gagal pada tahap '+stage+': aktifkan Anonymous Sign-Ins di Supabase Authentication. Detail: '+message);
+  else toast('Login gagal pada tahap '+stage+': '+message);
  }finally{
   if(btn){btn.disabled=false;btn.removeAttribute('aria-busy');btn.innerHTML=oldText||'Masuk ke Dashboard →';}
  }
