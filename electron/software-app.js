@@ -1,4 +1,4 @@
-const APP_VERSION='1.0.32';
+const APP_VERSION='1.0.33';
 const WINDOWS_UPDATE_MANIFEST_URL=new URL('windows-update.json',location.href).href;
 const WINDOWS_UPDATE_MANIFEST_FALLBACK='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/windows-update.json';
 const IS_ELECTRON=!!(navigator.userAgent&&/Electron/i.test(navigator.userAgent));
@@ -41,7 +41,7 @@ async function ensureSession(){requireConfig();if(!sb)sb=supabase.createClient(C
 let loginMode='kasir',loginBusy=false;
 function setLoginMode(mode){loginMode=mode;const isAdmin=mode==='admin';$('loginKasirBtn')?.classList.toggle('primary',!isAdmin);$('loginKasirBtn')?.classList.toggle('secondary',isAdmin);$('loginAdminBtn')?.classList.toggle('primary',isAdmin);$('loginAdminBtn')?.classList.toggle('secondary',!isAdmin);$('usernameField')?.classList.remove('hidden');$('pinField')?.classList.toggle('hidden',!isAdmin);if($('usernameLabel'))$('usernameLabel').textContent=isAdmin?'Username Admin':'Username Kasir';if($('username'))$('username').placeholder=isAdmin?'Masukkan username admin':'Masukkan username kasir';if($('loginTitle'))$('loginTitle').textContent=isAdmin?'Login Admin':'Login Kasir';if($('loginHint'))$('loginHint').textContent=isAdmin?'Masukkan username admin dan PIN 4 angka.':'Masukkan username kasir untuk masuk.';if(isAdmin)$('pin')?.focus();else $('username')?.focus()}
 async function login(){
- // Use one renderer-owned Supabase auth/session path for Windows login; this avoids a second, conflicting Electron-main auth session.
+ // Windows desktop must use the Electron main-process login bridge, then install its returned session in the renderer.
  if(window.__softwareLoginMode==='admin'||window.__softwareLoginMode==='kasir')loginMode=window.__softwareLoginMode;
  if(loginBusy)return;
  loginBusy=true;
@@ -57,7 +57,7 @@ async function login(){
   requireConfig();
   if(!sb)sb=supabase.createClient(CONFIG.url,CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'tokokasirlussal-auth'}});
   let account=null,session=null;
-  if(!IS_ELECTRON && window.softwareAuth&&typeof window.softwareAuth.login==='function'){
+  if(IS_ELECTRON && window.softwareAuth&&typeof window.softwareAuth.login==='function'){
     stage='mengautentikasi melalui layanan Windows';
     const response=await window.softwareAuth.login({mode:loginMode,username,pin});
     if(!response?.ok||!response.session||!response.profile)throw Error('Layanan login Windows tidak mengembalikan profil akun.');
@@ -543,7 +543,7 @@ async function checkForUpdate(){
 async function checkRemoteWebUpdate(){
   // Windows software has its own updater; it never reads Web/APK version data.
 }
-function showAppVersion(){const el=$('appVersion');if(el)el.textContent='Versi '+APP_VERSION}
+function showAppVersion(){const label='Versi '+APP_VERSION;const el=$('appVersion');if(el)el.textContent=label;const corner=$('softwareVersionCorner');if(corner)corner.textContent='Versi Software '+APP_VERSION;}
 function updateAccountView(){const w=$('accountWelcome'),em=$('accountEmail'),ei=$('accountEmailInput');if(w)w.textContent=(profile?.nama||'Akun')+' (@'+(profile?.username||'-')+')';if(em)em.textContent='Login: '+(profile?.username||'-');if(ei)ei.value='Username: '+(profile?.username||'-')}
 let barangDibawa=[];let barangDibawaItems=[];let carryCart=[];let carryEditingId=null;
 let stockNotificationState={};
