@@ -133,6 +133,7 @@ function bindWindowsLoginButton(){
  if(admin&&!admin.dataset.modeBound){admin.dataset.modeBound='1';admin.addEventListener('click',event=>{event.preventDefault();setLoginMode('admin');});}
  const username=$('username'),pinInput=$('pin');
  [username,pinInput].forEach(input=>{if(input&&!input.dataset.enterBound){input.dataset.enterBound='1';input.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();void login();}});}});
+ setLoginMode('kasir');
 }
 window.login=login;
 window.setLoginMode=setLoginMode;
