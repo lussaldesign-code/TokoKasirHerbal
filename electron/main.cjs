@@ -32,7 +32,7 @@ ipcMain.handle('software-login', async (_event, payload) => {
   if (!username) throw new Error('Masukkan username terlebih dahulu.');
   if (mode === 'admin' && !/^\d{4}$/.test(pin)) throw new Error('PIN admin harus tepat 4 angka.');
   const { url, key } = readSoftwareSupabaseConfig();
-  const auth = await supabaseSoftwareRequest(url, key, '/auth/v1/signup', '', {});
+  const auth = await supabaseSoftwareRequest(url, key, '/auth/v1/signup', '', { data: {} });
   if (!auth?.access_token || !auth?.user?.id) throw new Error('Supabase tidak mengembalikan sesi login. Pastikan Anonymous Sign-Ins aktif.');
   const rpcName = mode === 'admin' ? 'kiosk_login_pin' : 'kiosk_login_cashier';
   const rpcBody = mode === 'admin' ? { p_username: username, p_pin: pin } : { p_username: username };
