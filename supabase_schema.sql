@@ -269,7 +269,7 @@ create policy products_admin_delete on public.products
 -- ================================================================
 create policy agents_read on public.agents
   for select to authenticated
-  using ((select public.my_user_id()) is not null);
+  using (aktif = true or (select public.my_role()) = 'admin');
 
 create policy agents_admin_insert on public.agents
   for insert to authenticated
