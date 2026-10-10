@@ -223,6 +223,8 @@ drop policy if exists sales_read on public.sales;
 drop policy if exists sale_items_read on public.sale_items;
 drop policy if exists receivables_read on public.receivables;
 drop policy if exists receivable_payments_read on public.receivable_payments;
+drop policy if exists receivables_select on public.receivables;
+drop policy if exists receivable_payments_select on public.receivable_payments;
 drop policy if exists stock_movements_read on public.stock_movements;
 
 -- ================================================================
