@@ -10,7 +10,6 @@ on:
       - package.json
       - package-lock.json
       - electron/**
-      - app.js
       - config.js
       - .github/workflows/build-windows.yml
       - '!TokoKasirLussal-latest.exe'
