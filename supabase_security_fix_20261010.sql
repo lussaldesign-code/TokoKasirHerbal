@@ -117,3 +117,79 @@ revoke execute on function public.enqueue_push_stock_empty() from public, anon, 
 
 -- The purchase function uses schema-qualified table references; pin its search_path.
 alter function public.create_purchase(text, date, text, jsonb) set search_path = '';
+
+
+-- Ensure a cashier cannot complete another cashier's carried-stock record.
+DO $patch$
+DECLARE v_def text;
+BEGIN
+  SELECT pg_get_functiondef(p.oid) INTO v_def
+  FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+  WHERE n.nspname='public' AND p.proname='complete_barang_dibawa'
+    AND oidvectortypes(p.proargtypes)='uuid, uuid, jsonb';
+  IF v_def IS NULL THEN RAISE EXCEPTION 'complete_barang_dibawa not found'; END IF;
+  v_def := replace(v_def,
+    $old$if v_header.id is null then raise exception 'Data barang dibawa tidak ditemukan'; end if;$old$,
+    $new$if v_header.id is null then raise exception 'Data barang dibawa tidak ditemukan'; end if;
+ if v_user.role <> 'admin' and v_header.user_id <> p_user_id then
+   raise exception 'Data barang dibawa bukan milik pengguna ini';
+ end if;$new$);
+  IF position('Data barang dibawa bukan milik pengguna ini' in v_def)=0 THEN
+    RAISE EXCEPTION 'Ownership guard was not inserted';
+  END IF;
+  EXECUTE v_def;
+END
+$patch$;
+
+-- Cashiers may only collect payment for receivables from their own sales.
+DO $patch$
+DECLARE v_def text;
+BEGIN
+  SELECT pg_get_functiondef(p.oid) INTO v_def
+  FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+  WHERE n.nspname='public' AND p.proname='pay_receivable'
+    AND oidvectortypes(p.proargtypes)='uuid, uuid, numeric, text';
+  IF v_def IS NULL THEN RAISE EXCEPTION 'pay_receivable not found'; END IF;
+  v_def := replace(v_def,
+    $old$if v_rec.id is null then raise exception 'Piutang tidak ditemukan'; end if;$old$,
+    $new$if v_rec.id is null then raise exception 'Piutang tidak ditemukan'; end if;
+ if v_user.role <> 'admin' and not exists (
+   select 1 from public.sales s
+   where s.id = v_rec.sale_id and s.kasir_id = v_user.id
+ ) then
+   raise exception 'Piutang bukan milik kasir ini';
+ end if;$new$);
+  IF position('Piutang bukan milik kasir ini' in v_def)=0 THEN
+    RAISE EXCEPTION 'Receivable ownership guard was not inserted';
+  END IF;
+  EXECUTE v_def;
+END
+$patch$;
+
+-- Cashiers may only return their own sales; admins can handle all sales.
+DO $patch$
+DECLARE v_def text;
+BEGIN
+  SELECT pg_get_functiondef(p.oid) INTO v_def
+  FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+  WHERE n.nspname='public' AND p.proname='create_sale_return'
+    AND oidvectortypes(p.proargtypes)='uuid, uuid, jsonb, text';
+  IF v_def IS NULL THEN RAISE EXCEPTION 'create_sale_return not found'; END IF;
+  v_def := replace(v_def,
+    $old$if not exists(select 1 from public.sales where id=p_sale_id) then
+    raise exception 'Transaksi penjualan tidak ditemukan';
+  end if;$old$,
+    $new$if not exists(
+    select 1 from public.sales s
+    where s.id=p_sale_id
+      and ((select public.my_role()) = 'admin'
+           or s.kasir_id = (select public.kiosk_user_id()))
+  ) then
+    raise exception 'Transaksi penjualan tidak ditemukan atau bukan milik kasir ini';
+  end if;$new$);
+  IF position('bukan milik kasir ini' in v_def)=0 THEN
+    RAISE EXCEPTION 'Sale return ownership guard was not inserted';
+  END IF;
+  EXECUTE v_def;
+END
+$patch$;
