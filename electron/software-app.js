@@ -75,6 +75,10 @@ async function login(){
   if(btn){btn.disabled=false;btn.textContent=btn.dataset.oldText||'Masuk ke Dashboard →';}
  }
 }
+// Explicit globals keep the Windows login controls callable in the packaged Electron renderer.
+window.login=login;
+window.setLoginMode=setLoginMode;
+
 async function loadProfileByUsername(username){const {data,error}=await sb.rpc('kiosk_profile',{p_username:username});if(error)throw error;if(!data?.length)throw Error('Profil akun belum tersedia.');profile=data[0]}
 async function restoreLogin(){showLogin()}
 async function logout(){try{localStorage.removeItem('tokokasirlussal-username');if(sb)await sb.auth.signOut()}finally{location.reload()}}
