@@ -52,3 +52,65 @@ BEGIN
     END IF;
   END LOOP;
 END $$;
+
+
+-- Tighten duplicate permissive product/agent policies.
+drop policy if exists products_select on public.products;
+drop policy if exists products_read on public.products;
+drop policy if exists agents_select on public.agents;
+drop policy if exists agents_read on public.agents;
+
+drop policy if exists products_select_authenticated on public.products;
+create policy products_select_authenticated on public.products
+  for select to authenticated
+  using (aktif = true or (select public.my_role()) = 'admin');
+
+drop policy if exists agents_select_authenticated on public.agents;
+create policy agents_select_authenticated on public.agents
+  for select to authenticated
+  using (aktif = true or (select public.my_role()) = 'admin');
+
+-- Limit receivables/payments to the cashier who owns the sale, or an admin.
+drop policy if exists receivables_read on public.receivables;
+drop policy if exists receivables_select on public.receivables;
+drop policy if exists receivables_select_authenticated on public.receivables;
+create policy receivables_select_owner_or_admin on public.receivables
+  for select to authenticated
+  using (
+    (select public.my_role()) = 'admin'
+    or exists (
+      select 1 from public.sales s
+      where s.id = receivables.sale_id
+        and s.kasir_id = (select public.kiosk_user_id())
+    )
+  );
+
+drop policy if exists receivable_payments_read on public.receivable_payments;
+drop policy if exists receivable_payments_select on public.receivable_payments;
+create policy receivable_payments_select_owner_or_admin on public.receivable_payments
+  for select to authenticated
+  using (
+    (select public.my_role()) = 'admin'
+    or kasir_id = (select public.kiosk_user_id())
+  );
+
+-- Limit carried-stock records to their owner or an admin.
+drop policy if exists barang_dibawa_read on public.barang_dibawa;
+create policy barang_dibawa_read on public.barang_dibawa
+  for select to authenticated
+  using ((select public.my_role()) = 'admin' or user_id = (select public.kiosk_user_id()));
+
+drop policy if exists barang_dibawa_items_read on public.barang_dibawa_items;
+create policy barang_dibawa_items_read on public.barang_dibawa_items
+  for select to authenticated
+  using (
+    (select public.my_role()) = 'admin'
+    or exists (
+      select 1 from public.barang_dibawa b
+      where b.id = barang_dibawa_items.barang_dibawa_id
+        and b.user_id = (select public.kiosk_user_id())
+    )
+  );
+
+revoke execute on function public.enqueue_push_sale() from public, anon, authenticated;
+revoke execute on function public.enqueue_push_stock_empty() from public, anon, authenticated;
