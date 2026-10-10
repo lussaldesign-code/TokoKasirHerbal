@@ -298,7 +298,7 @@ create policy sale_items_read on public.sale_items
 
 create policy receivables_read on public.receivables
   for select to authenticated
-  using ((select public.my_user_id()) is not null);
+  using ((select public.my_role()) = 'admin' or exists (select 1 from public.sales s where s.id = receivables.sale_id and s.kasir_id = (select public.kiosk_user_id())));
 
 create policy receivable_payments_read on public.receivable_payments
   for select to authenticated
