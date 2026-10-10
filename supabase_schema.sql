@@ -249,7 +249,7 @@ create policy users_admin_update on public.users
 -- ================================================================
 create policy products_read on public.products
   for select to authenticated
-  using ((select public.my_user_id()) is not null);
+  using (aktif = true or (select public.my_role()) = 'admin');
 
 create policy products_admin_insert on public.products
   for insert to authenticated
