@@ -1,4 +1,4 @@
-const APP_VERSION='1.0.33';
+const APP_VERSION='1.0.34';
 const WINDOWS_UPDATE_MANIFEST_URL=new URL('windows-update.json',location.href).href;
 const WINDOWS_UPDATE_MANIFEST_FALLBACK='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/windows-update.json';
 const IS_ELECTRON=!!(navigator.userAgent&&/Electron/i.test(navigator.userAgent));
@@ -41,7 +41,7 @@ async function ensureSession(){requireConfig();if(!sb)sb=supabase.createClient(C
 let loginMode='kasir',loginBusy=false;
 function setLoginMode(mode){loginMode=mode;const isAdmin=mode==='admin';$('loginKasirBtn')?.classList.toggle('primary',!isAdmin);$('loginKasirBtn')?.classList.toggle('secondary',isAdmin);$('loginAdminBtn')?.classList.toggle('primary',isAdmin);$('loginAdminBtn')?.classList.toggle('secondary',!isAdmin);$('usernameField')?.classList.remove('hidden');$('pinField')?.classList.toggle('hidden',!isAdmin);if($('usernameLabel'))$('usernameLabel').textContent=isAdmin?'Username Admin':'Username Kasir';if($('username'))$('username').placeholder=isAdmin?'Masukkan username admin':'Masukkan username kasir';if($('loginTitle'))$('loginTitle').textContent=isAdmin?'Login Admin':'Login Kasir';if($('loginHint'))$('loginHint').textContent=isAdmin?'Masukkan username admin dan PIN 4 angka.':'Masukkan username kasir untuk masuk.';if(isAdmin)$('pin')?.focus();else $('username')?.focus()}
 async function login(){
- // Windows desktop must use the Electron main-process login bridge, then install its returned session in the renderer.
+ // Keep a single renderer-owned Supabase auth/session path in Windows to avoid conflicting Electron-main and renderer sessions.
  if(window.__softwareLoginMode==='admin'||window.__softwareLoginMode==='kasir')loginMode=window.__softwareLoginMode;
  if(loginBusy)return;
  loginBusy=true;
@@ -57,7 +57,7 @@ async function login(){
   requireConfig();
   if(!sb)sb=supabase.createClient(CONFIG.url,CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'tokokasirlussal-auth'}});
   let account=null,session=null;
-  if(IS_ELECTRON && window.softwareAuth&&typeof window.softwareAuth.login==='function'){
+  if(!IS_ELECTRON && window.softwareAuth&&typeof window.softwareAuth.login==='function'){
     stage='mengautentikasi melalui layanan Windows';
     const response=await window.softwareAuth.login({mode:loginMode,username,pin});
     if(!response?.ok||!response.session||!response.profile)throw Error('Layanan login Windows tidak mengembalikan profil akun.');
