@@ -108,23 +108,21 @@ async function login(){
 
 // Windows login-button hardening: bind the visible button explicitly instead of relying on inline HTML handlers.
 function bindWindowsLoginButton(){
- const button=$('loginSubmitBtn');
+ const button=$('loginSubmitBtn')||$('loginSubmit');
  if(!button||button.dataset.loginBound==='1')return;
  button.dataset.loginBound='1';
- button.addEventListener('click',function(event){
-  event.preventDefault();
-  if(button.disabled||loginBusy)return;
-  try{
-   const result=login();
-   if(result&&typeof result.catch==='function')result.catch(error=>{
-    console.error('Windows login button handler failed',error);
-    toast('Login gagal: '+(error?.message||String(error)));
-   });
-  }catch(error){
+ // Keep the visible button wired directly to the real login controller. This also
+ // survives a rebuild where an older HTML shell used the alternate button ID.
+ button.type='button';
+ button.onclick=function(event){
+  event?.preventDefault?.();
+  if(button.disabled||loginBusy)return false;
+  Promise.resolve().then(()=>login()).catch(error=>{
    console.error('Windows login button handler failed',error);
-   toast('Login gagal: '+(error?.message||String(error)));
-  }
- });
+   try{toast('Login gagal: '+(error?.message||String(error)));}catch(_){alert('Login gagal: '+(error?.message||String(error)));}
+  });
+  return false;
+ };
 }
 window.login=login;
 window.setLoginMode=setLoginMode;
