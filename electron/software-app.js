@@ -1,4 +1,4 @@
-const APP_VERSION='1.0.35';
+const APP_VERSION='1.0.36';
 const WINDOWS_UPDATE_MANIFEST_URL=new URL('windows-update.json',location.href).href;
 const WINDOWS_UPDATE_MANIFEST_FALLBACK='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/windows-update.json';
 const IS_ELECTRON=!!(navigator.userAgent&&/Electron/i.test(navigator.userAgent));
@@ -74,7 +74,7 @@ async function login(){
   requireConfig();
   if(!sb)sb=supabase.createClient(CONFIG.url,CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'tokokasirlussal-auth'}});
   let account=null,session=null;
-  if(!IS_ELECTRON && window.softwareAuth&&typeof window.softwareAuth.login==='function'){
+  if(IS_ELECTRON && window.softwareAuth&&typeof window.softwareAuth.login==='function'){
     stage='mengautentikasi melalui layanan Windows';
     const response=await window.softwareAuth.login({mode:loginMode,username,pin});
     if(!response?.ok||!response.session||!response.profile)throw Error('Layanan login Windows tidak mengembalikan profil akun.');
