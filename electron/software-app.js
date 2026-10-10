@@ -39,6 +39,8 @@ async function ensureSession(){requireConfig();if(!sb)sb=supabase.createClient(C
 let loginMode='kasir',loginBusy=false;
 function setLoginMode(mode){loginMode=mode;const isAdmin=mode==='admin';$('loginKasirBtn')?.classList.toggle('primary',!isAdmin);$('loginKasirBtn')?.classList.toggle('secondary',isAdmin);$('loginAdminBtn')?.classList.toggle('primary',isAdmin);$('loginAdminBtn')?.classList.toggle('secondary',!isAdmin);$('usernameField')?.classList.remove('hidden');$('pinField')?.classList.toggle('hidden',!isAdmin);if($('usernameLabel'))$('usernameLabel').textContent=isAdmin?'Username Admin':'Username Kasir';if($('username'))$('username').placeholder=isAdmin?'Masukkan username admin':'Masukkan username kasir';if($('loginTitle'))$('loginTitle').textContent=isAdmin?'Login Admin':'Login Kasir';if($('loginHint'))$('loginHint').textContent=isAdmin?'Masukkan username admin dan PIN 4 angka.':'Masukkan username kasir untuk masuk.';if(isAdmin)$('pin')?.focus();else $('username')?.focus()}
 async function login(){
+ // Keep the mode selected by the independent Windows UI handler in sync with login validation.
+ if(window.__softwareLoginMode==='admin'||window.__softwareLoginMode==='kasir')loginMode=window.__softwareLoginMode;
  if(loginBusy)return;
  loginBusy=true;
  let btn=null,oldText='',stage='validasi input';
