@@ -58,6 +58,7 @@ async function login(){
   currentUser=sessionResult.data?.session?.user||result.session.user;
   profile=result.profile;
   localStorage.setItem('tokokasirlussal-username',profile.username);
+  window.dispatchEvent(new Event('login-success'));
   showApp();
   try{
     await loadAll();
