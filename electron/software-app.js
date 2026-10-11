@@ -1,4 +1,4 @@
-const APP_VERSION='1.0.40';
+const APP_VERSION='1.0.41';
 const WINDOWS_UPDATE_MANIFEST_URL=new URL('windows-update.json',location.href).href;
 const WINDOWS_UPDATE_MANIFEST_FALLBACK='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/windows-update.json';
 const IS_ELECTRON=!!(navigator.userAgent&&/Electron/i.test(navigator.userAgent));
@@ -65,7 +65,8 @@ function withLoginTimeout(promise,ms,stage){
 async function login(){
  // Keep a single renderer-owned Supabase auth/session path in Windows to avoid conflicting Electron-main and renderer sessions.
  if(window.__softwareLoginMode==='admin'||window.__softwareLoginMode==='kasir')loginMode=window.__softwareLoginMode;
- if(loginBusy)return;
+ if(loginBusy){setLoginNotice('Login sebelumnya masih diproses. Tunggu hingga 30 detik; bila tidak berubah, tutup lalu buka kembali software.','warning');return;}
+ setLoginNotice('Tombol Masuk terdeteksi. Menyiapkan proses login…','info');
  loginBusy=true;
  let btn=null,oldText='',stage='validasi input';
  try{
