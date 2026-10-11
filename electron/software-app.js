@@ -1,4 +1,4 @@
-const APP_VERSION='1.0.37';
+const APP_VERSION='1.0.39';
 const WINDOWS_UPDATE_MANIFEST_URL=new URL('windows-update.json',location.href).href;
 const WINDOWS_UPDATE_MANIFEST_FALLBACK='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/windows-update.json';
 const IS_ELECTRON=!!(navigator.userAgent&&/Electron/i.test(navigator.userAgent));
@@ -80,42 +80,67 @@ async function login(){
   if(!sb)sb=supabase.createClient(CONFIG.url,CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'tokokasirlussal-auth'}});
   setLoginNotice('Menghubungi server untuk login...','info');
   let account=null,session=null;
-  stage='membuat sesi autentikasi';
-  session=await withLoginTimeout(ensureSession(),20000,'membuat sesi autentikasi');
-  currentUser=session.user;
-  stage='memeriksa akun '+(loginMode==='admin'?'admin':'kasir');
-  let result=await withLoginTimeout(
-    loginMode==='admin'
-      ?sb.rpc('kiosk_login_pin',{p_username:username,p_pin:pin})
-      :sb.rpc('kiosk_login_cashier',{p_username:username}),
-    20000,
-    stage
-  );
-  if(result.error&&/JWT|session|anonymous|not authenticated/i.test(result.error.message||'')){
-    await sb.auth.signOut({scope:'local'});
-    session=await withLoginTimeout(ensureSession(),20000,'membuat ulang sesi autentikasi');
+  let account=null,session=null;
+  if(IS_ELECTRON && window.softwareAuth && typeof window.softwareAuth.login==='function'){
+    // Use the Windows main-process authentication bridge, then hydrate the renderer session.
+    stage='autentikasi software Windows';
+    const bridgeResult=await withLoginTimeout(
+      window.softwareAuth.login({mode:loginMode,username,pin}),
+      30000,
+      stage
+    );
+    if(!bridgeResult?.ok || !bridgeResult?.session?.access_token || !bridgeResult?.profile){
+      throw Error('Jalur autentikasi Windows tidak mengembalikan sesi dan profil lengkap.');
+    }
+    if(!sb)sb=supabase.createClient(CONFIG.url,CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'tokokasirlussal-auth'}});
+    const restored=await withLoginTimeout(
+      sb.auth.setSession({access_token:bridgeResult.session.access_token,refresh_token:bridgeResult.session.refresh_token||''}),
+      15000,
+      'menyiapkan sesi dashboard'
+    );
+    if(restored.error)throw restored.error;
+    session=restored.data?.session||bridgeResult.session;
+    currentUser=session.user||bridgeResult.session.user;
+    account=bridgeResult.account||{};
+    profile=bridgeResult.profile;
+  }else{
+    stage='membuat sesi autentikasi';
+    session=await withLoginTimeout(ensureSession(),20000,'membuat sesi autentikasi');
     currentUser=session.user;
-    result=await withLoginTimeout(
+    stage='memeriksa akun '+(loginMode==='admin'?'admin':'kasir');
+    let result=await withLoginTimeout(
       loginMode==='admin'
         ?sb.rpc('kiosk_login_pin',{p_username:username,p_pin:pin})
         :sb.rpc('kiosk_login_cashier',{p_username:username}),
       20000,
       stage
     );
+    if(result.error&&/JWT|session|anonymous|not authenticated/i.test(result.error.message||'')){
+      await sb.auth.signOut({scope:'local'});
+      session=await withLoginTimeout(ensureSession(),20000,'membuat ulang sesi autentikasi');
+      currentUser=session.user;
+      result=await withLoginTimeout(
+        loginMode==='admin'
+          ?sb.rpc('kiosk_login_pin',{p_username:username,p_pin:pin})
+          :sb.rpc('kiosk_login_cashier',{p_username:username}),
+        20000,
+        stage
+      );
+    }
+    if(result.error)throw result.error;
+    const accounts=Array.isArray(result.data)?result.data:(result.data?[result.data]:[]);
+    if(!accounts.length)throw Error('Akun tidak ditemukan atau tidak aktif.');
+    account=accounts[0];
+    const role=String(account.role||'').toLowerCase();
+    if(loginMode==='admin'&&role!=='admin')throw Error('Akun ini bukan akun admin.');
+    if(loginMode==='kasir'&&role==='admin')throw Error('Gunakan tombol Login Admin.');
+    stage='memuat profil akun';
+    const profileResult=await withLoginTimeout(sb.rpc('kiosk_profile',{p_username:account.username||username}),20000,stage);
+    if(profileResult.error)throw profileResult.error;
+    const profiles=Array.isArray(profileResult.data)?profileResult.data:(profileResult.data?[profileResult.data]:[]);
+    if(!profiles.length)throw Error('Profil akun belum tersedia.');
+    profile=profiles[0];
   }
-  if(result.error)throw result.error;
-  const accounts=Array.isArray(result.data)?result.data:(result.data?[result.data]:[]);
-  if(!accounts.length)throw Error('Akun tidak ditemukan atau tidak aktif.');
-  account=accounts[0];
-  const role=String(account.role||'').toLowerCase();
-  if(loginMode==='admin'&&role!=='admin')throw Error('Akun ini bukan akun admin.');
-  if(loginMode==='kasir'&&role==='admin')throw Error('Gunakan tombol Login Admin.');
-  stage='memuat profil akun';
-  const profileResult=await withLoginTimeout(sb.rpc('kiosk_profile',{p_username:account.username||username}),20000,stage);
-  if(profileResult.error)throw profileResult.error;
-  const profiles=Array.isArray(profileResult.data)?profileResult.data:(profileResult.data?[profileResult.data]:[]);
-  if(!profiles.length)throw Error('Profil akun belum tersedia.');
-  profile=profiles[0];
   profile.auth_user_id=currentUser?.id||session.user?.id;
   if(!profile?.aktif)throw Error('Akun tidak aktif.');
   const profileRole=String(profile.role||account?.role||'').toLowerCase();
