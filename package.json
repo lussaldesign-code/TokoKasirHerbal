@@ -1,6 +1,6 @@
 {
   "name": "tokokasirlussal",
-  "version": "1.0.39",
+  "version": "1.0.40",
   "description": "Manajemen Toko Kasir - aplikasi kasir Windows, Android, dan PWA",
   "main": "electron/main.cjs",
   "author": "Lussal Design",
@@ -62,7 +62,8 @@
   "dependencies": {
     "@capacitor/core": "8.5.2",
     "@capacitor/android": "8.5.2",
-    "electron-updater": "^6.6.2"
+    "electron-updater": "^6.6.2",
+    "@supabase/supabase-js": "^2.57.4"
   },
   "engines": {
     "node": ">=22"
