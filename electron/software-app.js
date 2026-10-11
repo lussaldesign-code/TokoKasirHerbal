@@ -80,7 +80,6 @@ async function login(){
   if(!sb)sb=supabase.createClient(CONFIG.url,CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'tokokasirlussal-auth'}});
   setLoginNotice('Menghubungi server untuk login...','info');
   let account=null,session=null;
-  let account=null,session=null;
   if(IS_ELECTRON && window.softwareAuth && typeof window.softwareAuth.login==='function'){
     // Use the Windows main-process authentication bridge, then hydrate the renderer session.
     stage='autentikasi software Windows';
