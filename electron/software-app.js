@@ -1,4 +1,4 @@
-const APP_VERSION='1.0.46';
+const APP_VERSION='1.0.47';
 const WINDOWS_UPDATE_MANIFEST_URL=new URL('windows-update.json',location.href).href;
 const WINDOWS_UPDATE_MANIFEST_FALLBACK='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/windows-update.json';
 const IS_ELECTRON=!!(navigator.userAgent&&/Electron/i.test(navigator.userAgent));
@@ -136,6 +136,22 @@ async function login(){
     if(submit){submit.disabled=false;submit.removeAttribute('aria-busy');submit.innerHTML=oldText||'Masuk ke Dashboard <span>→</span>';}
   }
 }
+
+
+/* Explicit renderer exports and click binding: avoid relying on implicit global-name resolution in Electron. */
+window.login=login;
+function bindSoftwareLoginButton(){
+  const button=$('loginSubmitBtn')||$('loginSubmit');
+  if(!button||button.dataset.loginBound==='1')return;
+  button.dataset.loginBound='1';
+  button.removeAttribute('onclick');
+  button.addEventListener('click',function(event){
+    event.preventDefault();
+    login();
+  });
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindSoftwareLoginButton,{once:true});
+else bindSoftwareLoginButton();
 
 async function loadProfileByUsername(username){const {data,error}=await sb.rpc('kiosk_profile',{p_username:username});if(error)throw error;if(!data?.length)throw Error('Profil akun belum tersedia.');profile=data[0]}
 async function restoreLogin(){showLogin()}
