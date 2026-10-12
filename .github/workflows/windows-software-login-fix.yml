@@ -1,0 +1,47 @@
+name: Windows Software Login Fix 1.0.43
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-software-login-fix
+  cancel-in-progress: false
+
+jobs:
+  build-windows:
+    name: Build isolated Windows software 1.0.43
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout isolated Windows software branch
+        uses: actions/checkout@v4
+        with:
+          ref: windows-software-1.0.43
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Check JavaScript syntax
+        shell: pwsh
+        run: |
+          node --check electron/main.cjs
+          node --check electron/software-app.js
+
+      - name: Build Windows installer without publishing
+        run: npm run dist -- --publish never
+
+      - name: Upload isolated Windows 1.0.43 installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: TokoKasirHerbal-Windows-1.0.43-LoginFix
+          path: dist/*.exe
+          if-no-files-found: error
+          retention-days: 14
