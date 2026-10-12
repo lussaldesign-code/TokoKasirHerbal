@@ -1,4 +1,4 @@
-const APP_VERSION='1.0.42';
+const APP_VERSION='1.0.43';
 const WINDOWS_UPDATE_MANIFEST_URL=new URL('windows-update.json',location.href).href;
 const WINDOWS_UPDATE_MANIFEST_FALLBACK='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/windows-update.json';
 const IS_ELECTRON=!!(navigator.userAgent&&/Electron/i.test(navigator.userAgent));
@@ -37,7 +37,21 @@ document.addEventListener('pointerdown',e=>{
 },{passive:true});
 function toast(m){$('toast').textContent=m;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),3000)}
 function requireConfig(){if(!CONFIG.url||!CONFIG.key){toast('Isi config.js dengan Supabase URL dan publishable/anon key.');throw Error('Supabase config belum diisi')}}
-async function ensureSession(){requireConfig();if(!sb)sb=supabase.createClient(CONFIG.url,CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'tokokasirlussal-auth'}});let s=await sb.auth.getSession();if(s.error)throw s.error;const existing=s.data?.session;if(existing?.user?.is_anonymous===true)return existing;if(existing){await sb.auth.signOut({scope:'local'});}let r=await sb.auth.signInAnonymously();if(r.error)throw Error('Login otomatis Supabase gagal: '+r.error.message);if(!r.data?.session)throw Error('Supabase tidak mengembalikan sesi.');return r.data.session}
+async function ensureSession(){
+ requireConfig();
+ const STORAGE='tokokasirlussal-auth-v2';
+ const makeClient=()=>supabase.createClient(CONFIG.url,CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:STORAGE}});
+ if(!sb)sb=makeClient();
+ let s;
+ try{s=await sb.auth.getSession();}catch(e){console.warn('[auth] gagal membaca sesi, reset penyimpanan lokal',e);try{localStorage.removeItem(STORAGE)}catch(_){}sb=makeClient();s=await sb.auth.getSession();}
+ if(s.error){try{localStorage.removeItem(STORAGE)}catch(_){}sb=makeClient();s=await sb.auth.getSession();if(s.error)throw s.error;}
+ const existing=s.data?.session;
+ if(existing?.user?.id)return existing;
+ const r=await sb.auth.signInAnonymously();
+ if(r.error)throw Error('Login otomatis Supabase gagal: '+r.error.message);
+ if(!r.data?.session)throw Error('Supabase tidak mengembalikan sesi.');
+ return r.data.session;
+}
 let loginMode='kasir',loginBusy=false;
 function setLoginMode(mode){loginMode=mode;const isAdmin=mode==='admin';$('loginKasirBtn')?.classList.toggle('primary',!isAdmin);$('loginKasirBtn')?.classList.toggle('secondary',isAdmin);$('loginAdminBtn')?.classList.toggle('primary',isAdmin);$('loginAdminBtn')?.classList.toggle('secondary',!isAdmin);$('usernameField')?.classList.remove('hidden');$('pinField')?.classList.toggle('hidden',!isAdmin);if($('usernameLabel'))$('usernameLabel').textContent=isAdmin?'Username Admin':'Username Kasir';if($('username'))$('username').placeholder=isAdmin?'Masukkan username admin':'Masukkan username kasir';if($('loginTitle'))$('loginTitle').textContent=isAdmin?'Login Admin':'Login Kasir';setLoginNotice(isAdmin?'Masukkan username admin dan PIN 4 angka.':'Masukkan username kasir untuk masuk.','info');if(isAdmin)$('pin')?.focus();else $('username')?.focus()}
 function setLoginNotice(message,type='info'){
@@ -64,6 +78,8 @@ function withLoginTimeout(promise,ms,stage){
 }
 async function login(){
  if(loginBusy)return;
+ // Sinkronkan mode dari tombol login independen pada HTML Electron.
+ if(window.__softwareLoginMode==='admin'||window.__softwareLoginMode==='kasir')loginMode=window.__softwareLoginMode;
  loginBusy=true;
  let btn=$('loginSubmitBtn')||$('loginSubmit'),oldText=btn?.innerHTML;
  if(btn){btn.disabled=true;btn.setAttribute('aria-busy','true');btn.innerHTML='Memproses login... <span>⏳</span>';}
