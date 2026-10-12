@@ -63,132 +63,59 @@ function withLoginTimeout(promise,ms,stage){
  return Promise.race([Promise.resolve(promise),timeout]).finally(()=>clearTimeout(timer));
 }
 async function login(){
- // Keep a single renderer-owned Supabase auth/session path in Windows to avoid conflicting Electron-main and renderer sessions.
- if(window.__softwareLoginMode==='admin'||window.__softwareLoginMode==='kasir')loginMode=window.__softwareLoginMode;
- if(loginBusy){setLoginNotice('Login sebelumnya masih diproses. Tunggu hingga 30 detik; bila tidak berubah, tutup lalu buka kembali software.','warning');return;}
- setLoginNotice('Tombol Masuk terdeteksi. Menyiapkan proses login…','info');
+ if(loginBusy)return;
  loginBusy=true;
- let btn=null,oldText='',stage='validasi input';
+ let btn=$('loginSubmitBtn')||$('loginSubmit'),oldText=btn?.innerHTML;
+ if(btn){btn.disabled=true;btn.setAttribute('aria-busy','true');btn.innerHTML='Memproses login... <span>⏳</span>';}
  try{
-  const pin=($('pin')?.value||'').trim();
-  const username=($('username')?.value||'').trim().toLowerCase();
+  const pin=($('pin')?.value||'').trim(),username=($('username')?.value||'').trim().toLowerCase();
   if(!username)throw Error(loginMode==='admin'?'Masukkan username admin terlebih dahulu.':'Masukkan username kasir terlebih dahulu.');
   if(loginMode==='admin'&&!/^[0-9]{4}$/.test(pin))throw Error('PIN admin harus tepat 4 angka.');
-  btn=$('loginSubmitBtn')||$('loginSubmit');
-  if(btn){oldText=btn.innerHTML;btn.disabled=true;btn.setAttribute('aria-busy','true');btn.textContent='Memproses login...';}
-  stage='memuat konfigurasi Supabase';
   requireConfig();
   if(!sb)sb=supabase.createClient(CONFIG.url,CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'tokokasirlussal-auth'}});
   setLoginNotice('Menghubungi server untuk login...','info');
-  let account=null,session=null;
-  if(IS_ELECTRON && window.softwareAuth && typeof window.softwareAuth.login==='function'){
-    // Use the Windows main-process authentication bridge, then hydrate the renderer session.
-    stage='autentikasi software Windows';
-    const bridgeResult=await withLoginTimeout(
-      window.softwareAuth.login({mode:loginMode,username,pin}),
-      30000,
-      stage
-    );
-    if(!bridgeResult?.ok || !bridgeResult?.session?.access_token || !bridgeResult?.profile){
-      throw Error('Jalur autentikasi Windows tidak mengembalikan sesi dan profil lengkap.');
-    }
-    if(!sb)sb=supabase.createClient(CONFIG.url,CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'tokokasirlussal-auth'}});
-    const restored=await withLoginTimeout(
-      sb.auth.setSession({access_token:bridgeResult.session.access_token,refresh_token:bridgeResult.session.refresh_token||''}),
-      15000,
-      'menyiapkan sesi dashboard'
-    );
-    if(restored.error)throw restored.error;
-    session=restored.data?.session||bridgeResult.session;
-    currentUser=session.user||bridgeResult.session.user;
-    account=bridgeResult.account||{};
-    profile=bridgeResult.profile;
-  }else{
-    stage='membuat sesi autentikasi';
-    session=await withLoginTimeout(ensureSession(),20000,'membuat sesi autentikasi');
-    currentUser=session.user;
-    stage='memeriksa akun '+(loginMode==='admin'?'admin':'kasir');
-    let result=await withLoginTimeout(
-      loginMode==='admin'
-        ?sb.rpc('kiosk_login_pin',{p_username:username,p_pin:pin})
-        :sb.rpc('kiosk_login_cashier',{p_username:username}),
-      20000,
-      stage
-    );
-    if(result.error&&/JWT|session|anonymous|not authenticated/i.test(result.error.message||'')){
-      await sb.auth.signOut({scope:'local'});
-      session=await withLoginTimeout(ensureSession(),20000,'membuat ulang sesi autentikasi');
-      currentUser=session.user;
-      result=await withLoginTimeout(
-        loginMode==='admin'
-          ?sb.rpc('kiosk_login_pin',{p_username:username,p_pin:pin})
-          :sb.rpc('kiosk_login_cashier',{p_username:username}),
-        20000,
-        stage
-      );
-    }
-    if(result.error)throw result.error;
-    const accounts=Array.isArray(result.data)?result.data:(result.data?[result.data]:[]);
-    if(!accounts.length)throw Error('Akun tidak ditemukan atau tidak aktif.');
-    account=accounts[0];
-    const role=String(account.role||'').toLowerCase();
-    if(loginMode==='admin'&&role!=='admin')throw Error('Akun ini bukan akun admin.');
-    if(loginMode==='kasir'&&role==='admin')throw Error('Gunakan tombol Login Admin.');
-    stage='memuat profil akun';
-    const profileResult=await withLoginTimeout(sb.rpc('kiosk_profile',{p_username:account.username||username}),20000,stage);
-    if(profileResult.error)throw profileResult.error;
-    const profiles=Array.isArray(profileResult.data)?profileResult.data:(profileResult.data?[profileResult.data]:[]);
-    if(!profiles.length)throw Error('Profil akun belum tersedia.');
-    profile=profiles[0];
+  let session=await withLoginTimeout(ensureSession(),20000,'membuat sesi autentikasi');
+  currentUser=session.user;
+  const runLogin=()=>loginMode==='admin'
+   ?sb.rpc('kiosk_login_pin',{p_username:username,p_pin:pin})
+   :sb.rpc('kiosk_login_cashier',{p_username:username});
+  let result=await withLoginTimeout(runLogin(),20000,'memeriksa akun '+(loginMode==='admin'?'admin':'kasir'));
+  if(result.error&&/JWT|session|anonymous|not authenticated/i.test(result.error.message||'')){
+   await sb.auth.signOut({scope:'local'});
+   session=await withLoginTimeout(ensureSession(),20000,'membuat ulang sesi autentikasi');
+   currentUser=session.user;
+   result=await withLoginTimeout(runLogin(),20000,'memeriksa akun');
   }
-  profile.auth_user_id=currentUser?.id||session.user?.id;
-  if(!profile?.aktif)throw Error('Akun tidak aktif.');
-  const profileRole=String(profile.role||account?.role||'').toLowerCase();
-  if(loginMode==='admin'&&profileRole!=='admin')throw Error('Akun ini bukan akun admin.');
-  if(loginMode==='kasir'&&profileRole==='admin')throw Error('Gunakan tombol Login Admin.');
-  stage='menyiapkan dashboard';
+  if(result.error)throw result.error;
+  const accounts=Array.isArray(result.data)?result.data:(result.data?[result.data]:[]);
+  if(!accounts.length)throw Error('Akun tidak ditemukan atau tidak aktif.');
+  const account=accounts[0],role=String(account.role||'').toLowerCase();
+  if(loginMode==='admin'&&role!=='admin')throw Error('Akun ini bukan akun admin.');
+  if(loginMode==='kasir'&&role==='admin')throw Error('Gunakan tombol Login Admin.');
+  const prof=await withLoginTimeout(sb.rpc('kiosk_profile',{p_username:account.username||username}),20000,'memuat profil akun');
+  if(prof.error)throw prof.error;
+  const profiles=Array.isArray(prof.data)?prof.data:(prof.data?[prof.data]:[]);
+  if(!profiles.length)throw Error('Profil akun belum tersedia.');
+  profile=profiles[0];profile.auth_user_id=currentUser?.id||session.user?.id;
+  if(!profile.aktif)throw Error('Akun tidak aktif.');
+  if(loginMode==='admin'&&String(profile.role||role).toLowerCase()!=='admin')throw Error('Akun ini bukan akun admin.');
+  if(loginMode==='kasir'&&String(profile.role||role).toLowerCase()==='admin')throw Error('Gunakan tombol Login Admin.');
   localStorage.setItem('tokokasirlussal-username',profile.username||username);
   setLoginNotice('Login berhasil. Menyiapkan dashboard…','info');
-   window.dispatchEvent(new Event('login-success'));
   showApp();
-  try{
-    stage='memuat data toko';
-    await loadAll();
-    toast('Login berhasil. Selamat datang, '+(profile.nama||profile.username||username)+'.');
-  }catch(loadErr){
-    console.error('loadAll after login',loadErr);
-    toast('Login berhasil, tetapi data belum dapat dimuat: '+(loadErr?.message||'periksa data Supabase'));
-  }
+  try{await loadAll();toast('Login berhasil. Selamat datang, '+(profile.nama||profile.username||username)+'.');}
+  catch(loadErr){console.error('loadAll after login',loadErr);toast('Login berhasil, tetapi data belum dapat dimuat: '+(loadErr?.message||'periksa data Supabase'));}
  }catch(e){
-  console.error('software login ['+stage+']',e);
+  console.error('software login',e);
   const message=String(e?.message||e||'Login gagal');
-  const friendly=explainLoginFailure(message,stage);
-  setLoginNotice(friendly,'error');
-  toast('⚠ Login gagal: '+friendly);
+  const friendly=explainLoginFailure(message,'login');
+  setLoginNotice(friendly,'error');toast('⚠ Login gagal: '+friendly);
  }finally{
   loginBusy=false;
-  if(btn){btn.disabled=false;btn.removeAttribute('aria-busy');btn.innerHTML=oldText||'Masuk ke Dashboard →';}
+  if(btn){btn.disabled=false;btn.removeAttribute('aria-busy');btn.innerHTML=oldText||'Masuk ke Dashboard <span>→</span>';}
  }
 }
 
-// Bind every login control explicitly so the Windows login does not depend on inline HTML handlers.
-function bindWindowsLoginButton(){
- const submit=$('loginSubmitBtn')||$('loginSubmit');
- if(submit&&!submit.dataset.loginBound){
-  submit.dataset.loginBound='1';submit.type='button';
-  submit.addEventListener('click',event=>{event.preventDefault();if(!submit.disabled)void login();});
- }
- const cashier=$('loginKasirBtn'),admin=$('loginAdminBtn');
- if(cashier&&!cashier.dataset.modeBound){cashier.dataset.modeBound='1';cashier.addEventListener('click',event=>{event.preventDefault();setLoginMode('kasir');});}
- if(admin&&!admin.dataset.modeBound){admin.dataset.modeBound='1';admin.addEventListener('click',event=>{event.preventDefault();setLoginMode('admin');});}
- const username=$('username'),pinInput=$('pin');
- [username,pinInput].forEach(input=>{if(input&&!input.dataset.enterBound){input.dataset.enterBound='1';input.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();void login();}});}});
- setLoginMode('kasir');
-}
-window.login=login;
-window.setLoginMode=setLoginMode;
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindWindowsLoginButton,{once:true});
-else bindWindowsLoginButton();
 async function loadProfileByUsername(username){const {data,error}=await sb.rpc('kiosk_profile',{p_username:username});if(error)throw error;if(!data?.length)throw Error('Profil akun belum tersedia.');profile=data[0]}
 async function restoreLogin(){showLogin()}
 async function logout(){try{localStorage.removeItem('tokokasirlussal-username');if(sb)await sb.auth.signOut()}finally{location.reload()}}
