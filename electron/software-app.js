@@ -53,7 +53,7 @@ async function ensureSession(){
  return r.data.session;
 }
 let loginMode='kasir',loginBusy=false;
-function setLoginMode(mode){loginMode=mode;const isAdmin=mode==='admin';$('loginKasirBtn')?.classList.toggle('primary',!isAdmin);$('loginKasirBtn')?.classList.toggle('secondary',isAdmin);$('loginAdminBtn')?.classList.toggle('primary',isAdmin);$('loginAdminBtn')?.classList.toggle('secondary',!isAdmin);$('usernameField')?.classList.remove('hidden');$('pinField')?.classList.toggle('hidden',!isAdmin);if($('usernameLabel'))$('usernameLabel').textContent=isAdmin?'Username Admin':'Username Kasir';if($('username'))$('username').placeholder=isAdmin?'Masukkan username admin':'Masukkan username kasir';if($('loginTitle'))$('loginTitle').textContent=isAdmin?'Login Admin':'Login Kasir';setLoginNotice(isAdmin?'Masukkan username admin dan PIN 4 angka.':'Masukkan username kasir untuk masuk.','info');if(isAdmin)$('pin')?.focus();else $('username')?.focus()}
+function setLoginMode(mode){loginMode=mode;window.__softwareLoginMode=mode;const isAdmin=mode==='admin';$('loginKasirBtn')?.classList.toggle('primary',!isAdmin);$('loginKasirBtn')?.classList.toggle('secondary',isAdmin);$('loginAdminBtn')?.classList.toggle('primary',isAdmin);$('loginAdminBtn')?.classList.toggle('secondary',!isAdmin);$('usernameField')?.classList.remove('hidden');$('pinField')?.classList.toggle('hidden',!isAdmin);if($('usernameLabel'))$('usernameLabel').textContent=isAdmin?'Username Admin':'Username Kasir';if($('username'))$('username').placeholder=isAdmin?'Masukkan username admin':'Masukkan username kasir';if($('loginTitle'))$('loginTitle').textContent=isAdmin?'Login Admin':'Login Kasir';setLoginNotice(isAdmin?'Masukkan username admin dan PIN 4 angka.':'Masukkan username kasir untuk masuk.','info');if(isAdmin)$('pin')?.focus();else $('username')?.focus()}
 function setLoginNotice(message,type='info'){
  const hint=$('loginHint');if(!hint)return;
  hint.textContent=String(message||'');
@@ -88,7 +88,7 @@ async function login(){
   if(!username)throw Error(loginMode==='admin'?'Masukkan username admin terlebih dahulu.':'Masukkan username kasir terlebih dahulu.');
   if(loginMode==='admin'&&!/^[0-9]{4}$/.test(pin))throw Error('PIN admin harus tepat 4 angka.');
   requireConfig();
-  if(!sb)sb=supabase.createClient(CONFIG.url,CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'tokokasirlussal-auth'}});
+  if(!sb)sb=supabase.createClient(CONFIG.url,CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'tokokasirlussal-auth-v2'}});
   setLoginNotice('Menghubungi server untuk login...','info');
   let session=await withLoginTimeout(ensureSession(),20000,'membuat sesi autentikasi');
   currentUser=session.user;
