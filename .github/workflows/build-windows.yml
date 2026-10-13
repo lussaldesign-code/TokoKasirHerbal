@@ -10,6 +10,14 @@ on:
       - package.json
       - package-lock.json
       - electron/**
+      - index.html
+      - index-supabase.html
+      - app.js
+      - config.js
+      - '!TokoKasirHerbal-latest.exe'
+      - '!windows-update.json'
+      - package-lock.json
+      - electron/**
       - config.js
       - .github/workflows/build-windows.yml
       - '!TokoKasirLussal-latest.exe'
