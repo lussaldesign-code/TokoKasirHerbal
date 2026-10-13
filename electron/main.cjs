@@ -1,4 +1,5 @@
 const { app, BrowserWindow, Menu, shell, dialog, ipcMain } = require('electron');
+// Windows rollback baseline: v1.0.17 remote web shell.
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
 
