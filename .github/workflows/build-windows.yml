@@ -10,16 +10,7 @@ on:
       - package.json
       - package-lock.json
       - electron/**
-      - index.html
-      - index-supabase.html
-      - app.js
       - config.js
-      - '!TokoKasirHerbal-latest.exe'
-      - '!windows-update.json'
-      - package-lock.json
-      - electron/**
-      - config.js
-      - .github/workflows/build-windows.yml
       - '!TokoKasirLussal-latest.exe'
       - '!windows-update.json'
 
@@ -55,110 +46,10 @@ jobs:
           $version = node -p "require('./package.json').version"
           if ($version -ne '1.0.17') { throw "Rollback workflow ini hanya boleh menerbitkan versi 1.0.17; versi saat ini $version." }
 
-          # Hapus rilis installer Windows versi lebih baru sesuai permintaan rollback.
+          # Hapus rilis Windows versi lebih baru sesuai permintaan.
           $releaseTags = gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=100" --paginate --jq '.[].tag_name'
           foreach ($releaseTag in $releaseTags) {
-            if ($releaseTag -match '^v?(\d+)\.(\d+)\.(\d+)
-
-          # Check without allowing a missing release to fail the workflow.
-          $releaseExists = $false
-          gh release view $tag --json tagName *> $null
-          if ($LASTEXITCODE -eq 0) {
-            $releaseExists = $true
-          }
-          $global:LASTEXITCODE = 0
-
-          if ($releaseExists) {
-            Write-Host "Existing release $tag found. Removing it before republishing metadata."
-            gh release delete $tag --yes --cleanup-tag
-            $deleteCode = $LASTEXITCODE
-            $global:LASTEXITCODE = 0
-            if ($deleteCode -ne 0) {
-              throw "Gagal menghapus release GitHub $tag (exit code $deleteCode)."
-            }
-          } else {
-            Write-Host "No existing release $tag to remove. Continuing with build."
-          }
-
-          # Never leave a non-zero native command exit code as the final
-          # PowerShell status when the release simply does not exist.
-          $global:LASTEXITCODE = 0
-
-          # electron-builder requires the release tag to already exist when publishing.
-          # Recreate the version tag after the optional release cleanup above.
-          git tag -f $tag
-          git push origin "refs/tags/$tag" --force
-
-      - name: Build and publish Windows release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Optional Authenticode signing. If these secrets are not configured,
-          # electron-builder will keep producing the normal unsigned installer.
-          CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
-        run: npm run dist -- --publish always
-
-      - name: Verify GitHub release
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          $version = node -p "require('./package.json').version"
-          gh release view "v$version" --json tagName,isDraft,url
-          if ($LASTEXITCODE -ne 0) {
-            throw "GitHub Release v$version tidak ditemukan setelah build."
-          }
-
-      - name: Verify installer
-        shell: pwsh
-        run: |
-          $installer = Get-ChildItem -Path dist -Filter '*Setup-*.exe' | Select-Object -First 1
-          if (-not $installer) {
-            Write-Error 'Installer EXE tidak ditemukan di folder dist.'
-            exit 1
-          }
-          Write-Host "Installer ditemukan: $($installer.FullName)"
-          Write-Host "Ukuran: $([math]::Round($installer.Length / 1MB, 2)) MB"
-
-      - name: Upload installer artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: TokoKasirLussal-Windows-Installer
-          path: dist/*Setup-*.exe
-          if-no-files-found: error
-
-      - name: Publish compatibility manifest
-        shell: pwsh
-        run: |
-          $installer = Get-ChildItem -Path dist -Filter '*Setup-*.exe' | Select-Object -First 1
-          $version = node -p "require('./package.json').version"
-
-          # Sync the branch BEFORE generating compatibility files.
-          # The previous order generated windows-update.json and then reset --hard,
-          # which silently discarded the generated manifest.
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch origin main
-          git reset --hard origin/main
-
-          Copy-Item $installer.FullName "TokoKasirLussal-latest.exe" -Force
-          $hash = (Get-FileHash "TokoKasirLussal-latest.exe" -Algorithm SHA256).Hash.ToLower()
-          @"
-          {
-            "version": "$version",
-            "installer": "https://raw.githubusercontent.com/$env:GITHUB_REPOSITORY/main/TokoKasirLussal-latest.exe",
-            "sha256": "$hash"
-          }
-          "@ | Set-Content -Path windows-update.json -Encoding utf8
-
-          git add TokoKasirLussal-latest.exe windows-update.json
-          if (git diff --cached --quiet) {
-            Write-Host "Tidak ada perubahan compatibility manifest."
-            exit 0
-          }
-          git commit -m "chore: publish Windows compatibility updater v$version"
-          git push origin HEAD:main
-) {
+            if ($releaseTag -match '^v?(\d+)\.(\d+)\.(\d+)$') {
               $candidateVersion = [version]("$($matches[1]).$($matches[2]).$($matches[3])")
               if ($candidateVersion -gt [version]'1.0.17') {
                 Write-Host "Menghapus rilis Windows yang lebih baru: $releaseTag"
