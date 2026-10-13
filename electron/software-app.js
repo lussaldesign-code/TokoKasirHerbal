@@ -1,4 +1,4 @@
-const APP_VERSION='1.0.49';
+const APP_VERSION='1.0.50';
 const WINDOWS_UPDATE_MANIFEST_URL=new URL('windows-update.json',location.href).href;
 const WINDOWS_UPDATE_MANIFEST_FALLBACK='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/windows-update.json';
 const IS_ELECTRON=!!(navigator.userAgent&&/Electron/i.test(navigator.userAgent));
