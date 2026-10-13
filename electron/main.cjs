@@ -131,24 +131,10 @@ function createWindow() {
     }
   });
 
-  const REMOTE_APP_URL = 'https://lussaldesign-code.github.io/TokoKasirHerbal/?client=windows-software-1.0.18';
-  // Windows software must use the same live app.js logic as the web version.
-  // The deployed HTML references an older fixed app.js query string, so rewrite
-  // that asset URL only in this Electron session to avoid stale cached bell logic.
-  mainWindow.webContents.session.webRequest.onBeforeRequest(
-    { urls: ['https://lussaldesign-code.github.io/TokoKasirHerbal/app.js*'] },
-    (details, callback) => {
-      if (details.url.includes('app.js?v=20261013-windows-web-sync')) {
-        callback({});
-        return;
-      }
-      const freshUrl = details.url.replace(
-        /app\.js(?:\?[^#]*)?$/,
-        'app.js?v=20261013-windows-web-sync'
-      );
-      callback({ redirectURL: freshUrl });
-    }
-  );
+  // Kembali ke jalur pemuatan software yang stabil.
+  // Jangan memaksa app.js versi berbeda dari halaman yang dimuat; ini mencegah
+  // ketidakcocokan HTML/CSS/JavaScript pada jendela Windows.
+  const REMOTE_APP_URL = 'https://lussaldesign-code.github.io/TokoKasirHerbal/';
   mainWindow.loadURL(REMOTE_APP_URL).catch(error => {
     console.error('[web-shell] remote load failed:', error);
     mainWindow.loadFile(path.join(__dirname, '..', 'index.html'));
