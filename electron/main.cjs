@@ -138,6 +138,10 @@ function createWindow() {
   mainWindow.webContents.session.webRequest.onBeforeRequest(
     { urls: ['https://lussaldesign-code.github.io/TokoKasirHerbal/app.js*'] },
     (details, callback) => {
+      if (details.url.includes('app.js?v=20261013-windows-web-sync')) {
+        callback({});
+        return;
+      }
       const freshUrl = details.url.replace(
         /app\.js(?:\?[^#]*)?$/,
         'app.js?v=20261013-windows-web-sync'
