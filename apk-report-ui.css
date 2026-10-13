@@ -1,0 +1,32 @@
+/* APK-only: closed report views take no space; open report list scrolls vertically and horizontally. */
+@media (max-width: 800px) {
+  html.apk-nav-enabled body.app-screen .report-section.active {
+    display: flex !important;
+    flex-direction: column !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    min-height: 0 !important;
+    height: calc(100dvh - 72px - env(safe-area-inset-bottom)) !important;
+    max-height: calc(100dvh - 72px - env(safe-area-inset-bottom)) !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-y: contain !important;
+  }
+  html.apk-nav-enabled .report-view:not(.active) { display: none !important; }
+  html.apk-nav-enabled .report-view.active {
+    display: flex !important;
+    flex: 0 0 auto !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    padding-bottom: 14px !important;
+  }
+  html.apk-nav-enabled .report-view.active .report-table {
+    flex: 0 0 auto !important;
+    min-height: 0 !important;
+    max-height: 48vh !important;
+    overflow: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-x pan-y !important;
+  }
+  html.apk-nav-enabled .report-view.active .report-table table { min-width: 920px !important; }
+}
