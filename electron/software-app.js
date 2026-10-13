@@ -1,4 +1,4 @@
-const APP_VERSION='1.0.48';
+const APP_VERSION='1.0.49';
 const WINDOWS_UPDATE_MANIFEST_URL=new URL('windows-update.json',location.href).href;
 const WINDOWS_UPDATE_MANIFEST_FALLBACK='https://raw.githubusercontent.com/lussaldesign-code/TokoKasirHerbal/main/windows-update.json';
 const IS_ELECTRON=!!(navigator.userAgent&&/Electron/i.test(navigator.userAgent));
@@ -52,7 +52,8 @@ async function ensureSession(){
  if(!r.data?.session)throw Error('Supabase tidak mengembalikan sesi.');
  return r.data.session;
 }
-let loginMode='kasir',loginBusy=false;
+window.__softwareLoginBusy=false;
+let loginMode='kasir';
 function setLoginMode(mode){loginMode=mode;window.__softwareLoginMode=mode;const isAdmin=mode==='admin';$('loginKasirBtn')?.classList.toggle('primary',!isAdmin);$('loginKasirBtn')?.classList.toggle('secondary',isAdmin);$('loginAdminBtn')?.classList.toggle('primary',isAdmin);$('loginAdminBtn')?.classList.toggle('secondary',!isAdmin);$('usernameField')?.classList.remove('hidden');$('pinField')?.classList.toggle('hidden',!isAdmin);if($('usernameLabel'))$('usernameLabel').textContent=isAdmin?'Username Admin':'Username Kasir';if($('username'))$('username').placeholder=isAdmin?'Masukkan username admin':'Masukkan username kasir';if($('loginTitle'))$('loginTitle').textContent=isAdmin?'Login Admin':'Login Kasir';setLoginNotice(isAdmin?'Masukkan username admin dan PIN 4 angka.':'Masukkan username kasir untuk masuk.','info');if(isAdmin)$('pin')?.focus();else $('username')?.focus()}
 function setLoginNotice(message,type='info'){
  const hint=$('loginHint');if(!hint)return;
@@ -77,10 +78,10 @@ function withLoginTimeout(promise,ms,stage){
  return Promise.race([Promise.resolve(promise),timeout]).finally(()=>clearTimeout(timer));
 }
 async function login(){
-  if(loginBusy)return;
+  if(window.__softwareLoginBusy)return;
   // Samakan alur autentikasi dengan web: sesi Supabase -> RPC akun -> RPC profil.
   if(window.__softwareLoginMode==='admin'||window.__softwareLoginMode==='kasir')loginMode=window.__softwareLoginMode;
-  loginBusy=true;
+  window.__softwareLoginBusy=true;
   const submit=$('loginSubmitBtn')||$('loginSubmit');
   const oldText=submit?.innerHTML;
   if(submit){submit.disabled=true;submit.setAttribute('aria-busy','true');submit.innerHTML='Memproses login... <span>⏳</span>';}
@@ -132,7 +133,7 @@ async function login(){
     setLoginNotice(friendly,'error');
     toast('⚠ Login gagal: '+friendly);
   }finally{
-    loginBusy=false;
+    window.__softwareLoginBusy=false;
     if(submit){submit.disabled=false;submit.removeAttribute('aria-busy');submit.innerHTML=oldText||'Masuk ke Dashboard <span>→</span>';}
   }
 }
