@@ -194,7 +194,7 @@ function createWindow() {
 
   // Windows-only report printing. Uses the same native Electron print bridge as the working sales report.
   mainWindow.webContents.on('did-finish-load', () => {
-    mainWindow.webContents.executeJavaScript(\`
+    mainWindow.webContents.executeJavaScript(`
       (function () {
         if (window.__windowsReportPrintPickerInstalled) return;
         window.__windowsReportPrintPickerInstalled = true;
@@ -321,7 +321,7 @@ function createWindow() {
           document.body.appendChild(overlay);
         };
       })();
-    \`).catch(error => console.error('[windows-report-print] failed to install:', error));
+    `).catch(error => console.error('[windows-report-print] failed to install:', error));
   });
 
   mainWindow.loadURL(REMOTE_APP_URL).catch(error => {
