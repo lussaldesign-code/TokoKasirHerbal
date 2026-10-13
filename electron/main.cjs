@@ -1,116 +1,43 @@
 const { app, BrowserWindow, Menu, shell, dialog, ipcMain } = require('electron');
 const path = require('path');
-const fs = require('fs');
-const { execFileSync } = require('child_process');
+const { autoUpdater } = require('electron-updater');
 
 let mainWindow;
 
-function readSoftwareSupabaseConfig() {
-  const configPath = path.join(__dirname, '..', 'config.js');
-  const source = fs.readFileSync(configPath, 'utf8');
-  const urlMatch = source.match(/url\s*:\s*['"]([^'"]+)['"]/);
-  const keyMatch = source.match(/key\s*:\s*['"]([^'"]+)['"]/);
-  if (!urlMatch || !keyMatch) throw new Error('Konfigurasi Supabase software tidak ditemukan.');
-  return { url: urlMatch[1].replace(/\/$/, ''), key: keyMatch[1] };
-}
-async function supabaseSoftwareRequest(baseUrl, apiKey, pathname, token, body) {
-  const response = await fetch(baseUrl + pathname, {
-    method: 'POST',
-    headers: { apikey: apiKey, Authorization: 'Bearer ' + (token || apiKey), 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify(body || {})
-  });
-  const raw = await response.text();
-  let data = null;
-  try { data = raw ? JSON.parse(raw) : null; } catch (_) {}
-  if (!response.ok) throw new Error(String(data?.message || data?.error_description || data?.error || raw || ('HTTP ' + response.status)));
-  return data;
-}
-ipcMain.handle('software-login', async (_event, payload) => {
-  const mode = payload?.mode === 'admin' ? 'admin' : 'kasir';
-  const username = String(payload?.username || '').trim().toLowerCase();
-  const pin = String(payload?.pin || '').trim();
-  if (!username) throw new Error('Masukkan username terlebih dahulu.');
-  if (mode === 'admin' && !/^\d{4}$/.test(pin)) throw new Error('PIN admin harus tepat 4 angka.');
-  const { url, key } = readSoftwareSupabaseConfig();
-  const auth = await supabaseSoftwareRequest(url, key, '/auth/v1/signup', '', { data: {} });
-  if (!auth?.access_token || !auth?.user?.id) throw new Error('Supabase tidak mengembalikan sesi login. Pastikan Anonymous Sign-Ins aktif.');
-  const rpcName = mode === 'admin' ? 'kiosk_login_pin' : 'kiosk_login_cashier';
-  const rpcBody = mode === 'admin' ? { p_username: username, p_pin: pin } : { p_username: username };
-  const result = await supabaseSoftwareRequest(url, key, '/rest/v1/rpc/' + rpcName, auth.access_token, rpcBody);
-  const account = Array.isArray(result) ? result[0] : result;
-  if (!account) throw new Error('Akun tidak ditemukan atau tidak aktif.');
-  if (mode === 'admin' && account.role !== 'admin') throw new Error('Akun ini bukan akun admin.');
-  if (mode === 'kasir' && account.role === 'admin') throw new Error('Gunakan tombol Login Admin.');
-  const profileResult = await supabaseSoftwareRequest(url, key, '/rest/v1/rpc/kiosk_profile', auth.access_token, { p_username: account.username });
-  const profile = Array.isArray(profileResult) ? profileResult[0] : profileResult;
-  if (!profile) throw new Error('Profil akun belum tersedia.');
-  if (!profile.aktif) throw new Error('Akun tidak aktif.');
-  profile.auth_user_id = auth.user.id;
-  return { ok:true, session:{access_token:auth.access_token,refresh_token:auth.refresh_token||'',user:auth.user}, account, profile };
-});
+function setupAutoUpdater() {
+  if (!app.isPackaged || process.platform !== 'win32') return;
 
+  autoUpdater.autoDownload = true;
+  // Instalasi update hanya dilakukan melalui alur yang kita kontrol agar tidak terjadi dua proses installer bersamaan.
+  autoUpdater.autoInstallOnAppQuit = false;
+  autoUpdater.allowDowngrade = false;
 
-ipcMain.handle('open-downloaded-update', async (_event, filePath) => {
-  if (typeof filePath !== 'string' || !filePath) throw new Error('File update tidak tersedia.');
-  const error = await shell.openPath(filePath);
-  if (error) throw new Error(error);
-  return {ok:true};
-});
+  autoUpdater.on('checking-for-update', () => console.log('[updater] checking for update'));
+  autoUpdater.on('update-available', info => console.log('[updater] update available:', info.version));
+  autoUpdater.on('download-progress', progress => console.log('[updater] download:', Math.round(progress.percent) + '%'));
 
-ipcMain.handle('download-update', async (event, url) => {
-  if (typeof url !== 'string' || !/^https:\/\//i.test(url)) throw new Error('URL update tidak valid.');
-  const senderWindow = BrowserWindow.fromWebContents(event.sender);
-  if (!senderWindow) throw new Error('Jendela aplikasi tidak tersedia.');
-  return await new Promise((resolve, reject) => {
-    let settled = false;
-    const fail = (err) => { if (!settled) { settled = true; reject(err instanceof Error ? err : new Error(String(err))); } };
-    senderWindow.webContents.session.once('will-download', (_event, item) => {
-      const downloadsPath = app.getPath('downloads');
-      const safeName = String(item.getFilename() || 'TokoKasirLussal-update.exe').replace(/[\\/:*?"<>|]/g, '_');
-      const target = path.join(downloadsPath, safeName);
-      item.setSavePath(target);
-      item.on('updated', (_event, state) => {
-        if (state === 'interrupted') return fail(new Error('Download terputus.'));
-        const total = item.getTotalBytes();
-        const received = item.getReceivedBytes();
-        const percent = total > 0 ? (received / total) * 100 : 0;
-        event.sender.send('update-download-progress', { percent, received, total, filename: safeName });
-      });
-      item.once('done', (_event, state) => {
-        if (state !== 'completed') return fail(new Error('Download gagal: '+state));
-        settled = true;
-        resolve({ok:true,path:target,filename:safeName});
-      });
-    });
-    try { senderWindow.webContents.downloadURL(url); }
-    catch (e) { fail(e); }
-  });
-});
-
-ipcMain.on('get-receipt-printer-name', (event) => {
-  try {
-    const script = "@(Get-CimInstance Win32_Printer | Select-Object Name,Default) | ConvertTo-Json -Compress";
-    const raw = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
-      encoding: 'utf8',
-      windowsHide: true,
-      timeout: 4000
-    }).trim();
-    if (!raw) {
-      event.returnValue = '';
+  autoUpdater.on('update-downloaded', async info => {
+    console.log('[updater] update downloaded:', info.version);
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      autoUpdater.quitAndInstall(false, true);
       return;
     }
+    const result = await dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: 'Update TokoKasirHerbal',
+      message: 'Update versi ' + info.version + ' sudah siap dipasang.',
+      detail: 'Aplikasi akan ditutup dan dibuka kembali untuk menyelesaikan update.',
+      buttons: ['Update Sekarang', 'Nanti']
+    });
+    if (result.response === 0) {
+      // Jalankan installer setelah proses Electron benar-benar ditutup.
+      autoUpdater.quitAndInstall(true, true);
+    }
+  });
 
-    const parsed = JSON.parse(raw);
-    const printers = Array.isArray(parsed) ? parsed : [parsed];
-    const panda = printers.find(p => /panda/i.test(String(p?.Name || '')));
-    const defaultPrinter = printers.find(p => p?.Default === true || String(p?.Default).toLowerCase() === 'true');
-    const selected = panda || defaultPrinter || printers[0];
-    event.returnValue = String(selected?.Name || '');
-  } catch (error) {
-    console.error('[printer] failed to detect Windows printer:', error);
-    event.returnValue = '';
-  }
-});
+  autoUpdater.on('error', error => console.error('[updater] error:', error));
+  setTimeout(() => autoUpdater.checkForUpdates().catch(error => console.error('[updater] check failed:', error)), 5000);
+}
 
 ipcMain.handle('list-printers', async () => {
   if (!mainWindow || mainWindow.isDestroyed()) return [];
@@ -192,7 +119,7 @@ function createWindow() {
     height: 900,
     minWidth: 1024,
     minHeight: 700,
-    title: 'TokoKasirLussal',
+    title: 'TokoKasirHerbal',
     backgroundColor: '#f6f8f7',
     autoHideMenuBar: true,
     webPreferences: {
@@ -204,15 +131,9 @@ function createWindow() {
   });
 
   const REMOTE_APP_URL = 'https://lussaldesign-code.github.io/TokoKasirHerbal/';
-  // Prefer the bundled app so the Windows POS keeps working even when GitHub Pages is unavailable.
-  mainWindow.loadFile(path.join(__dirname, 'software-index.html')).catch(error => {
-    console.error('[web-shell] local load failed:', error);
-    mainWindow.loadURL(REMOTE_APP_URL).catch(remoteError => console.error('[web-shell] remote load failed:', remoteError));
-  });
-
-  // Windows uses isolated renderer files under electron/. Web/APK are not loaded.
-  mainWindow.webContents.on('did-finish-load', () => {
-    console.log('[software-shell] isolated renderer loaded');
+  mainWindow.loadURL(REMOTE_APP_URL).catch(error => {
+    console.error('[web-shell] remote load failed:', error);
+    mainWindow.loadFile(path.join(__dirname, '..', 'index.html'));
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -228,7 +149,7 @@ function createWindow() {
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null);
   createWindow();
-  // Windows tidak melakukan update otomatis. Update hanya diunduh saat pengguna memilihnya dari menu Cek Update.
+  setupAutoUpdater();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
