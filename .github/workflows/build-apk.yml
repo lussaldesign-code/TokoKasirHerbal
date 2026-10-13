@@ -16,6 +16,8 @@ on:
       - 'icon-512.svg'
       - 'apk-navigation.css'
       - 'apk-navigation.js'
+      - 'apk-report-ui.js'
+      - 'apk-report-ui.css'
       - 'apk-update.js'
       - 'apk-native-bridge.sh'
       - 'apk-version.txt'
@@ -72,7 +74,7 @@ jobs:
           for file in returns-web.js bell-notification-rule.js; do
             if [ -f "$file" ]; then cp "$file" mobile/www/; fi
           done
-          cp apk-navigation.css apk-navigation.js apk-update.js mobile/www/
+          cp apk-navigation.css apk-navigation.js apk-update.js apk-report-ui.js apk-report-ui.css mobile/www/
           python3 - <<PY
           from pathlib import Path
           import re
@@ -94,8 +96,8 @@ jobs:
           from pathlib import Path
           p=Path('mobile/www/index.html')
           s=p.read_text(encoding='utf-8')
-          s=s.replace('</head>', '<link rel="stylesheet" href="apk-navigation.css?v=$VERSION"></head>', 1)
-          s=s.replace('</body>', '<script src="apk-navigation.js?v=$VERSION"></script><script src="apk-update.js?v=$VERSION"></script></body>', 1)
+          s=s.replace('</head>', '<link rel="stylesheet" href="apk-navigation.css?v=$VERSION"><link rel="stylesheet" href="apk-report-ui.css?v=$VERSION"></head>', 1)
+          s=s.replace('</body>', '<script src="apk-navigation.js?v=$VERSION"></script><script src="apk-update.js?v=$VERSION"></script><script src="apk-report-ui.js?v=$VERSION"></script></body>', 1)
           p.write_text(s, encoding='utf-8')
           PY
           test -s mobile/www/index.html
@@ -104,6 +106,8 @@ jobs:
           test -s mobile/www/apk-navigation.css
           test -s mobile/www/apk-navigation.js
           test -s mobile/www/apk-update.js
+          test -s mobile/www/apk-report-ui.js
+          test -s mobile/www/apk-report-ui.css
 
       - name: Install npm packages
         run: npm install --legacy-peer-deps --no-audit --no-fund
