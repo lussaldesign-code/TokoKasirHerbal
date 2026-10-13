@@ -46,19 +46,9 @@ jobs:
           $version = node -p "require('./package.json').version"
           if ($version -ne '1.0.17') { throw "Rollback workflow ini hanya boleh menerbitkan versi 1.0.17; versi saat ini $version." }
 
-          # Hapus rilis Windows versi lebih baru sesuai permintaan.
-          $releaseTags = gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=100" --paginate --jq '.[].tag_name'
-          foreach ($releaseTag in $releaseTags) {
-            if ($releaseTag -match '^v?(\d+)\.(\d+)\.(\d+)$') {
-              $candidateVersion = [version]("$($matches[1]).$($matches[2]).$($matches[3])")
-              if ($candidateVersion -gt [version]'1.0.17') {
-                Write-Host "Menghapus rilis Windows yang lebih baru: $releaseTag"
-                gh release delete $releaseTag --yes --cleanup-tag
-                if ($LASTEXITCODE -ne 0) { throw "Gagal menghapus rilis $releaseTag." }
-                $global:LASTEXITCODE = 0
-              }
-            }
-          }
+          # Guard against publishing an accidental rollback. Build the version declared in package.json.
+          if ([version]$version -lt [version]'1.0.19') { throw "Versi Windows $version lebih lama dari baseline 1.0.19; hentikan agar tidak menerbitkan rollback." }
+
           $tag = "v$version"
 
           # Check without allowing a missing release to fail the workflow.
