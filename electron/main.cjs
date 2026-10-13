@@ -139,7 +139,7 @@ function createWindow() {
     { urls: ['https://lussaldesign-code.github.io/TokoKasirHerbal/app.js*'] },
     (details, callback) => {
       const freshUrl = details.url.replace(
-        /app\\.js(?:\\?[^#]*)?$/,
+        /app\.js(?:\?[^#]*)?$/,
         'app.js?v=20261013-windows-web-sync'
       );
       callback({ redirectURL: freshUrl });
