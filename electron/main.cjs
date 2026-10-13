@@ -135,6 +135,63 @@ function createWindow() {
   // Jangan memaksa app.js versi berbeda dari halaman yang dimuat; ini mencegah
   // ketidakcocokan HTML/CSS/JavaScript pada jendela Windows.
   const REMOTE_APP_URL = 'https://lussaldesign-code.github.io/TokoKasirHerbal/';
+  mainWindow.webContents.on('did-finish-load', () => {
+    // Override only inside the Windows Electron renderer; web/APK source remains unchanged.
+    mainWindow.webContents.executeJavaScript(`
+      (function () {
+        function isAgarillusProduct(p) {
+          return String(p && p.kategori || '').trim().toLocaleLowerCase('id-ID').includes('agarillus');
+        }
+        window.stockNoticeFor = function (p) {
+          var stock = Number(p && p.stok || 0);
+          if (isAgarillusProduct(p)) return stock < 10 ? (stock <= 0 ? 'out' : 'low') : 'ok';
+          return stock <= 0 ? 'out' : 'ok';
+        };
+        window.stockNoticeText = function (p) {
+          var stock = Number(p && p.stok || 0);
+          return stock <= 0 ? 'Produk ' + (p && p.nama || '') + ' habis' : 'Produk ' + (p && p.nama || '') + ' stok ' + stock;
+        };
+        window.renderNotifications = function () {
+          var list = document.getElementById('notificationList');
+          var badge = document.getElementById('notificationBadge');
+          var count = document.getElementById('notificationCount');
+          if (!list || !Array.isArray(window.products)) return;
+          var alerts = window.products.filter(function (p) {
+            var stock = Number(p && p.stok || 0);
+            return isAgarillusProduct(p) ? stock < 10 : stock <= 0;
+          }).sort(function (a, b) { return Number(a.stok || 0) - Number(b.stok || 0); });
+          if (badge) {
+            badge.textContent = alerts.length > 99 ? '99+' : String(alerts.length);
+            badge.classList.toggle('show', alerts.length > 0);
+          }
+          if (count) count.textContent = String(alerts.length);
+          list.innerHTML = alerts.map(function (p) {
+            var out = Number(p.stok || 0) <= 0;
+            var message = window.stockNoticeText(p);
+            var safe = typeof window.esc === 'function' ? window.esc(message) : message.replace(/[&<>"]/g, function (c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; });
+            return '<div class="notify-item ' + (out ? 'danger' : 'warn') + '"><span>' + (out ? '🔴' : '🟠') + '</span><b>' + safe + '</b></div>';
+          }).join('') || '<div class="notify-empty">Stok aman</div>';
+          var next = {};
+          window.products.forEach(function (p) { next[p.id] = window.stockNoticeFor(p); });
+          var previous = window.stockNotificationState || {};
+          var changed = null;
+          for (var i = 0; i < window.products.length; i++) {
+            var p = window.products[i];
+            var before = previous[p.id] || 'ok';
+            var now = next[p.id];
+            if ((now === 'out' || now === 'low') && before === 'ok') { changed = p; break; }
+          }
+          window.stockNotificationState = next;
+          try { localStorage.setItem('tokokasir_stock_notice_state', JSON.stringify(next)); } catch (_) {}
+          if (changed && typeof window.showStockToast === 'function') {
+            window.showStockToast(window.stockNoticeText(changed), Number(changed.stok || 0) <= 0 ? 'danger' : 'warn');
+          }
+        };
+        if (typeof window.renderNotifications === 'function') window.renderNotifications();
+      })();
+    `).catch(error => console.error('[windows-notifications] failed to apply category rules:', error));
+  });
+
   mainWindow.loadURL(REMOTE_APP_URL).catch(error => {
     console.error('[web-shell] remote load failed:', error);
     mainWindow.loadFile(path.join(__dirname, '..', 'index.html'));
