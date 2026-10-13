@@ -155,8 +155,8 @@ function createWindow() {
           var list = document.getElementById('notificationList');
           var badge = document.getElementById('notificationBadge');
           var count = document.getElementById('notificationCount');
-          if (!list || !Array.isArray(window.products)) return;
-          var alerts = window.products.filter(function (p) {
+          if (!list || typeof products === 'undefined' || !Array.isArray(products)) return;
+          var alerts = products.filter(function (p) {
             var stock = Number(p && p.stok || 0);
             return isAgarillusProduct(p) ? stock < 10 : stock <= 0;
           }).sort(function (a, b) { return Number(a.stok || 0) - Number(b.stok || 0); });
@@ -172,16 +172,16 @@ function createWindow() {
             return '<div class="notify-item ' + (out ? 'danger' : 'warn') + '"><span>' + (out ? '🔴' : '🟠') + '</span><b>' + safe + '</b></div>';
           }).join('') || '<div class="notify-empty">Stok aman</div>';
           var next = {};
-          window.products.forEach(function (p) { next[p.id] = window.stockNoticeFor(p); });
-          var previous = window.stockNotificationState || {};
+          products.forEach(function (p) { next[p.id] = window.stockNoticeFor(p); });
+          var previous = typeof stockNotificationState !== 'undefined' ? stockNotificationState : {};
           var changed = null;
-          for (var i = 0; i < window.products.length; i++) {
-            var p = window.products[i];
+          for (var i = 0; i < products.length; i++) {
+            var p = products[i];
             var before = previous[p.id] || 'ok';
             var now = next[p.id];
             if ((now === 'out' || now === 'low') && before === 'ok') { changed = p; break; }
           }
-          window.stockNotificationState = next;
+          stockNotificationState = next;
           try { localStorage.setItem('tokokasir_stock_notice_state', JSON.stringify(next)); } catch (_) {}
           if (changed && typeof window.showStockToast === 'function') {
             window.showStockToast(window.stockNoticeText(changed), Number(changed.stok || 0) <= 0 ? 'danger' : 'warn');
